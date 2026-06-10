@@ -1,0 +1,982 @@
+import QtQuick
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Widgets
+import QtQuick.Controls
+import Quickshell.Io
+import "root:/"
+import Quickshell.Wayland
+import Quickshell.Services.Mpris
+import Quickshell.Services.UPower
+import Quickshell.Services.Pipewire
+
+Rectangle{
+    // Properties
+    id: root
+    property string icon: "archlinux"
+    property string label: "I use Arch btw"
+    // Functions
+    function togglePanel(){
+        dashboard.visible = !dashboard.visible;
+    }
+    // Processes
+    Process {
+        id: runSettings
+        command: ["hyprmod"]
+    }
+    Process {
+        id: toggleMute
+        command: ["sh","-c", "swayosd-client --output-volume mute-toggle"]
+    }
+
+    Process {
+        id: mediaGoPrevious
+        command: ["sh", "-c", "swayosd-client --playerctl previous"]
+    }
+    Process {
+        id: mediaGoForward
+        command: ["sh", "-c", "swayosd-client --playerctl next"]
+    }
+    Process {
+        id: mediaPlayPause
+        command: ["sh", "-c", "swayosd-client --playerctl play-pause"]
+    }
+    Process {
+        id: setPowerSave
+        command: ["sh", "-c", "powerprofilesctl set power-saver"]
+    }
+    Process {
+        id: setPowerBalanced
+        command: ["sh", "-c", "powerprofilesctl set balanced"]
+    }
+    Process {
+        id: setPowerPerformance
+        command: ["sh", "-c", "powerprofilesctl set performance"]
+    }
+    Process {
+        id: netStats
+        command: ["sh", "-c",
+                  "cat /sys/class/net/wlan0/statistics/rx_bytes; " +
+                  "cat /sys/class/net/wlan0/statistics/tx_bytes"]
+        stdout: StdioCollector {
+            onStreamFinished: networkContainer.set(this.text.trim().split("\n"));
+          }
+    }
+    Process {
+        id: procLogout
+        command: ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"]
+    }
+    Process {
+        id: procSleep
+        command: ["sh", "-c", "systemctl suspend"]
+    }
+
+    Process {
+        id: procReboot
+        command: ["sh", "-c", "systemctl reboot"]
+    }
+    Process {
+        id: procShutdown
+        command: ["sh", "-c", "systemctl poweroff"]
+    }
+    Process {
+        id: execKitty
+        command: ["kitty"]
+    }
+
+    // Transitions
+    width: container.width + 32
+    Behavior on width {
+        NumberAnimation { 
+            duration: Theme.animationDuration
+            easing.type: Easing.OutExpo 
+        }
+    }
+    Behavior on color {
+        ColorAnimation {
+        duration: Theme.animationDuration
+        }
+    }
+    // Styling
+    color: {
+        if (mouseArea.containsMouse)
+            return Theme.hoveredBgColor
+        return Theme.bgColor
+    }
+    border.color: Theme.accent
+    border.width: Theme.generalThickness
+    radius: Theme.cornerRadius
+    implicitHeight: Theme.barHeight
+    // Controls animation on color change + Click
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton
+        onClicked: root.togglePanel()
+    }
+    // Icon / Label Text
+    Row {
+        id: container
+        anchors.centerIn: parent
+        spacing: 5
+        IconImage {
+            anchors.verticalCenter: parent.verticalCenter
+            implicitSize: Theme.iconFontSize
+            source: Quickshell.iconPath(icon)
+        }
+        Text {
+            visible: mouseArea.containsMouse
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.label
+            font.pointSize: Theme.labelFontSize 
+            font.family: Theme.labelFontFamily 
+            color: Theme.fgColor
+            opacity: visible ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+        }
+    }
+    // Popup Part    
+    PanelWindow {
+        id: dashboard
+        visible: false
+        focusable: true
+        color: "transparent"
+        implicitWidth: Theme.dashboardWidth + Theme.barHorizontalPad
+        implicitHeight: mainColumn.height
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+        //exclusionMode: ExclusionMode.Ignore
+        anchors {
+            top: true
+            bottom: false
+            left: true
+            right: false
+        }
+        // The mouse out of bound
+        // Rectangle {
+        //     color: "Transparent"
+        //     anchors.fill: parent
+        //     TapHandler {
+        //         onTapped: dashboard.visible = false
+        //     }
+        // }
+        // The Esc => close
+        FocusScope {
+            focus: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) {
+                    dashboard.visible = false
+                    event.accepted = true
+                }
+            }
+        }
+        // Actual Dashboard
+        Item {
+            z: 1
+            height: Theme.dashboardHeight
+            width: Theme.dashboardWidth
+            x: Theme.barHorizontalPad
+            //y: bar.height + Theme.dropdownOffset
+
+            ColumnLayout{
+                id: mainColumn
+                visible: dashboard.visible
+                spacing: visible ? 5 : 30
+                Behavior on spacing {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.OutExpo
+                    }
+                }
+
+                // Dashboard Title
+                Rectangle {
+                    Layout.preferredHeight: 50
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    Layout.alignment: Qt.AlignCenter
+                    color: Theme.bgColor
+                    border.color: Theme.mutedAccent
+                    border.width: Theme.generalThickness
+                    radius: Theme.cornerLargeRadius
+
+                    Item {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.cornerRadius
+                        anchors.rightMargin: Theme.cornerRadius
+                        IconImage {
+                            anchors.verticalCenter: parent.verticalCenter
+                            implicitSize: Theme.iconFontSize
+                            source: Quickshell.iconPath("deadbeef-panel")
+                        }
+                        Text {
+                            text: `<b>Dashboard</b>`
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Theme.cornerLargeRadius
+                            font.pointSize: Theme.labelFontSize * 1.4
+                            font.family: Theme.labelFontFamily
+                            color: Theme.fgColor
+                        }
+                        ClickButton{
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.right: parent.right
+                            symbol: "systemsettings-alt"
+                            size: 36
+                            onPress: () => {
+                                console.log("Executing Settings")
+                                runSettings.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                    }
+                }
+                // Quick Controls
+                Rectangle {
+                    Layout.preferredHeight: 225
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    Layout.alignment: Qt.AlignCenter
+                    color: Theme.bgColor
+                    border.color: Theme.mutedAccent
+                    border.width: Theme.generalThickness
+                    radius: Theme.cornerLargeRadius
+
+                    GridLayout {
+                        anchors.fill: parent
+                        columns: 3
+                        rows: 2
+                        uniformCellWidths: true
+                        uniformCellHeights: true
+                        // Add implementation later
+                        ToggleButton {
+                            symbol: "network-wireless-80-symbolic"
+                            isChecked: false
+                            label: "WiFi"
+                        }
+                        ToggleButton {
+                            symbol: "bluetooth"
+                            isChecked: false
+                            label: "Bluetooth"
+                        }
+
+                        ToggleButton {
+                            symbol: "airplane-mode"
+                            isChecked: false
+                            label: "Airplane Mode"
+                        }
+
+                        ToggleButton {
+                            symbol: "notification-inactive"
+                            isChecked: false
+                            label: "Do Not Disturb"
+                        }
+
+                        ToggleButton {
+                            symbol: "org.kde.gwenview"
+                            isChecked: false
+                            label: "Idle Inhibit"
+                        }
+
+                        ToggleButton {
+                            symbol: "battery-profile-powersave"
+                            isChecked: false
+                            label: "Power Saver"
+                        }
+                    }
+                }
+                // Volume 
+                Rectangle {
+                    Layout.preferredHeight: 125
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    Layout.alignment: Qt.AlignCenter
+                    color: Theme.bgColor
+                    border.color: Theme.mutedAccent
+                    border.width: Theme.generalThickness
+                    radius: Theme.cornerLargeRadius
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.topMargin: Theme.cornerRadius
+                        anchors.bottomMargin: Theme.cornerRadius
+                        anchors.leftMargin: Theme.cornerLargeRadius
+                        anchors.rightMargin: Theme.cornerLargeRadius
+                        spacing: 8
+                        Row {
+                            spacing: 8
+                            IconImage {
+                                implicitSize: Theme.iconFontSize
+                                source: Quickshell.iconPath("audio-speakers")
+                            }
+                            Text {
+                                text: "VOLUME"
+                                color: Theme.mutedFgColor
+                                font.pointSize: Theme.labelFontSize * 1.2
+                                font.family: Theme.labelFontFamily
+                                
+                            }
+                        }
+                        RowLayout {
+                            spacing: 8
+                            ClickButton {
+                                symbol: getIcon()
+                                size: 36
+                                bgColor: "transparent"
+                                onPress: () => {
+                                    console.log("Executing Mute-Unmute")
+                                    toggleMute.startDetached();
+
+                                }
+
+                                function getIcon() {
+                                    // 0 -> 1 => Volume: 0 -> 100
+                                    if (Pipewire.defaultAudioSink.audio.muted) return "audio-volume-muted"
+                                    const volume = Math.round(Pipewire.defaultAudioSink.audio.volume * 100)
+                                    if (volume >= 66) return "audio-volume-high"
+                                    if (volume >= 33) return "audio-volume-medium"
+                                    if (volume >= 1) return "audio-volume-low"
+                                    if (volume === 0) return "audio-volume-muted"
+                                }
+                            }
+                            PwObjectTracker {
+                                objects: [Pipewire.defaultAudioSink]
+                            }
+                            Slider {
+                                id: volumeSlider
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.fillWidth: true
+                                from: 0
+                                to: 1 // its from 0 -> 1
+                                value: visible ? Pipewire.defaultAudioSink.audio.volume : 0
+                                Behavior on value {
+                                    NumberAnimation {
+                                        duration: Theme.animationDuration
+                                        easing.type: Easing.OutExpo
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    x: volumeSlider.leftPadding
+                                    y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                                    implicitHeight: 6
+                                    width: volumeSlider.availableWidth
+                                    height: implicitHeight
+                                    radius: 3
+                                    color: Theme.mutedBgColor // Inactive track color
+
+                                    // Active track color
+                                    Rectangle {
+                                        width: volumeSlider.visualPosition * parent.width
+                                        height: parent.height
+                                        color: Theme.accent // Active track color
+                                        radius: 3
+                                    }
+                                }
+                                handle: Rectangle {
+                                    x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
+                                    y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                                    implicitWidth: 12
+                                    implicitHeight: 12
+                                    radius: 12
+                                    scale: volumeSlider.pressed ? 1.5 : 1.0
+                                    Behavior on scale {
+                                        NumberAnimation {
+                                            duration: Theme.animationDuration
+                                            easing.type: Easing.OutExpo
+                                        }
+                                    }
+                                    color: Theme.accent
+                                }
+                                onMoved : {
+                                    Pipewire.defaultAudioSink.audio.volume = volumeSlider.value
+                                }
+                            }
+                            Text {
+                                text: Math.round(volumeSlider.value * 100) + "%"
+                                color: Theme.mutedFgColor
+                                font.pointSize: Theme.labelFontSize
+                                font.family: Theme.labelFontFamily
+                                
+                            }
+                        }
+                        LabelButton {
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                            label: Pipewire.defaultAudioSink.description // <- The proper name
+                            onPress: {
+                                // TODO: yes
+                            }
+                        }
+                    }
+
+                }
+                // Media
+                Rectangle {
+                    id: mediaContainer
+                    Layout.preferredHeight: 175
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    Layout.alignment: Qt.AlignCenter
+                    color: Theme.bgColor
+                    border.color: Theme.mutedAccent
+                    border.width: Theme.generalThickness
+                    radius: Theme.cornerLargeRadius
+                    onPlayerChanged: mediaContainer.player.positionChanged();
+                    onVisibleChanged: mediaContainer.player.positionChanged();
+                    readonly property var player: MprisController.activePlayer
+                    Timer {
+                        running: mediaContainer.player && mediaContainer.player.playbackState === MprisPlaybackState.Playing && parent.visible
+                        interval: Theme.mediaPlayerUpdateDuration
+                        repeat: true
+
+                        onTriggered: {
+                            mediaContainer.player.positionChanged();
+                        }
+                    }
+                    Connections {
+                        target: mediaContainer.player
+                        
+                        function onPostTrackChanged() {
+                            mediaContainer.player.positionChanged();
+                        }
+                    }
+                    visible: player
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.topMargin: Theme.cornerRadius
+                        anchors.bottomMargin: Theme.cornerLargeRadius
+                        anchors.leftMargin: Theme.cornerLargeRadius
+                        anchors.rightMargin: Theme.cornerLargeRadius
+                        spacing: 8
+                        Row {
+                            spacing: 8
+                            IconImage {
+                                implicitSize: Theme.iconFontSize
+                                source: Quickshell.iconPath("com.github.neithern.g4music")
+                            }
+                            Text {
+                                //text: "NOW PLAYING"
+                                text: "NOW PLAYING"
+                                color: Theme.mutedFgColor
+                                font.pointSize: Theme.labelFontSize * 1.2
+                                font.family: Theme.labelFontFamily
+                                
+                            }
+                        }
+                        RowLayout {
+                            spacing: 14
+                            ClippingRectangle {
+                                
+                                height: Theme.thumbnailSize
+                                width: Theme.thumbnailSize
+                                radius: Theme.cornerRadius
+                                Image {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.centerIn: parent
+                                    source: mediaContainer.player.trackArtUrl
+                                    fillMode: Image.PreserveAspectCrop
+                                }
+                            }
+                            
+                            Column {
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+                                Text {
+                                    text: mediaContainer.player.trackTitle
+                                    color: Theme.fgColor
+                                    font.pointSize: Theme.labelFontSize 
+                                    font.family: Theme.labelFontFamily
+                                }
+                                Text {
+                                    text: mediaContainer.player.trackArtist
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+
+                            Row {
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: 8
+                                ClickButton {
+                                    symbol: "media-seek-backward"
+                                    size: 36
+                                    onPress: () => {
+                                        console.log("Executing Previous Media")
+                                        mediaGoPrevious.startDetached();
+                                    }
+                                }
+                                ToggleButton {
+                                    size: 36
+                                    symbol: isChecked ? "media-playback-pause" : "media-playback-start"
+                                    isChecked: mediaContainer.player.isPlaying
+                                    label: ""
+                                    onPress: () => {
+                                        console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying)
+                                        mediaPlayPause.startDetached();
+                                    }
+                                }
+                                ClickButton {
+                                    symbol: "media-seek-forward"
+                                    size: 36
+                                    onPress: () => {
+                                        console.log("Executing Next Media")
+                                        mediaGoForward.startDetached();
+                                    }
+                                }
+                            }
+                        }
+                        // Slider and Duration
+                        ColumnLayout {
+                            Layout.alignment: Qt.AlignTop
+                            spacing: 6
+                            Slider {
+                                id: playerSlider
+                                property real releaseValue: 0
+                                
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.fillWidth: true
+                                from: 0
+                                to: mediaContainer.player.length
+                                
+                                value: playerSlider.pressed ? playerSlider.value : mediaContainer.player.position
+                                Behavior on value {
+                                    NumberAnimation {
+                                        duration: Theme.mediaPlayerUpdateDuration
+                                        easing.type: Easing.OutExpo
+                                    }
+                                }
+                                background: Rectangle {
+                                    x: playerSlider.leftPadding
+                                    y: playerSlider.topPadding + playerSlider.availableHeight / 2 - height / 2
+                                    implicitHeight: 6
+                                    width: playerSlider.availableWidth
+                                    height: implicitHeight
+                                    radius: 3
+                                    color: Theme.mutedBgColor // Inactive track color
+
+                                    // Active track color
+                                    Rectangle {
+                                        width: playerSlider.visualPosition * parent.width
+                                        height: parent.height
+                                        color: Theme.accent // Active track color
+                                        radius: 3
+                                    }
+                                }
+                                handle: Rectangle {
+                                    x: playerSlider.leftPadding + playerSlider.visualPosition * (playerSlider.availableWidth - width)
+                                    y: playerSlider.topPadding + playerSlider.availableHeight / 2 - height / 2
+                                    implicitWidth: 12
+                                    implicitHeight: 12
+                                    radius: 12
+                                    // scale: playerSlider.pressed ? 1.5 : 1.0
+                                    // Behavior on scale {
+                                    //     NumberAnimation {
+                                    //         duration: Theme.animationDuration
+                                    //         easing.type: Easing.OutExpo
+                                    //     }
+                                    // }
+                                    color: "transparent"
+                                }
+                                onMoved: {
+                                    seekDebounce.restart()
+                                    playerSlider.releaseValue = playerSlider.value;
+                                }
+                                Timer {
+                                    id: seekDebounce
+                                    interval: 100
+                                    repeat: false
+                                    
+                                    onTriggered: {
+                                        console.log("Changed to: " + playerSlider.releaseValue)
+                                        mediaContainer.player.position = playerSlider.releaseValue
+                                    }
+                                }
+                            }
+                            // Bottom Timer
+                            Item {
+                                id: textPositionContainer
+                                function formatTime(seconds) {
+                                    let mins = Math.floor(seconds / 60);
+                                    let secs = Math.floor(seconds % 60);
+
+                                    return mins.toString().padStart(1, "0") + ":" +
+                                        secs.toString().padStart(2, "0");
+                                }
+                                Layout.fillWidth: true
+                                Text {
+                                    anchors.left: parent.left
+                                    text: parent.formatTime(mediaContainer.player.position)
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize * 0.9
+                                    font.family: Theme.labelFontFamily
+                                }
+                                Text {
+                                    anchors.right: parent.right
+                                    text: parent.formatTime(mediaContainer.player.length)
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize * 0.9
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+                        }
+                    }
+
+                }
+                // Battery & Network
+                RowLayout {
+                    Layout.preferredHeight: 120
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    spacing: 8
+                    // Battery
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.alignment: Qt.AlignCenter
+                        color: Theme.bgColor
+                        border.color: Theme.mutedAccent
+                        border.width: Theme.generalThickness
+                        radius: Theme.cornerLargeRadius
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.topMargin: Theme.cornerRadius
+                            anchors.bottomMargin: Theme.cornerRadius
+                            anchors.leftMargin: Theme.cornerRadius * 1.5
+                            anchors.rightMargin: Theme.cornerRadius * 1.5
+                            // Battery Icon & Percentage
+                            Row {
+                                spacing: 5
+                                Layout.alignment: Qt.AlignVCenter
+                                IconImage {
+                                    implicitSize: Theme.iconFontSize
+                                    source: Quickshell.iconPath("preferences-power-and-battery")
+                                }
+                                Text {
+                                    text: "BATTERY"
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize * 1.2
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+                            RowLayout {
+                                spacing: 5
+                                Layout.alignment: Qt.AlignVCenter
+                                IconImage {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitSize: Theme.iconFontSize
+                                    source: Quickshell.iconPath(getIcon())
+
+                                    function getIcon() {
+                                        const percentage = Math.round(UPower.displayDevice.percentage * 100);
+                                        const p = Math.max(0, Math.min(100, percentage));
+
+                                        const step = Math.floor(p / 10) * 10;
+                                        const formatted = String(step).padStart(3, '0');
+
+                                        let icon = `battery-${formatted}`;
+
+                                        if (!UPower.onBattery) {
+                                            icon += "-charging";
+                                        }
+
+                                        return icon;
+                                    }
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: Math.round(UPower.displayDevice.percentage * 100) + "%"
+                                    color: Theme.fgColor
+                                    font.pointSize: Theme.labelFontSize
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+                            ProgressBar {
+                                id: powerLevel
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.fillWidth: true
+                                from: 0
+                                to: 1
+                                value: UPower.displayDevice.percentage
+
+                                background: Item { }
+                                contentItem: Rectangle {
+                                    implicitHeight: 6
+                                    radius: 3
+                                    color: Theme.mutedBgColor
+                                    Rectangle {
+                                        width: powerLevel.visualPosition * parent.width
+                                        height: parent.height
+                                        radius: 3
+                                        color: Theme.battery
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                color: powerModeMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
+                                height: powerModeRow.height
+                                radius: Theme.cornerRadius
+                                Layout.fillWidth: true
+                                ToolTip.visible: false
+                                ToolTip.text: "Scroll to change power modes!"
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.animationDuration
+                                    }
+                                }
+                                MouseArea {
+                                    id: powerModeMouseArea
+                                    hoverEnabled: true
+                                    anchors.fill: parent
+                                    onWheel: (wheel) => {
+                                        const mode = PowerProfile.toString(PowerProfiles.profile);
+                                        if (wheel.angleDelta.y > 0) {
+                                            if (mode === "PowerSaver") setPowerBalanced.startDetached();
+                                            if (mode === "Balanced") setPowerPerformance.startDetached();
+                                        }
+                                        else if (wheel.angleDelta.y < 0){
+                                            if (mode === "Balanced") setPowerSave.startDetached();
+                                            if (mode === "Performance") setPowerBalanced.startDetached();
+
+                                        }
+                                   }
+                                }
+
+                                RowLayout {
+                                    id: powerModeRow
+                                    spacing: 5
+                                    IconImage {
+                                        Layout.alignment: Qt.AlignVCenter
+                                        implicitSize: Theme.iconFontSize
+                                        source: Quickshell.iconPath(getIcon())
+
+                                        function getIcon() {
+                                            const mode = PowerProfile.toString(PowerProfiles.profile);
+                                            if (mode === "PowerSaver") return "battery-profile-powersave";
+                                            if (mode === "Balanced") return "battery-profile-balanced";
+                                            if (mode === "Performance") return "battery-profile-performance"
+                                        }
+                                    }
+                                    Text {
+                                        Layout.alignment: Qt.AlignVCenter
+                                        text: toCleanName()
+                                        color: Theme.fgColor
+                                        font.pointSize: Theme.labelFontSize
+                                        font.family: Theme.labelFontFamily
+                                        function toCleanName() {
+                                            const mode = PowerProfile.toString(PowerProfiles.profile);
+                                            if (mode === "PowerSaver") return "Power Saver";
+                                            else return mode;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Network
+                    Rectangle {
+                        id: networkContainer
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.alignment: Qt.AlignCenter
+                        color: Theme.bgColor
+                        border.color: Theme.mutedAccent
+                        border.width: Theme.generalThickness
+                        radius: Theme.cornerLargeRadius
+                        property double downSpeed: 0
+                        property double upSpeed: 0
+                        property int lastRx: 0
+                        property int lastTx: 0
+                        Timer {
+                            interval: Theme.networkUpdateInterval
+                            running: parent.visible
+                            repeat: true
+                            triggeredOnStart: true
+
+                            onTriggered: netStats.running = true
+                        }
+                        function set(lines) {
+                            const rx = Number(lines[0]);
+                            const tx = Number(lines[1]);
+
+                            if (networkContainer.lastRx !== 0) {
+                                networkContainer.downSpeed = (rx - networkContainer.lastRx) / 1024; // KB/s
+                                networkContainer.upSpeed = (tx - networkContainer.lastTx) / 1024;
+                            }
+
+                            networkContainer.lastRx = rx;
+                            networkContainer.lastTx = tx;
+                        }
+
+                        ColumnLayout {
+                            spacing: 8
+                            anchors.fill: parent
+                            anchors.topMargin: Theme.cornerRadius
+                            anchors.bottomMargin: Theme.cornerRadius
+                            anchors.leftMargin: Theme.cornerRadius * 1.5
+                            anchors.rightMargin: Theme.cornerRadius * 1.5
+                            Row {
+                                spacing: 5
+                                Layout.alignment: Qt.AlignVCenter
+                                IconImage {
+                                    implicitSize: Theme.iconFontSize
+                                    source: Quickshell.iconPath("network-wireless")
+                                }
+                                Text {
+                                    text: "NETWORK"
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize * 1.2
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+                            RowLayout {
+                                Layout.alignment: Qt.AlignHCenter
+                                // Upload
+                                Column {
+                                    Layout.alignment: Qt.AlignCenter
+                                    Layout.fillWidth: true
+                                    IconImage {
+                                        implicitSize: Theme.iconFontSize
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        source: Quickshell.iconPath("arrow-up")
+                                    }
+                                    Text {
+                                        text: networkContainer.upSpeed.toFixed(1)
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        color: Theme.fgColor
+                                        font.pointSize: Theme.labelFontSize
+                                        font.family: Theme.labelFontFamily
+                                    }
+                                    Text {
+                                        text: "KB/s"
+                                        color: Theme.mutedFgColor
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        font.pointSize: Theme.labelFontSize
+                                        horizontalAlignment: Text.AlignHCenter
+                                        font.family: Theme.labelFontFamily
+                                    }
+                                }
+                                // Download
+                                Column {
+                                    Layout.alignment: Qt.AlignCenter
+                                    Layout.fillWidth: true
+                                    IconImage {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        Layout.alignment: Qt.AlignCenter
+                                        implicitSize: Theme.iconFontSize
+                                        source: Quickshell.iconPath("arrow-down")
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: networkContainer.downSpeed.toFixed(1)
+                                        color: Theme.fgColor
+                                        font.pointSize: Theme.labelFontSize
+                                        font.family: Theme.labelFontFamily
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: "KB/s"
+                                        color: Theme.mutedFgColor
+                                        font.pointSize: Theme.labelFontSize
+                                        font.family: Theme.labelFontFamily
+                                    }
+                                }
+
+                            }
+
+
+                        }
+                    }
+                }
+                // Footer / Username and Shutdown options
+                Rectangle {
+                    Layout.preferredHeight: 60
+                    Layout.preferredWidth: Theme.dashboardWidth
+                    Layout.alignment: Qt.AlignCenter
+                    color: Theme.bgColor
+                    border.color: Theme.mutedAccent
+                    border.width: Theme.generalThickness
+                    radius: Theme.cornerLargeRadius
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.topMargin: Theme.cornerRadius
+                        anchors.bottomMargin: Theme.cornerRadius
+                        anchors.leftMargin: Theme.cornerRadius * 1.5
+                        anchors.rightMargin: Theme.cornerRadius * 1.5
+                        spacing: 4
+
+                        ClickButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            symbol: "config-users"
+                            size: 36
+                            cornerRadius: Theme.cornerRadius
+                            onPress: () => {
+                                execKitty.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                        Item { width: 4; height: 1}
+                        Text {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillWidth: true
+                            text: "ii1qe"
+                            color: Theme.fgColor
+                            font.pointSize: Theme.labelFontSize * 1.1
+                            font.family: Theme.labelFontFamily
+                        }
+                        // Logout
+                        ClickButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            symbol: "system-log-out"
+                            size: 36
+                            cornerRadius: Theme.cornerRadius
+                            onPress: () => {
+                                console.log("Executing hyprland logout")
+                                procLogout.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                        // Sleep
+                        ClickButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            symbol: "emblem-remove"
+                            size: 36
+                            cornerRadius: Theme.cornerRadius
+                            onPress: () => {
+                                console.log("Executing System Suspend")
+                                procSleep.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                        // Reboot
+                        ClickButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            symbol: "system-reboot"
+                            size: 36
+                            cornerRadius: Theme.cornerRadius
+                            onPress: () => {
+                                console.log("Executing Reboot")
+                                procReboot.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                        // Shutdown
+                        ClickButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            symbol: "system-shutdown"
+                            size: 36
+                            cornerRadius: Theme.cornerRadius
+                            onPress: () => {
+                                console.log("Executing poweroff")
+                                procShutdown.startDetached();
+                                root.togglePanel();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
