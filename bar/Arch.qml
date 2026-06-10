@@ -114,7 +114,17 @@ Rectangle{
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
+        onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
         onClicked: root.togglePanel()
+    }
+    Timer {
+        id: hoverDebounce
+        property bool isDelaying: false
+        interval: Theme.hoverDuration
+        repeat: false
+        running: !mouseArea.containsMouse && isDelaying
+
+        onTriggered: isDelaying = false;
     }
     // Icon / Label Text
     Row {
@@ -127,7 +137,7 @@ Rectangle{
             source: Quickshell.iconPath(icon)
         }
         Text {
-            visible: mouseArea.containsMouse
+            visible: hoverDebounce.isDelaying
             anchors.verticalCenter: parent.verticalCenter
             text: root.label
             font.pointSize: Theme.labelFontSize 

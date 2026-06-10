@@ -33,12 +33,13 @@ QtObject {
     property int animationDuration: 300
     property int mediaPlayerUpdateDuration: 1000
     property int networkUpdateInterval: 1000
+    property int hoverDuration: 3000
 
     // Arch Dashboard
     property real dashboardWidth: 500
     property real dashboardHeight: 750
     // Wifi Panel
     property real wifiPanelWidth: 400
-    property real wifiPanelHeight: 400 // Maximum height for the panel
+    property real wifiItemMaxCount: 4 // Maximum height for the panel
     property real wifiItemSize: 60 // Basically Height for the item
 }

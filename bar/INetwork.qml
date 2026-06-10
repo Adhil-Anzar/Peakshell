@@ -11,14 +11,14 @@ Singleton {
     }
 
     property NetworkDevice wifiDevice: {
-        console.log("============================");
-        console.log("Devices Plugged: " + Networking.devices.values.length)
+        //console.log("============================");
+        //console.log("Devices Plugged: " + Networking.devices.values.length)
         for ( let i = 0; i <= Networking.devices.values.length; ++i ) {
             //remove ts maybe
-            console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].connected} :: ${Networking.devices.values[i].autoconnect}`)
+            //console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].connected} :: ${Networking.devices.values[i].autoconnect}`)
             //if (!Networking.devices.values[i].connected) continue;
             if (Networking.devices.values[i] instanceof WifiDevice) {
-                console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].scannerEnabled}`);
+                //console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].scannerEnabled}`);
                 Networking.devices.values[i].scannerEnabled = true;
                 return Networking.devices.values[i];
             }

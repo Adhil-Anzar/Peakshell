@@ -34,7 +34,7 @@ Rectangle {
         spacing: 5
         Rectangle {
             height: Theme.barHeight - (Theme.generalThickness * 2)
-            width:  notificationMouseArea.containsMouse ? notificationContainer.width + 32 :  notificationContainer.width + 16
+            width:  notificationHoverDebounce.isDelaying ? notificationContainer.width + 32 :  notificationContainer.width + 16
             radius: Theme.cornerRadius
             color: notificationMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
             Behavior on color {
@@ -48,6 +48,7 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onEntered: { notificationHoverDebounce.isDelaying = true; notificationHoverDebounce.restart() }
                 onClicked: function(mouse) {
                     if (mouse.button === Qt.RightButton) {
                         Swaync.toggleDnd();
@@ -56,6 +57,15 @@ Rectangle {
                         Swaync.togglePanel();
                     }
                 }
+            }
+            Timer {
+                id: notificationHoverDebounce
+                property bool isDelaying: false
+                interval: Theme.hoverDuration
+                repeat: false
+                running: !notificationMouseArea.containsMouse && isDelaying
+
+                onTriggered: isDelaying = false;
             }
 
             Row {
@@ -74,7 +84,7 @@ Rectangle {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: notificationMouseArea.containsMouse
+                    visible: notificationHoverDebounce.isDelaying
                     text: Swaync.notificationCount === 0 ? "" : Swaync.notificationCount + " Notifications"
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
@@ -86,7 +96,7 @@ Rectangle {
         }
         Rectangle {
             height: Theme.barHeight -  (Theme.generalThickness * 2)
-            width: wifiMouseArea.containsMouse ? wifiContainer.width + 32 : wifiContainer.width + 16
+            width: wifiHoverDebounce.isDelaying ? wifiContainer.width + 32 : wifiContainer.width + 16
             radius: Theme.cornerRadius
             color: wifiMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
 
@@ -96,11 +106,22 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton
+                onEntered: { wifiHoverDebounce.isDelaying = true; wifiHoverDebounce.restart() }
                 onClicked: function(mouse) {
                     if (mouse.button === Qt.LeftButton) {
                         toggleWifiPanel();
                     }
                 }
+            }
+
+            Timer {
+                id: wifiHoverDebounce
+                property bool isDelaying: false
+                interval: Theme.hoverDuration
+                repeat: false
+                running: !notificationMouseArea.containsMouse && isDelaying
+
+                onTriggered: isDelaying = false;
             }
             Behavior on color {
                 ColorAnimation {
@@ -118,7 +139,7 @@ Rectangle {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: wifiMouseArea.containsMouse
+                    visible: wifiHoverDebounce.isDelaying
                     text: INetwork.connectionMessage // sdsd
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
@@ -130,7 +151,7 @@ Rectangle {
         }
         Rectangle {
             height: Theme.barHeight -  (Theme.generalThickness * 2)
-            width: bluetoothMouseArea.containsMouse ? bluetoothContainer.width + 32 : bluetoothContainer.width + 16
+            width: bluetoothHoverDebounce.isDelaying ? bluetoothContainer.width + 32 : bluetoothContainer.width + 16
             radius: Theme.cornerRadius
             color: bluetoothMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
 
@@ -138,8 +159,18 @@ Rectangle {
                 id: bluetoothMouseArea
                 anchors.fill: parent
                 hoverEnabled: true
+                onEntered: { bluetoothHoverDebounce.isDelaying = true; bluetoothHoverDebounce.restart() }
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton
+            }
+            Timer {
+                id: bluetoothHoverDebounce
+                property bool isDelaying: false
+                interval: Theme.hoverDuration
+                repeat: false
+                running: !notificationMouseArea.containsMouse && isDelaying
+
+                onTriggered: isDelaying = false;
             }
             Behavior on color {
                 ColorAnimation {
@@ -157,7 +188,7 @@ Rectangle {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: bluetoothMouseArea.containsMouse
+                    visible: bluetoothHoverDebounce.isDelaying
                     text: "Airpods Pro 2"
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
@@ -170,11 +201,10 @@ Rectangle {
         // Wifi Panel
         PanelWindow {
             id: wifiPanel
-            property int maxItemOnDisplay: 10
             property bool isShiftDown: false
             function getSpacingDistance() { return container.mapToGlobal(0, 0).x ; }
             function calculateHeight(itemCount, space) {
-                if (itemCount > maxItemOnDisplay) return Theme.wifiItemSize * maxItemOnDisplay + Math.abs(space * (itemCount - 1))
+                if (itemCount > Theme.wifiItemMaxCount) return Theme.wifiItemSize * Theme.wifiItemMaxCount + Math.abs(space * (Theme.wifiItemMaxCount - 1))
                 return Theme.wifiItemSize * itemCount + Math.abs(space * (itemCount - 1))
             }
             visible: false
@@ -375,6 +405,7 @@ Rectangle {
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
+                                        wrapMode: Text.WrapAnywhere
                                     }
                                     Text {
                                         text: WifiSecurityType.toString(modelData.security) + " • " + Math.round(modelData.signalStrength * 100) + "%"
@@ -477,6 +508,7 @@ Rectangle {
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
+                                        wrapMode: Text.WrapAnywhere
                                     }
                                     Text {
                                         text: WifiSecurityType.toString(modelData.security) + " • " + Math.round(modelData.signalStrength * 100) + "%"
@@ -607,6 +639,7 @@ Rectangle {
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
+                                        wrapMode: Text.WrapAnywhere
                                     }
                                     Text {
                                         text: WifiSecurityType.toString(modelData.security) + " • " + Math.round(modelData.signalStrength * 100) + "%"
