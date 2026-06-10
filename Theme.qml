@@ -39,6 +39,6 @@ QtObject {
     property real dashboardHeight: 750
     // Wifi Panel
     property real wifiPanelWidth: 400
-    property real wifiPanelHeight: 1000 // Maximum height for the panel
+    property real wifiPanelHeight: 400 // Maximum height for the panel
     property real wifiItemSize: 60 // Basically Height for the item
 }

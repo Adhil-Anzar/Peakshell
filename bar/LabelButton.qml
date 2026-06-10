@@ -15,6 +15,7 @@ Rectangle {
     }
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
     MouseArea {
+        enabled: parent.enabled
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: true

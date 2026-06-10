@@ -4,25 +4,30 @@ import QtQuick
 import Quickshell
 import Quickshell.Networking
 
-Item {
+Singleton {
     id: root
     property bool isNetworkAvailable: {
         return Networking.connectivity === NetworkConnectivity.Full
     }
 
     property NetworkDevice wifiDevice: {
-        for ( let i = 0; i < Networking.devices.values.length; ++i ) {
-            if (!Networking.devices.values[i].connected) continue;
-            if (Networking.devices.values[i] instanceof WifiDevice)
-                //remove ts maybe
+        console.log("============================");
+        console.log("Devices Plugged: " + Networking.devices.values.length)
+        for ( let i = 0; i <= Networking.devices.values.length; ++i ) {
+            //remove ts maybe
+            console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].connected} :: ${Networking.devices.values[i].autoconnect}`)
+            //if (!Networking.devices.values[i].connected) continue;
+            if (Networking.devices.values[i] instanceof WifiDevice) {
+                console.log(`${Networking.devices.values[i].name} : ${Networking.devices.values[i].scannerEnabled}`);
                 Networking.devices.values[i].scannerEnabled = true;
                 return Networking.devices.values[i];
-            return null
+            }
         }
+        return null
     }
     property NetworkDevice wiredDevice: {
         for ( let i = 0; i < Networking.devices.values.length; ++i ) {
-            if (!Networking.devices.values[i].connected) continue;
+            //if (!Networking.devices.values[i].connected) continue;
             if (Networking.devices.values[i] instanceof WiredDevice)
                 return Networking.devices.values[i];
             return null
@@ -115,40 +120,44 @@ Item {
         });
         return nets
     }
-    onUnknownLocalWifiesChanged: {
-        const current = {}; // "name": network
+    // onUnknownLocalWifiesChanged: {
+    //     const current = {}; // "name": network
 
-        for ( let i = 0; unknownLocalWifies.length > i; ++i ) {
-            current[unknownLocalWifies[i].name] = unknownLocalWifies[i]
-        }
+    //     for ( let i = 0; unknownLocalWifies.length > i; ++i ) {
+    //         current[unknownLocalWifies[i].name] = unknownLocalWifies[i]
+    //     }
 
-        for ( let j = unknownLocalWifiesModel.count - 1; j >= 0; --j ) {
-            const item = unknownLocalWifiesModel.get(j);
-            //if (!item) continue
-            if (!(unknownLocalWifiesModel.get(j).name in current)) {
-                unknownLocalWifiesModel.remove(j);
-            }
-        }
+    //     for ( let j = unknownLocalWifiesModel.length - 1; j >= 0; --j ) {
+    //         const item = unknownLocalWifiesModel[j];
+    //         //if (!item) continue
+    //         if (!(unknownLocalWifiesModel[j].name in current)) {
+    //             unknownLocalWifiesModel.pop(j);
+    //         }
+    //     }
 
-        for ( let k = 0; unknownLocalWifies.length > k; ++k ) {
-            const item = unknownLocalWifiesModel.get(k)
-            if (!item) {
-                unknownLocalWifiesModel.append({
-                    name: current[unknownLocalWifies[k].name].name,
-                    signalStrength: Math.round((current[unknownLocalWifies[k].name].signalStrength) * 100).toString(),
-                    security: WifiSecurityType.toString(current[unknownLocalWifies[k].name].security)
-                })
-            }
-            else if (item.name in current) {
-                unknownLocalWifiesModel.setProperty(k, "signalStrength", Math.round((current[unknownLocalWifies[k].name].signalStrength) * 100).toString())
-            }
-        }
-    }
-    property ListModel unknownLocalWifiesModel: ListModel {}
+    //     for ( let k = 0; unknownLocalWifies.length > k; ++k ) {
+    //         const item = unknownLocalWifiesModel[k]
+    //         if (!item) {
+    //             unknownLocalWifiesModel.push(current[unknownLocalWifies[k].name])
+    //         }
+    //         else if (item.name in current) {
+    //             unknownLocalWifiesModel[k] = current[unknownLocalWifies[k].name];
+    //         }
+    //     }
+    //     unknownLocalWifiesModel = unknownLocalWifiesModel.concat([]);
+    // }
+    // property var unknownLocalWifiesModel: [];
+    // onUnknownLocalWifiesModelChanged: {
+    //     console.log("changed")
+    // }
 
     function setWifi(bool){
         Networking.wifiEnabled = bool;
-        //if (wifiDevice) wifiDevice.scannerEnabled = !bool;
+        Networking.connectivityCheckEnabled = bool
+        if (bool){
+            Networking.checkConnectivity();
+            wifiDevice.scannerEnabled = true;
+        }
     }
     function getStrengthOnlyIcon(wifiNetwork) {
         const strength = Math.max(0, Math.min(1, wifiNetwork.signalStrength))
@@ -164,4 +173,32 @@ Item {
         //console.log(iconName)
         return iconName
     }
+    function connectKnownWifi(network) {
+        console.log("Begin connecting...")
+        for (const item of network.nmSettings.values()) {
+            console.log(`UUID ${item.uuid}\n\t\t  ID: ${item.id}`)
+            network.connectWithSettings(item);
+        }
+    }
+
+
+    function connectUnknownWifi(network) {
+        network.connect();
+
+        network.connectionFailed.connect( function(reason) {
+            console.log("Failed to connect: " + ConnectionFailReason.toString(reason));
+            network.forget();
+        })
+    }
+
+    function forgetWifi(network) {
+        network.forget();
+    }
+
+    function disconnect(network) {
+        network.disconnect();
+        //network.device.autoconnect = true;
+        Networking.checkConnectivity();
+    }
+
 }

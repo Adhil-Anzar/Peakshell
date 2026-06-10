@@ -181,7 +181,7 @@ Rectangle {
             focusable: true
             color: "transparent"
             implicitWidth: visible ? Theme.wifiPanelWidth + Theme.barHorizontalPad + getSpacingDistance() : 0
-            implicitHeight: Theme.wifiPanelHeight
+            implicitHeight: wifiColumnContainer.height
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
             //exclusionMode: ExclusionMode.Ignore
@@ -205,11 +205,10 @@ Rectangle {
                     if (event.key === Qt.Key_Shift) wifiPanel.isShiftDown = false;
                 }
             }
-            Rectangle {
+            Item {
                 x: visible ? wifiPanel.getSpacingDistance() : 0
                 visible: wifiPanel.visible
-                color: "transparent"
-                implicitHeight: Theme.wifiPanelHeight
+                //implicitHeight: Theme.wifiPanelHeight
                 width: Theme.wifiPanelWidth
                 ColumnLayout {
                     id: wifiColumnContainer
@@ -337,6 +336,12 @@ Rectangle {
                         Behavior on height {
                             NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo; }
                         }
+                        addDisplaced: Transition {
+                            NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
+                        }
+                        removeDisplaced: Transition {
+                            NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo  }
+                        }
                         populate: Transition {
                             NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
                         }
@@ -380,14 +385,19 @@ Rectangle {
                                 }
                                 Item { Layout.fillWidth: true }
                                 LabelButton {
-                                    label: wifiPanel.isShiftDown ? "Forget" : "Disconnect"
+                                    label: {
+                                        if (modelData.stateChanging) return ConnectionState.toString(modelData.state);
+                                        if (wifiPanel.isShiftDown) return "Forget";
+                                        else return "Disconnect";
+                                    }
                                     onPress: {
                                         if (wifiPanel.isShiftDown) {
                                             // Forget
-                                            INetwork.forgetWifi()
+                                            INetwork.forgetWifi(modelData)
                                         }
                                         else {
                                             // Disconnect
+                                            INetwork.disconnect(modelData);
 
                                         }
                                     }
@@ -433,6 +443,12 @@ Rectangle {
                         Behavior on height {
                             NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo; }
                         }
+                        addDisplaced: Transition {
+                            NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
+                        }
+                        removeDisplaced: Transition {
+                            NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo  }
+                        }
                         populate: Transition {
                             NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
                         }
@@ -470,6 +486,25 @@ Rectangle {
                                     }
                                 }
                                 Item { Layout.fillWidth: true }
+                                LabelButton {
+                                    enabled: !modelData.stateChanging
+                                    label: {
+                                        if (modelData.stateChanging) return ConnectionState.toString(modelData.state);
+                                        if (wifiPanel.isShiftDown) return "Forget";
+                                        else return "Connect";
+                                    }
+                                    onPress: {
+                                        if (wifiPanel.isShiftDown) {
+                                            // Forget
+                                            INetwork.forgetWifi(modelData)
+                                        }
+                                        else {
+                                            // Connect
+                                            INetwork.connectKnownWifi(modelData);
+
+                                        }
+                                    }
+                                }
                                 Item { height: 1; width: Theme.cornerRadius }
                             }
 
@@ -529,9 +564,7 @@ Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: wifiPanel.calculateHeight(INetwork.unknownLocalWifies.length, spacing)
                         visible: INetwork.unknownLocalWifies.length !== 0
-                        model: {
-                            return INetwork.unknownLocalWifiesModel // ssdds
-                        }
+                        model: INetwork.unknownLocalWifies
 
                         spacing: 2
                         clip: true
@@ -539,16 +572,8 @@ Rectangle {
                         Behavior on height {
                             NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo; }
                         }
-                        add: Transition {
-                            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
-                            NumberAnimation { property: "scale"; from: 0.9; to: 1.0; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
-                        }
                         addDisplaced: Transition {
                             NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
-                        }
-                        remove: Transition {
-                            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animationDuration; easing.type: Easing.OutExpo }
-                            NumberAnimation { property: "scale"; from: 1.0; to: 0.9; duration: Theme.animationDuration; easing.type: Easing.OutExpo } //ss
                         }
                         removeDisplaced: Transition {
                             NumberAnimation { properties: "x,y"; duration: Theme.animationDuration; easing.type: Easing.OutExpo  }
@@ -572,26 +597,33 @@ Rectangle {
                                 IconImage {
                                     Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                                     implicitSize: Theme.wifiItemSize
-                                    source: Quickshell.iconPath(INetwork.getStrengthOnlyIconFromString(signalStrength, security))
+                                    source: Quickshell.iconPath(INetwork.getStrengthOnlyIcon(modelData))
                                 }
-
                                 Column {
                                     Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                                     spacing: 2
                                     Text {
-                                        text: name
+                                        text: modelData.name
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
                                     }
                                     Text {
-                                        text: security + " • " + signalStrength + "%"
+                                        text: WifiSecurityType.toString(modelData.security) + " • " + Math.round(modelData.signalStrength * 100) + "%"
                                         color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize * 0.8
                                         font.family: Theme.labelFontFamily
                                     }
                                 }
                                 Item { Layout.fillWidth: true }
+                                LabelButton {
+                                    enabled: !modelData.stateChanging
+                                    label: {
+                                        if (modelData.stateChanging) return ConnectionState.toString(modelData.state);
+                                        else return "Connect";
+                                    }
+                                    onPress: INetwork.connectUnknownWifi(modelData);
+                                }
                                 Item { height: 1; width: Theme.cornerRadius }
                             }
 
