@@ -18,6 +18,8 @@ Rectangle{
     // Functions
     function togglePanel(){
         dashboard.visible = !dashboard.visible;
+        hoverDebounce.isDelaying = true;
+        hoverDebounce.restart();
     }
     // Processes
     Process {
@@ -338,6 +340,7 @@ Rectangle{
 
                                 function getIcon() {
                                     // 0 -> 1 => Volume: 0 -> 100
+                                    if (!Pipewire.defaultAudioSink) return "audio-volume-muted";
                                     if (Pipewire.defaultAudioSink.audio.muted) return "audio-volume-muted"
                                     const volume = Math.round(Pipewire.defaultAudioSink.audio.volume * 100)
                                     if (volume >= 66) return "audio-volume-high"
@@ -409,7 +412,7 @@ Rectangle{
                         }
                         LabelButton {
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                            label: Pipewire.defaultAudioSink.description // <- The proper name
+                            label: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.description : "Unknown" // <- The proper name
                             onPress: {
                                 // TODO: yes
                             }
@@ -427,8 +430,8 @@ Rectangle{
                     border.color: Theme.mutedAccent
                     border.width: Theme.generalThickness
                     radius: Theme.cornerLargeRadius
-                    onPlayerChanged: mediaContainer.player.positionChanged();
-                    onVisibleChanged: mediaContainer.player.positionChanged();
+                    onPlayerChanged: { if (mediaContainer.player) mediaContainer.player.positionChanged(); }
+                    onVisibleChanged: { if (mediaContainer.player) mediaContainer.player.positionChanged(); }
                     readonly property var player: MprisController.activePlayer
                     Timer {
                         running: mediaContainer.player && mediaContainer.player.playbackState === MprisPlaybackState.Playing && parent.visible
@@ -480,7 +483,7 @@ Rectangle{
                                     width: parent.width
                                     height: parent.height
                                     anchors.centerIn: parent
-                                    source: mediaContainer.player.trackArtUrl
+                                    source: mediaContainer.player ? mediaContainer.player.trackArtUrl : ""
                                     fillMode: Image.PreserveAspectCrop
                                 }
                             }
@@ -489,13 +492,13 @@ Rectangle{
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignVCenter
                                 Text {
-                                    text: mediaContainer.player.trackTitle
+                                    text: mediaContainer.player ? mediaContainer.player.trackTitle : "Unknown"
                                     color: Theme.fgColor
                                     font.pointSize: Theme.labelFontSize 
                                     font.family: Theme.labelFontFamily
                                 }
                                 Text {
-                                    text: mediaContainer.player.trackArtist
+                                    text: mediaContainer.player ? mediaContainer.player.trackArtist : "Unknown"
                                     color: Theme.mutedFgColor
                                     font.pointSize: Theme.labelFontSize
                                     font.family: Theme.labelFontFamily
@@ -516,7 +519,7 @@ Rectangle{
                                 ToggleButton {
                                     size: 36
                                     symbol: isChecked ? "media-playback-pause" : "media-playback-start"
-                                    isChecked: mediaContainer.player.isPlaying
+                                    isChecked: mediaContainer.player ? mediaContainer.player.isPlaying : false
                                     label: ""
                                     onPress: () => {
                                         console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying)
@@ -544,9 +547,9 @@ Rectangle{
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
                                 from: 0
-                                to: mediaContainer.player.length
+                                to: mediaContainer.player ? mediaContainer.player.length : 1
                                 
-                                value: playerSlider.pressed ? playerSlider.value : mediaContainer.player.position
+                                value: playerSlider.pressed ? playerSlider.value : (mediaContainer.player ? mediaContainer.player.position : 0)
                                 Behavior on value {
                                     NumberAnimation {
                                         duration: Theme.mediaPlayerUpdateDuration
@@ -613,14 +616,14 @@ Rectangle{
                                 Layout.fillWidth: true
                                 Text {
                                     anchors.left: parent.left
-                                    text: parent.formatTime(mediaContainer.player.position)
+                                    text: parent.formatTime(mediaContainer.player ? mediaContainer.player.position : 0)
                                     color: Theme.mutedFgColor
                                     font.pointSize: Theme.labelFontSize * 0.9
                                     font.family: Theme.labelFontFamily
                                 }
                                 Text {
                                     anchors.right: parent.right
-                                    text: parent.formatTime(mediaContainer.player.length)
+                                    text: parent.formatTime(mediaContainer.player ? mediaContainer.player.length : 0)
                                     color: Theme.mutedFgColor
                                     font.pointSize: Theme.labelFontSize * 0.9
                                     font.family: Theme.labelFontFamily

@@ -11,6 +11,8 @@ import "root:/"
 Rectangle {
     function toggleWifiPanel() {
         wifiPanel.visible = !wifiPanel.visible;
+        wifiHoverDebounce.isDelaying = true;
+        wifiHoverDebounce.restart();
     }
 
     // Transitions
@@ -234,6 +236,9 @@ Rectangle {
                 Keys.onReleased: (event) => {
                     if (event.key === Qt.Key_Shift) wifiPanel.isShiftDown = false;
                 }
+                onActiveFocusChanged: {
+                    if (!activeFocus) wifiPanel.isShiftDown = false;
+                }
             }
             Item {
                 x: visible ? wifiPanel.getSpacingDistance() : 0
@@ -315,7 +320,7 @@ Rectangle {
                                         anchors.right: parent.right
                                         anchors.verticalCenter: parent.verticalCenter
                                         implicitSize: Theme.iconFontSize
-                                        source: Quickshell.iconPath(INetwork.networkStrengthIcon)
+                                        source: Quickshell.iconPath((wifiSwitch.checked ? INetwork.getStrengthOnlyIcon(INetwork.connectedWifiNetwork) : "network-wireless-off"))
                                     }
                                 }
 
@@ -523,7 +528,7 @@ Rectangle {
                                     label: {
                                         if (modelData.stateChanging) return ConnectionState.toString(modelData.state);
                                         if (wifiPanel.isShiftDown) return "Forget";
-                                        else return "Connect";
+                                        else return "Join";
                                     }
                                     onPress: {
                                         if (wifiPanel.isShiftDown) {

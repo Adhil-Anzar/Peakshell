@@ -31,7 +31,7 @@ Scope {
           path: "/tmp/quickshell.sock"
           handler: Socket {
             onConnectedChanged: {
-              console.log(connected ? "new connection!" : "connection dropped!")
+              //console.log(connected ? "new connection!" : "connection dropped!")
             }
             parser: SplitParser {
               onRead: (message) => {

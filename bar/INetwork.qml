@@ -25,7 +25,7 @@ Singleton {
         }
         return null
     }
-    property NetworkDevice wiredDevice: {
+    property var wiredDevice: {
         for ( let i = 0; i < Networking.devices.values.length; ++i ) {
             //if (!Networking.devices.values[i].connected) continue;
             if (Networking.devices.values[i] instanceof WiredDevice)
@@ -45,10 +45,12 @@ Singleton {
         return null
     }
     property WifiNetwork connectedWifiNetwork: {
-        for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
-            const network = wifiDevice.networks.values[i];
-            if (network.connected) {
-                return network
+        if (wifiDevice) {
+            for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
+                const network = wifiDevice.networks.values[i];
+                if (network.connected) {
+                    return network
+                }
             }
         }
         return null
@@ -81,12 +83,15 @@ Singleton {
 
     property var connectedNetworks: {
         var nets = [];
-        for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
-            const wifiNetwork = wifiDevice.networks.values[i];
-            if (wifiNetwork.connected) {
-                nets.push(wifiNetwork)
+        if (wifiDevice) {
+            for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
+                const wifiNetwork = wifiDevice.networks.values[i];
+                if (wifiNetwork.connected) {
+                    nets.push(wifiNetwork)
+                }
             }
         }
+
         if (wiredDevice) {
             for ( let j = 0; j < wiredDevice.networks.values.length; ++j ) {
                 const wiredNetwork = wiredDevice.networks.values[j];
@@ -99,20 +104,24 @@ Singleton {
     }
     property var knownLocalWifies: {
         var nets = [];
-        for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
-            const network = wifiDevice.networks.values[i];
-            if (network.known && !network.connected) {
-                nets.push(network)
+        if (wifiDevice) {
+            for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
+                const network = wifiDevice.networks.values[i];
+                if (network.known && !network.connected) {
+                    nets.push(network)
+                }
             }
         }
         return nets
     }
     property var unknownLocalWifies: {
         const nets = [];
-        for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
-            const network = wifiDevice.networks.values[i];
-            if (!network.known) {
-                nets.push(network)
+        if (wifiDevice) {
+            for ( let i = 0; i < wifiDevice.networks.values.length; ++i ) {
+                const network = wifiDevice.networks.values[i];
+                if (!network.known) {
+                    nets.push(network)
+                }
             }
         }
         nets.sort(function(a, b) {
@@ -160,6 +169,7 @@ Singleton {
         }
     }
     function getStrengthOnlyIcon(wifiNetwork) {
+        if (!wifiNetwork) return "network-wireless-available"
         const strength = Math.max(0, Math.min(1, wifiNetwork.signalStrength))
         const percent = Math.round(strength * 5) * 20
         const securityStr = (wifiNetwork.security === WifiSecurityType.Open || wifiNetwork.security === WifiSecurityType.Owe) ? "" : "-locked"
