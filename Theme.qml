@@ -38,6 +38,10 @@ QtObject {
     // Arch Dashboard
     property real dashboardWidth: 500
     property real dashboardHeight: 750
+    // Sound Panel
+    property real soundPanelWidth: 400
+    property real soundItemMaxCount: 10
+    property real soundItemSize: 100
     // Wifi Panel
     property real wifiPanelWidth: 400
     property real wifiItemMaxCount: 14 // Maximum height for the panel

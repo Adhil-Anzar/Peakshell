@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell.Io
 import "root:/"
 import Quickshell.Wayland
+import Quickshell.Services.Pipewire
 
 Scope {
     IpcHandler {
@@ -35,11 +36,21 @@ Scope {
             }
             parser: SplitParser {
               onRead: (message) => {
+                    // Commands echo "<thing>" | socat - UNIX-CONNECT:/tmp/quickshell.sock
                     if (message === "toggleArchPanel") arch.togglePanel();
                     if (message === "toggleWifiPanel") sys.toggleWifiPanel();
+                    if (message === "toggleSoundPanel") sys.toggleSoundPanel();
                 }
             }
           }
+        }
+        PwNodeLinkTracker {
+            id: outputLinkTracker
+            node: Pipewire.defaultAudioSink
+        }
+        PwNodeLinkTracker {
+            id: inputLinkTracker
+            node: Pipewire.preferredDefaultAudioSource
         }
         RowLayout {
             anchors.fill: parent
@@ -48,7 +59,7 @@ Scope {
                 spacing: 8
 
                 Arch { id: arch }
-                SysItems { id: sys }
+                SysItems { id: sys; outputLinkGroups: outputLinkTracker.linkGroups; inputLinkGroups: inputLinkTracker.linkGroups; }
             }
             Row {
                 id: centerModules

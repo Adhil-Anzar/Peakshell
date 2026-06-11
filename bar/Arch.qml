@@ -329,7 +329,7 @@ Rectangle{
                         RowLayout {
                             spacing: 8
                             ClickButton {
-                                symbol: getIcon()
+                                symbol: PipewireResolve.outputIcon
                                 size: 36
                                 bgColor: "transparent"
                                 onPress: () => {
@@ -337,20 +337,6 @@ Rectangle{
                                     toggleMute.startDetached();
 
                                 }
-
-                                function getIcon() {
-                                    // 0 -> 1 => Volume: 0 -> 100
-                                    if (!Pipewire.defaultAudioSink) return "audio-volume-muted";
-                                    if (Pipewire.defaultAudioSink.audio.muted) return "audio-volume-muted"
-                                    const volume = Math.round(Pipewire.defaultAudioSink.audio.volume * 100)
-                                    if (volume >= 66) return "audio-volume-high"
-                                    if (volume >= 33) return "audio-volume-medium"
-                                    if (volume >= 1) return "audio-volume-low"
-                                    if (volume === 0) return "audio-volume-muted"
-                                }
-                            }
-                            PwObjectTracker {
-                                objects: [Pipewire.defaultAudioSink]
                             }
                             Slider {
                                 id: volumeSlider
@@ -414,7 +400,8 @@ Rectangle{
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             label: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.description : "Unknown" // <- The proper name
                             onPress: {
-                                // TODO: yes
+                                dashboard.visible = false
+                                sys.openSoundPanel();
                             }
                         }
                     }

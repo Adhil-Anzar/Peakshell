@@ -6,13 +6,28 @@ import Quickshell.Widgets
 import Quickshell.Io
 import Quickshell.Networking
 import Quickshell.Wayland
+import Quickshell.Services.Pipewire
 import "root:/"
 
 Rectangle {
+    id: root
+    required property var outputLinkGroups;
+    required property var inputLinkGroups;
     function toggleWifiPanel() {
         wifiPanel.visible = !wifiPanel.visible;
         wifiHoverDebounce.isDelaying = true;
         wifiHoverDebounce.restart();
+    }
+    function toggleSoundPanel() {
+        soundPanel.visible = !soundPanel.visible;
+        soundHoverDebounce.isDelaying = true;
+        soundHoverDebounce.restart();
+    }
+    function openSoundPanel() {
+        soundPanel.visible = true;
+        soundHoverDebounce.isDelaying = true;
+        soundHoverDebounce.restart();
+
     }
 
     // Transitions
@@ -32,6 +47,7 @@ Rectangle {
     // Icon / Label Text
     Row {
         id: container
+        function getSpacingDistance() { return container.mapToGlobal(0, 0).x ; }
         anchors.centerIn: parent
         spacing: 5
         Rectangle {
@@ -88,6 +104,62 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: notificationHoverDebounce.isDelaying
                     text: Swaync.notificationCount === 0 ? "" : Swaync.notificationCount + " Notifications"
+                    font.pointSize: Theme.labelFontSize
+                    font.family: Theme.labelFontFamily
+                    color: Theme.fgColor
+                    opacity: visible ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+                }
+            }
+        }
+        Rectangle {
+            height: Theme.barHeight - (Theme.generalThickness * 2)
+            width:  soundHoverDebounce.isDelaying ? soundContainer.width + 32 :  soundContainer.width + 16
+            radius: Theme.cornerRadius
+            color: soundMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
+            Behavior on color {
+                ColorAnimation {
+                duration: Theme.animationDuration
+                }
+            }
+            MouseArea {
+                id: soundMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onEntered: { soundHoverDebounce.isDelaying = true; soundHoverDebounce.restart() }
+                onClicked: function(mouse) {
+                    if (mouse.button === Qt.RightButton) {
+                        // TODO: Implement
+                    }
+                    if (mouse.button === Qt.LeftButton){
+                        root.toggleSoundPanel()
+                    }
+                }
+            }
+            Timer {
+                id: soundHoverDebounce
+                property bool isDelaying: false
+                interval: Theme.hoverDuration
+                repeat: false
+                running: !soundMouseArea.containsMouse && isDelaying
+
+                onTriggered: isDelaying = false;
+            }
+            Row {
+                anchors.centerIn: parent
+                id: soundContainer
+                spacing: 5
+                IconImage {
+                    anchors.verticalCenter: parent.verticalCenter
+                    implicitSize: Theme.iconFontSize
+                    source: Quickshell.iconPath(PipewireResolve.outputIcon)
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: soundHoverDebounce.isDelaying
+                    text: ""
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
                     color: Theme.fgColor
@@ -200,11 +272,155 @@ Rectangle {
                 }
             }
         }
+        // Sound Panel
+        PanelWindow {
+            id: soundPanel
+            visible: false
+            focusable: true
+            color: "transparent"
+            implicitWidth: visible ? Theme.soundPanelWidth + Theme.barHorizontalPad + container.getSpacingDistance() : 0
+            implicitHeight: soundColumnContainer.height
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            anchors {
+                top: true
+                bottom: false
+                left: true
+                right: false
+            }
+            FocusScope {
+                focus: true
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Escape) {
+                        soundPanel.visible = false
+                        event.accepted = true
+                    }
+                }
+            }
+            Item {
+                x: visible ? container.getSpacingDistance() : 0
+                visible: soundPanel.visible
+                //implicitHeight: Theme.soundPanelHeight
+                width: Theme.wifiPanelWidth
+                ColumnLayout {
+                    id: soundColumnContainer
+                    width: Theme.soundPanelWidth
+                    visible: soundPanel.visible
+                    spacing: visible ? 5 : 30
+                    Behavior on spacing {
+                        NumberAnimation {
+                            duration: Theme.animationDuration
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+                    Rectangle {
+                        Layout.preferredHeight: deviceMode.height + Theme.generalThickness
+                        Layout.preferredWidth: deviceMode.width + Theme.generalThickness
+                        Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
+                        color: Theme.bgColor
+                        border.color: Theme.mutedAccent
+                        border.width: Theme.generalThickness
+                        radius: Theme.cornerRadius
+
+                        Rectangle {
+                            id: deviceMode
+                            property string mode: "output"
+                            color: soundModeMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
+                            height: soundModeRow.height + Theme.cornerRadius
+                            width: soundModeRow.width + Theme.cornerLargeRadius
+                            radius: Theme.cornerRadius
+                            Layout.fillWidth: true
+                            ToolTip.visible: false
+                            ToolTip.text: "Scroll to change power modes!"
+                            Behavior on width {
+                                NumberAnimation {
+                                    duration: Theme.animationDuration
+                                    easing.type: Easing.OutExpo
+                                }
+                            }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Theme.animationDuration
+                                }
+                            }
+                            MouseArea {
+                                id: soundModeMouseArea
+                                hoverEnabled: true
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton
+                                onWheel: (wheel) => {
+                                    if (wheel.angleDelta.y > 0) { // Up
+                                        deviceMode.mode = "output";
+                                    }
+                                    else if (wheel.angleDelta.y < 0){ // Down
+                                        deviceMode.mode = "input";
+
+                                    }
+                                }
+                                onPressed: {
+                                    if (deviceMode.mode === "output") deviceMode.mode = "input";
+                                    else if (deviceMode.mode === "input") deviceMode.mode = "output";
+                                }
+                            }
+
+                            RowLayout {
+                                id: soundModeRow
+                                anchors.centerIn: parent
+                                spacing: 5
+                                IconImage {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitSize: Theme.iconFontSize
+                                    source: Quickshell.iconPath(getIcon())
+
+                                    function getIcon() {
+                                        if (deviceMode.mode === "output") return PipewireResolve.outputIcon;
+                                        if (deviceMode.mode === "input") return PipewireResolve.inputIcon;
+                                    }
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: {
+                                        if (deviceMode.mode === "output") return "Output Devices"
+                                        if (deviceMode.mode === "input") return "Input Devices"
+                                    }
+                                    color: Theme.fgColor
+                                    font.pointSize: Theme.labelFontSize
+                                    font.family: Theme.labelFontFamily
+                                }
+                            }
+                        }
+                    }
+                    VolumeMixer {
+                        node: deviceMode.mode === "output" ? Pipewire.defaultAudioSink : Pipewire.defaultAudioSource
+                        width: parent.width
+                        height: Theme.soundItemSize
+                        isSourceApplication: false
+                    }
+                    Repeater {
+                        Layout.fillHeight: true
+                        Layout.fillWidth: true
+                        model: deviceMode.mode === "output" ? root.outputLinkGroups : Pipewire.nodes.values
+
+                        VolumeMixer {
+                            required property PwLinkGroup modelData
+                            required property int index
+                            // Each link group contains a source and a target.
+                            // Since the target is the default sink, we want the source.
+                            node: deviceMode.mode === "output" ? modelData.source : Pipewire.nodes.values[index]
+                            visible: deviceMode.mode === "output" ? true : Pipewire.nodes.values[index].isStream && !Pipewire.nodes.values[index].isSink
+                            width: parent.width
+                            height: Theme.soundItemSize
+                            isSourceApplication: true
+                        }
+                    }
+                }
+            }
+        }
+
         // Wifi Panel
         PanelWindow {
             id: wifiPanel
             property bool isShiftDown: false
-            function getSpacingDistance() { return container.mapToGlobal(0, 0).x ; }
             function calculateHeight(itemCount, space) {
                 if (itemCount > Theme.wifiItemMaxCount) return Theme.wifiItemSize * Theme.wifiItemMaxCount + Math.abs(space * (Theme.wifiItemMaxCount - 1))
                 return Theme.wifiItemSize * itemCount + Math.abs(space * (itemCount - 1))
@@ -212,7 +428,7 @@ Rectangle {
             visible: false
             focusable: true
             color: "transparent"
-            implicitWidth: visible ? Theme.wifiPanelWidth + Theme.barHorizontalPad + getSpacingDistance() : 0
+            implicitWidth: visible ? Theme.wifiPanelWidth + Theme.barHorizontalPad + container.getSpacingDistance() : 0
             implicitHeight: wifiColumnContainer.height
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
@@ -241,7 +457,7 @@ Rectangle {
                 }
             }
             Item {
-                x: visible ? wifiPanel.getSpacingDistance() : 0
+                x: visible ? container.getSpacingDistance() : 0
                 visible: wifiPanel.visible
                 //implicitHeight: Theme.wifiPanelHeight
                 width: Theme.wifiPanelWidth
