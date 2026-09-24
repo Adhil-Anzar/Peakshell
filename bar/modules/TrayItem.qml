@@ -4,16 +4,31 @@ import Quickshell.Services.SystemTray
 import Quickshell.Widgets
 import Quickshell
 import "root:/"
+import "root:/components"
 
 Rectangle {
     required property SystemTrayItem modelData;
     required property var panelHost;
+    property var trayMenuPanel: null
+
+    function toggleMenu() {
+        if (!modelData.hasMenu || !trayMenuPanel)
+            return
+
+        if (trayMenuPanel.visible && trayMenuPanel.targetMenu === modelData.menu) {
+            trayMenuPanel.closeMenu()
+        } else {
+            const p = mapToGlobal(0, 0)
+            trayMenuPanel.openMenu(modelData.menu, modelData.title || modelData.id, p.x)
+        }
+    }
+
     height: parent.height
     width: this.height
     radius: Theme.cornerRadius
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
     Behavior on color {
-        ColorAnimation { duration: Theme.animationDuration }
+        CAnim {}
     }
 
     MouseArea {
@@ -25,15 +40,19 @@ Rectangle {
         onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) {
-                if (modelData.hasMenu) {
+                if (modelData.hasMenu && trayMenuPanel) {
+                    toggleMenu()
+                } else if (modelData.hasMenu) {
                     const p = parent.mapFromGlobal(0,0)
                     modelData.display(panelHost, Math.abs(p.x), Theme.barHeight + Theme.barHorizontalPad / 2)
-                    //mainMenu.open()
                 }
-
                 return;
             }
             if (mouse.button === Qt.LeftButton) {
+                if (modelData.onlyMenu && modelData.hasMenu && trayMenuPanel) {
+                    toggleMenu()
+                    return
+                }
                 modelData.activate()
                 return;
             }

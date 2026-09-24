@@ -3,3 +3,5 @@ singleton BluetoothResolve 1.0 BluetoothResolve.qml
 singleton PipewireResolve 1.0 PipewireResolve.qml
 singleton Swaync 1.0 Swaync.qml
 singleton MprisController 1.0 MprisController.qml
+singleton Time 1.0 Time.qml
+singleton Hypr 1.0 Hypr.qml

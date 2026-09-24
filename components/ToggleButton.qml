@@ -6,12 +6,13 @@ import Quickshell
 import "root:/"
 
 ColumnLayout {
+    id: root
     signal press()
     property bool isChecked: true
     property real size: 50
     property string symbol
     property string label
-    Layout.alignment: Qt.AlignVCenter  | Qt.AlignHCenter
+    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
     spacing: 8
 
     Rectangle {
@@ -20,30 +21,14 @@ ColumnLayout {
         height: size
         radius: Theme.cornerRadius
         Behavior on color {
-            ColorAnimation {
-            duration: Theme.animationDuration
-            }
+            CAnim {}
         }
         scale: mouseArea.containsMouse ? 1.25 : 1.0
         Behavior on scale {
-            NumberAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.OutExpo
-            }
+            Anim { type: Anim.DefaultSpatial }
         }
         color: isChecked ? Theme.accent : Theme.mutedBgColor
-        // Text {
-        //     anchors.centerIn: parent
-        //     text: symbol
-        //     font.pointSize: Theme.iconFontSize 
-        //     font.family: Theme.iconFontFamily 
-        //     color: isChecked ? Theme.altFgColor : Theme.fgColor 
-        //     Behavior on color {
-        //         ColorAnimation {
-        //         duration: Theme.animationDuration
-        //         }
-        //     }
-        // }
+
         IconImage {
             implicitSize: Theme.iconFontSize
             anchors.centerIn: parent
@@ -55,7 +40,7 @@ ColumnLayout {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             acceptedButtons: Qt.LeftButton
-            onClicked: { isChecked = !isChecked; press() }
+            onClicked: { isChecked = !isChecked; root.press() }
         }
     }
     Text {

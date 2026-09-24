@@ -50,6 +50,8 @@ Scope {
                             sys.toggleBluetoothPanel()
                         if (message === "toggleShutdownPanel")
                             shutdown.togglePanel()
+                        if (message === "toggleCalendarPanel")
+                            clock.togglePanel()
                     }
                 }
             }
@@ -89,7 +91,10 @@ Scope {
                     id: centerModules
                     anchors.centerIn: parent
                     spacing: 8
-                    Workspaces {}
+                    Workspaces {
+                        id: workspaces
+                        panelHost: bar
+                    }
                 }
             }
 
@@ -100,7 +105,10 @@ Scope {
                     id: rightModules
                     anchors.right: parent.right
                     spacing: 8
-                    Clock {}
+                    Clock {
+                        id: clock
+                        panelHost: bar
+                    }
                 }
             }
         }

@@ -1,0 +1,9 @@
+Anim 1.0 Anim.qml
+CAnim 1.0 CAnim.qml
+AnimatedOverlay 1.0 AnimatedOverlay.qml
+BarBlock 1.0 BarBlock.qml
+BarChip 1.0 BarChip.qml
+ClickButton 1.0 ClickButton.qml
+LabelButton 1.0 LabelButton.qml
+ToggleButton 1.0 ToggleButton.qml
+VolumeMixer 1.0 VolumeMixer.qml

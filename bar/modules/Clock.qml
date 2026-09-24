@@ -3,31 +3,50 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import "root:/"
+import "root:/components"
+import "root:/bar/panels"
 
 Rectangle {
     id: root
+
+    property var panelHost
+
+    function togglePanel() {
+        calendarPanel.togglePanel()
+    }
+
     Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutExpo
-        }
+        Anim { type: Anim.DefaultSpatial }
     }
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : Theme.bgColor
+    Behavior on color {
+        CAnim {}
+    }
     border.color: Theme.accent
     border.width: Theme.generalThickness
     radius: Theme.cornerRadius
     implicitHeight: Theme.barHeight
     width: container.width + Theme.cornerLargeRadius
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        //acceptedButtons: Qt.LeftButton
-        onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart(); clock.now = new Date(); clock.restart(); }
-        onExited: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
-        //onClicked: root.togglePanel()
+        acceptedButtons: Qt.LeftButton
+        onEntered: {
+            hoverDebounce.isDelaying = true
+            hoverDebounce.restart()
+            clock.now = new Date()
+            clock.restart()
+        }
+        onExited: {
+            hoverDebounce.isDelaying = true
+            hoverDebounce.restart()
+        }
+        onClicked: root.togglePanel()
     }
+
     Timer {
         id: hoverDebounce
         property bool isDelaying: false
@@ -35,8 +54,9 @@ Rectangle {
         repeat: false
         running: !mouseArea.containsMouse && isDelaying
 
-        onTriggered: isDelaying = false;
+        onTriggered: isDelaying = false
     }
+
     Timer {
         id: clock
         property date now: new Date()
@@ -53,10 +73,12 @@ Rectangle {
             msToNextMinute = Math.max(1, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()))
         }
     }
+
     Row {
         id: container
         anchors.centerIn: parent
         spacing: 5
+
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: Qt.formatDateTime(clock.now, hoverDebounce.isDelaying || mouseArea.containsMouse ? "dd/MM/yyyy dddd hh:mm:ss AP" : "dddd hh:mm AP")
@@ -64,33 +86,14 @@ Rectangle {
             font.family: Theme.labelFontFamily
             color: Theme.fgColor
             opacity: visible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            Behavior on opacity {
+                Anim { type: Anim.DefaultEffects }
+            }
         }
     }
-    PanelWindow {
-        id: panel
-        visible: false
-        focusable: true
-        color: "transparent"
-        implicitWidth: Theme.clockPanelWidth + Theme.barHorizontalPad
-        implicitHeight: Theme.clockPanelHeight
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-        anchors {
-            top: true
-            bottom: false
-            left: false
-            right: true
-        }
-        Rectangle {
-            anchors.fill: parent
-            anchors.rightMargin: Theme.barHorizontalPad
-            color: Theme.bgColor
-            radius: Theme.cornerRadius
-            border.color: Theme.mutedAccent
-            border.width: Theme.generalThickness
-            // Calendar thing
-        }
+    CalendarPanel {
+        id: calendarPanel
+        panelHost: root.panelHost
     }
 }

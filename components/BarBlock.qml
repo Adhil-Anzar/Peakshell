@@ -9,18 +9,12 @@ Rectangle {
     property string label
     signal clicked()
     scale: mouseArea.containsMouse ? 1.1 : 1.0
-    // Transitions
 
     Behavior on scale {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutExpo
-        }
+        Anim { type: Anim.DefaultSpatial }
     }
     Behavior on color {
-        ColorAnimation {
-        duration: Theme.animationDuration
-        }
+        CAnim {}
     }
     // Styling
     color: {

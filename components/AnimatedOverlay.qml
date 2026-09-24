@@ -48,11 +48,11 @@ PanelWindow {
         height: expanded ? Theme.workspacePanelHeight : container.height
         width: expanded ? Theme.workspacePanelWidth : container.width
         opacity: expanded ? 1 : 0
-        Behavior on y { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo } }
-        Behavior on x { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo } }
-        Behavior on width { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo } }
-        Behavior on height { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo } }
-        Behavior on opacity { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo } }
+        Behavior on y { Anim { type: Anim.DefaultSpatial } }
+        Behavior on x { Anim { type: Anim.DefaultSpatial } }
+        Behavior on width { Anim { type: Anim.DefaultSpatial } }
+        Behavior on height { Anim { type: Anim.DefaultSpatial } }
+        Behavior on opacity { Anim { type: Anim.DefaultEffects } }
         sourceComponent: panel.displayContent
     }
 }

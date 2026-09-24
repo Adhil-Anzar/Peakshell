@@ -187,21 +187,24 @@ Rectangle {
                 }
                 popup: Popup {
                     id: mainPopup
-                    y: parent.height
-                    x: ( this.width - root.width ) / 2
-                    width: Theme.soundPanelWidth - ( Theme.cornerLargeRadius * 2 )
-                    height: root.height - parent.y
-                    topMargin: 6
-                    bottomMargin: 6
+                    y: parent.height + 4
+                    x: 0
+                    width: parent.width
+                    padding: 4
                     contentItem: ListView {
                         spacing: 2
                         clip: true
-                        implicitHeight: contentHeight
+                        implicitHeight: Math.min(contentHeight, 200)
                         model: comboBox.delegateModel
                         currentIndex: comboBox.highlightedIndex
                         highlightMoveDuration: 0
                     }
-                    background: Item { }
+                    background: Rectangle {
+                        radius: Theme.cornerRadius
+                        color: Theme.mutedBgColor
+                        border.color: Theme.mutedAccent
+                        border.width: Theme.generalThickness
+                    }
                 }
             }
         }

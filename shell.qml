@@ -1,4 +1,4 @@
-// @ pragma IconTheme Papirus-Dark
+//@ pragma UseQApplication
 import Quickshell
 import "bar"
 

@@ -114,15 +114,10 @@ Rectangle{
     // Transitions
     width: container.width + 32
     Behavior on width {
-        NumberAnimation { 
-            duration: Theme.animationDuration
-            easing.type: Easing.OutExpo 
-        }
+        Anim { type: Anim.DefaultSpatial }
     }
     Behavior on color {
-        ColorAnimation {
-        duration: Theme.animationDuration
-        }
+        CAnim {}
     }
     // Styling
     color: {
@@ -171,7 +166,7 @@ Rectangle{
             font.family: Theme.labelFontFamily 
             color: Theme.fgColor
             opacity: visible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            Behavior on opacity { Anim { type: Anim.DefaultEffects } }
         }
     }
     // Popup Part    
@@ -222,10 +217,7 @@ Rectangle{
                 visible: dashboard.visible
                 spacing: visible ? 5 : 30
                 Behavior on spacing {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.OutExpo
-                    }
+                    Anim { type: Anim.DefaultSpatial }
                 }
 
                 // Dashboard Title
@@ -381,10 +373,7 @@ Rectangle{
                                 to: 1 // its from 0 -> 1
                                 value: visible ? Pipewire.defaultAudioSink.audio.volume : 0
                                 Behavior on value {
-                                    NumberAnimation {
-                                        duration: Theme.animationDuration
-                                        easing.type: Easing.OutExpo
-                                    }
+                                    Anim { type: Anim.FastSpatial }
                                 }
 
                                 background: Rectangle {
@@ -412,10 +401,7 @@ Rectangle{
                                     radius: 12
                                     scale: volumeSlider.pressed ? 1.5 : 1.0
                                     Behavior on scale {
-                                        NumberAnimation {
-                                            duration: Theme.animationDuration
-                                            easing.type: Easing.OutExpo
-                                        }
+                                        Anim { type: Anim.DefaultSpatial }
                                     }
                                     color: Theme.accent
                                 }
@@ -754,9 +740,7 @@ Rectangle{
                                 ToolTip.visible: false
                                 ToolTip.text: "Scroll to change power modes!"
                                 Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.animationDuration
-                                    }
+                                    CAnim {}
                                 }
                                 MouseArea {
                                     id: powerModeMouseArea

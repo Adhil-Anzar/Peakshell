@@ -1,8 +1,10 @@
 import QtQuick
 import "root:/"
+import "root:/components"
 import Quickshell
 import QtQuick.Layouts
 import Quickshell.Services.SystemTray
+import "../panels"
 
 Rectangle {
     id: root
@@ -10,10 +12,7 @@ Rectangle {
     visible: SystemTray.items.values.length !== 0
     width: container.width + Theme.cornerRadius
     Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutExpo
-        }
+        Anim { type: Anim.DefaultSpatial }
     }
     color: Theme.bgColor
     border.color: Theme.accent
@@ -30,7 +29,15 @@ Rectangle {
             height: root.height
             width: this.height
             model: SystemTray.items
-            delegate: TrayItem { panelHost: root.panelHost }
+            delegate: TrayItem {
+                panelHost: root.panelHost
+                trayMenuPanel: trayMenuPanel
+            }
         }
+    }
+
+    TrayMenuPanel {
+        id: trayMenuPanel
+        panelHost: root.panelHost
     }
 }

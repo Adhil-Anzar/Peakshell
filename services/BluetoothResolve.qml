@@ -54,7 +54,7 @@ Singleton {
         return "bluetooth-active"
     }
 
-    property bool bluetoothEnabled: Bluetooth.defaultAdapter?.enabled ?? false
+    property bool bluetoothEnabled: Bluetooth.defaultAdapter ? Bluetooth.defaultAdapter.enabled : false
 
     function setBluetooth(enabled) {
         if (!Bluetooth.defaultAdapter)

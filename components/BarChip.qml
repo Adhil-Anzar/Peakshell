@@ -19,10 +19,13 @@ Rectangle {
 
     height: Theme.barHeight - (Theme.generalThickness * 2)
     width: expanded ? content.width + 32 : content.width + 16
+    Behavior on width {
+        Anim { type: Anim.DefaultSpatial }
+    }
     radius: Theme.cornerRadius
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
     Behavior on color {
-        ColorAnimation { duration: Theme.animationDuration }
+        CAnim {}
     }
 
     MouseArea {
@@ -66,7 +69,9 @@ Rectangle {
             font.family: Theme.labelFontFamily
             color: Theme.fgColor
             opacity: visible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            Behavior on opacity {
+                Anim { type: Anim.DefaultEffects }
+            }
         }
     }
 }

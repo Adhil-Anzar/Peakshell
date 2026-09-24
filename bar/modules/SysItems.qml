@@ -43,10 +43,7 @@ Rectangle {
 
     width: container.width + 32
     Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutExpo
-        }
+        Anim { type: Anim.DefaultSpatial }
     }
     color: Theme.bgColor
     border.color: Theme.accent

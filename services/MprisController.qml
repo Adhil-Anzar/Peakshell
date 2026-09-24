@@ -1,5 +1,4 @@
 pragma Singleton
-pragma ComponentBehavior: Bound
 
 // From https://git.outfoxxed.me/outfoxxed/nixnew
 // It does not have a license, but the author is okay with redistribution.
@@ -9,104 +8,108 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
-//import qs.modules.common
 
 /**
  * A service that provides easy access to the active Mpris player.
  */
 Singleton {
 	id: root;
-	property list<MprisPlayer> players: Mpris.players.values.filter(player => isRealPlayer(player));
-	property MprisPlayer trackedPlayer: null;
-	property MprisPlayer activePlayer: trackedPlayer ?? Mpris.players.values[0] ?? null;
-	signal trackChanged(reverse: bool);
+	property var players: Mpris.players.values.filter(player => isRealPlayer(player));
+	property var trackedPlayer: null;
+	property var activePlayer: trackedPlayer ? trackedPlayer : (Mpris.players.values.length > 0 ? Mpris.players.values[0] : null);
+	signal trackChanged(bool reverse);
 
 	property bool __reverse: false;
 
 	property var activeTrack;
 
 	readonly property bool hasActivePlasmaIntegration: Mpris.players.values.some(
-		p => p.dbusName?.startsWith('org.mpris.MediaPlayer2.plasma-browser-integration')
+		p => p && p.dbusName && p.dbusName.startsWith('org.mpris.MediaPlayer2.plasma-browser-integration')
 	)
 	function isRealPlayer(player) {
-        //if (!Config.options.media.filterDuplicatePlayers) {
-        //    return true;
-        //}
         return (
             // Remove native browser buses only if plasma-browser-integration is actually active on D-Bus
             !(hasActivePlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.firefox')) && !(hasActivePlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.chromium')) &&
             // playerctld just copies other buses and we don't need duplicates
-            !player.dbusName?.startsWith('org.mpris.MediaPlayer2.playerctld') &&
+            !(player && player.dbusName && player.dbusName.startsWith('org.mpris.MediaPlayer2.playerctld')) &&
             // Non-instance mpd bus
-            !(player.dbusName?.endsWith('.mpd') && !player.dbusName.endsWith('MediaPlayer2.mpd')));
-    }
+            !(player && player.dbusName && player.dbusName.endsWith('.mpd') && !player.dbusName.endsWith('MediaPlayer2.mpd')));
+	}
 
-	// Original stuff from fox below
 	Instantiator {
-		model: Mpris.players;
+		model: root.players;
 
 		Connections {
 			required property MprisPlayer modelData;
 			target: modelData;
 
-			Component.onCompleted: {
-				if (root.trackedPlayer == null || modelData.isPlaying) {
-					root.trackedPlayer = modelData;
-				}
+			function onTrackTitleChanged() {
+				if (modelData === root.activePlayer) root.updateTrack();
 			}
 
-			Component.onDestruction: {
-				if (root.trackedPlayer == null || !root.trackedPlayer.isPlaying) {
-					for (const player of Mpris.players.values) {
-						if (player.isPlaying) {
-							root.trackedPlayer = player;
-							break;
-						}
-					}
+			function onTrackArtistsChanged() {
+				if (modelData === root.activePlayer) root.updateTrack();
+			}
 
-					if (root.trackedPlayer == null && Mpris.players.values.length != 0) {
-						root.trackedPlayer = Mpris.players.values[0];
-					}
-				}
+			function onTrackAlbumChanged() {
+				if (modelData === root.activePlayer) root.updateTrack();
+			}
+
+			function onTrackArtUrlChanged() {
+				if (modelData === root.activePlayer) root.updateTrack();
 			}
 
 			function onPlaybackStateChanged() {
-				if (root.trackedPlayer !== modelData) root.trackedPlayer = modelData;
+				if (modelData.playbackState === MprisPlaybackState.Playing) {
+					root.setActivePlayer(modelData);
+				}
 			}
 		}
 	}
 
 	Connections {
-		target: activePlayer
+		target: Mpris.players;
 
-		function onPostTrackChanged() {
+		function onValuesChanged() {
+			if (root.trackedPlayer && !Mpris.players.values.includes(root.trackedPlayer)) {
+				root.trackedPlayer = null;
+			}
+		}
+	}
+
+	Connections {
+		target: root.activePlayer;
+
+		function onTrackTitleChanged() {
+			root.updateTrack();
+		}
+
+		function onTrackArtistsChanged() {
+			root.updateTrack();
+		}
+
+		function onTrackAlbumChanged() {
 			root.updateTrack();
 		}
 
 		function onTrackArtUrlChanged() {
-			// console.log("arturl:", activePlayer.trackArtUrl)
-			// root.updateTrack();
-			if (root.activePlayer.uniqueId == root.activeTrack.uniqueId && root.activePlayer.trackArtUrl != root.activeTrack.artUrl) {
-				// cantata likes to send cover updates *BEFORE* updating the track info.
-				// as such, art url changes shouldn't be able to break the reverse animation
-				const r = root.__reverse;
-				root.updateTrack();
-				root.__reverse = r;
+			root.updateTrack();
+		}
 
-			}
+		function onUniqueIdChanged() {
+			root.updateTrack();
 		}
 	}
 
 	onActivePlayerChanged: this.updateTrack();
 
 	function updateTrack() {
-		//console.log(`update: ${this.activePlayer?.trackTitle ?? ""} : ${this.activePlayer?.trackArtists}`)
 		this.activeTrack = {
-			uniqueId: this.activePlayer?.uniqueId ?? 0,
-			artUrl: this.activePlayer?.trackArtUrl ?? "",
-			title: this.activePlayer?.trackTitle || "Unknown Title",
-			artist: this.activePlayer?.trackArtist || "Unknown Artist",
-			album: this.activePlayer?.trackAlbum || "Unknown Album",
+			uniqueId: (this.activePlayer && this.activePlayer.uniqueId) ? this.activePlayer.uniqueId : 0,
+			artUrl: (this.activePlayer && this.activePlayer.trackArtUrl) ? this.activePlayer.trackArtUrl : "",
+			title: (this.activePlayer && this.activePlayer.trackTitle) ? this.activePlayer.trackTitle : "Unknown Title",
+			artist: (this.activePlayer && this.activePlayer.trackArtist) ? this.activePlayer.trackArtist : "Unknown Artist",
+			album: (this.activePlayer && this.activePlayer.trackAlbum) ? this.activePlayer.trackAlbum : "Unknown Album",
 		};
 
 		this.trackChanged(__reverse);
@@ -114,12 +117,12 @@ Singleton {
 	}
 
 	property bool isPlaying: this.activePlayer && this.activePlayer.isPlaying;
-	property bool canTogglePlaying: this.activePlayer?.canTogglePlaying ?? false;
+	property bool canTogglePlaying: this.activePlayer ? this.activePlayer.canTogglePlaying : false;
 	function togglePlaying() {
 		if (this.canTogglePlaying) this.activePlayer.togglePlaying();
 	}
 
-	property bool canGoPrevious: this.activePlayer?.canGoPrevious ?? false;
+	property bool canGoPrevious: this.activePlayer ? this.activePlayer.canGoPrevious : false;
 	function previous() {
 		if (this.canGoPrevious) {
 			this.__reverse = true;
@@ -127,7 +130,7 @@ Singleton {
 		}
 	}
 
-	property bool canGoNext: this.activePlayer?.canGoNext ?? false;
+	property bool canGoNext: this.activePlayer ? this.activePlayer.canGoNext : false;
 	function next() {
 		if (this.canGoNext) {
 			this.__reverse = false;
@@ -138,23 +141,23 @@ Singleton {
 	property bool canChangeVolume: this.activePlayer && this.activePlayer.volumeSupported && this.activePlayer.canControl;
 
 	property bool loopSupported: this.activePlayer && this.activePlayer.loopSupported && this.activePlayer.canControl;
-	property var loopState: this.activePlayer?.loopState ?? MprisLoopState.None;
-	function setLoopState(loopState: var) {
+	property var loopState: (this.activePlayer && this.activePlayer.loopState !== undefined) ? this.activePlayer.loopState : MprisLoopState.None;
+	function setLoopState(loopState) {
 		if (this.loopSupported) {
 			this.activePlayer.loopState = loopState;
 		}
 	}
 
 	property bool shuffleSupported: this.activePlayer && this.activePlayer.shuffleSupported && this.activePlayer.canControl;
-	property bool hasShuffle: this.activePlayer?.shuffle ?? false;
-	function setShuffle(shuffle: bool) {
+	property bool hasShuffle: this.activePlayer ? this.activePlayer.shuffle : false;
+	function setShuffle(shuffle) {
 		if (this.shuffleSupported) {
 			this.activePlayer.shuffle = shuffle;
 		}
 	}
 
-	function setActivePlayer(player: MprisPlayer) {
-		const targetPlayer = player ?? Mpris.players[0];
+	function setActivePlayer(player) {
+		const targetPlayer = player ? player : (Mpris.players.values.length > 0 ? Mpris.players.values[0] : null);
 		console.log(`[Mpris] Active player ${targetPlayer} << ${activePlayer}`)
 
 		if (targetPlayer && this.activePlayer) {
@@ -170,14 +173,14 @@ Singleton {
 	IpcHandler {
 		target: "mpris"
 
-		function pauseAll(): void {
+		function pauseAll() {
 			for (const player of Mpris.players.values) {
 				if (player.canPause) player.pause();
 			}
 		}
 
-		function playPause(): void { root.togglePlaying(); }
-		function previous(): void { root.previous(); }
-		function next(): void { root.next(); }
+		function playPause() { root.togglePlaying(); }
+		function previous() { root.previous(); }
+		function next() { root.next(); }
 	}
 }
