@@ -5,21 +5,42 @@ import Quickshell.Widgets
 import QtQuick.Controls
 import Quickshell.Io
 import "root:/"
+import "root:/components"
+import "root:/services"
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
+import Quickshell.Networking
 
 Rectangle{
     // Properties
     id: root
+    required property var panelHost
+    required property var sysItems
     property string icon: "archlinux"
     property string label: "I use Arch btw"
+    property bool lowPowerNotified: false
+    property real batteryPercent: UPower.displayDevice ? UPower.displayDevice.percentage : 1
+    onBatteryPercentChanged: {
+        const percent = Math.round(batteryPercent * 100)
+        if (UPower.onBattery && percent <= Theme.lowPowerThreshold) {
+            if (!lowPowerNotified) {
+                lowPower.startDetached()
+                lowPowerNotified = true
+            }
+        } else {
+            lowPowerNotified = false
+        }
+    }
     // Functions
     function togglePanel(){
+        panelHost.hideAllPanelExcept("arch")
         dashboard.visible = !dashboard.visible;
         hoverDebounce.isDelaying = true;
         hoverDebounce.restart();
+        if (dashboard.visible) panelHost.toggledPanels["arch"] = dashboard;
+        else panelHost.toggledPanels["arch"] = false;
     }
     // Processes
     Process {
@@ -75,15 +96,19 @@ Rectangle{
 
     Process {
         id: procReboot
-        command: ["sh", "-c", "systemctl reboot"]
+        command: ["sh", "-c", "hyprshutdown -t 'Restarting...' --post-cmd 'reboot'"]
     }
     Process {
         id: procShutdown
-        command: ["sh", "-c", "systemctl poweroff"]
+        command: ["sh", "-c", "hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'"]
     }
     Process {
         id: execKitty
         command: ["kitty"]
+    }
+    Process {
+        id: lowPower
+        command: ["sh", "-c", "notify-send 'Low Power' 'Please charge your arch gng!' -i battery-caution"]
     }
 
     // Transitions
@@ -116,7 +141,7 @@ Rectangle{
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
-        onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
+        onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart(); root.label = "I use Arch btw"; }
         onClicked: root.togglePanel()
     }
     Timer {
@@ -126,7 +151,7 @@ Rectangle{
         repeat: false
         running: !mouseArea.containsMouse && isDelaying
 
-        onTriggered: isDelaying = false;
+        onTriggered: { isDelaying = false; }
     }
     // Icon / Label Text
     Row {
@@ -139,9 +164,9 @@ Rectangle{
             source: Quickshell.iconPath(icon)
         }
         Text {
-            visible: hoverDebounce.isDelaying
+            visible: hoverDebounce.isDelaying || mouseArea.containsMouse || UPower.onBattery
             anchors.verticalCenter: parent.verticalCenter
-            text: root.label
+            text: UPower.onBattery ? "Discharging..." : root.label
             font.pointSize: Theme.labelFontSize 
             font.family: Theme.labelFontFamily 
             color: Theme.fgColor
@@ -261,14 +286,16 @@ Rectangle{
                         uniformCellHeights: true
                         // Add implementation later
                         ToggleButton {
-                            symbol: "network-wireless-80-symbolic"
-                            isChecked: false
-                            label: "WiFi"
+                            symbol: INetwork.networkStrengthIcon
+                            isChecked: Networking.wifiEnabled
+                            label: INetwork.connectionMessage
+                            onPress: INetwork.setWifi(this.isChecked);
                         }
                         ToggleButton {
-                            symbol: "bluetooth"
-                            isChecked: false
-                            label: "Bluetooth"
+                            symbol: BluetoothResolve.icon
+                            isChecked: BluetoothResolve.bluetoothEnabled
+                            label: BluetoothResolve.status
+                            onPress: BluetoothResolve.setBluetooth(this.isChecked)
                         }
 
                         ToggleButton {
@@ -278,9 +305,10 @@ Rectangle{
                         }
 
                         ToggleButton {
-                            symbol: "notification-inactive"
-                            isChecked: false
-                            label: "Do Not Disturb"
+                            symbol: Swaync.icon
+                            isChecked: !Swaync.isDndOn
+                            label: Swaync.message
+                            onPress: Swaync.toggleDnd()
                         }
 
                         ToggleButton {
@@ -291,8 +319,14 @@ Rectangle{
 
                         ToggleButton {
                             symbol: "battery-profile-powersave"
-                            isChecked: false
+                            isChecked: PowerProfile.toString(PowerProfiles.profile) === "PowerSaver"
                             label: "Power Saver"
+                            onPress: {
+                                if (!this.isChecked) {
+                                    setPowerBalanced.startDetached()
+                                }
+                                else setPowerSave.startDetached();
+                            }
                         }
                     }
                 }
@@ -339,6 +373,7 @@ Rectangle{
                                 }
                             }
                             Slider {
+                                focusPolicy: Qt.NoFocus
                                 id: volumeSlider
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
@@ -401,7 +436,7 @@ Rectangle{
                             label: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.description : "Unknown" // <- The proper name
                             onPress: {
                                 dashboard.visible = false
-                                sys.openSoundPanel();
+                                sysItems.openSoundPanel();
                             }
                         }
                     }
@@ -529,6 +564,7 @@ Rectangle{
                             spacing: 6
                             Slider {
                                 id: playerSlider
+                                focusPolicy: Qt.NoFocus
                                 property real releaseValue: 0
                                 
                                 Layout.alignment: Qt.AlignVCenter
@@ -689,6 +725,7 @@ Rectangle{
                             }
                             ProgressBar {
                                 id: powerLevel
+                                implicitHeight: 6
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
                                 from: 0
@@ -865,14 +902,14 @@ Rectangle{
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: networkContainer.downSpeed.toFixed(1)
+                                        text: networkContainer.downSpeed > 1024 ? (networkContainer.downSpeed / 1024).toFixed(1) : networkContainer.downSpeed.toFixed(1)
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: "KB/s"
+                                        text: networkContainer.downSpeed > 1024 ? "MB/s" : "KB/s"
                                         color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
@@ -929,10 +966,11 @@ Rectangle{
                             symbol: "system-log-out"
                             size: 36
                             cornerRadius: Theme.cornerRadius
-                            onPress: () => {
+                            onPress: {
                                 console.log("Executing hyprland logout")
                                 procLogout.startDetached();
                                 root.togglePanel();
+                                Qt.quit()
                             }
                         }
                         // Sleep
@@ -955,10 +993,11 @@ Rectangle{
                             symbol: "system-reboot"
                             size: 36
                             cornerRadius: Theme.cornerRadius
-                            onPress: () => {
+                            onPress: {
                                 console.log("Executing Reboot")
                                 procReboot.startDetached();
                                 root.togglePanel();
+                                Qt.quit()
                             }
                         }
                         // Shutdown
@@ -968,10 +1007,11 @@ Rectangle{
                             symbol: "system-shutdown"
                             size: 36
                             cornerRadius: Theme.cornerRadius
-                            onPress: () => {
+                            onPress: {
                                 console.log("Executing poweroff")
                                 procShutdown.startDetached();
                                 root.togglePanel();
+                                Qt.quit()
                             }
                         }
                     }

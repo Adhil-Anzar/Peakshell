@@ -3,8 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
 import "root:/"
-import Quickshell.Wayland
-import Quickshell.Services.Pipewire
+import "modules"
 
 Scope {
     IpcHandler {
@@ -12,6 +11,14 @@ Scope {
     }
     PanelWindow {
         id: bar
+        property var toggledPanels: ({})
+        function hideAllPanelExcept(exception) {
+            for (const k in toggledPanels) {
+                if (toggledPanels[k] && k !== exception)
+                    toggledPanels[k].visible = false
+            }
+        }
+
         implicitHeight: Theme.barHeight + Theme.barVerticalPad
         visible: true
         color: Theme.panelBg
@@ -25,53 +32,77 @@ Scope {
             left: Theme.barHorizontalPad
             right: Theme.barHorizontalPad
             top: Theme.barVerticalPad
-            bottom: 0   
+            bottom: 0
         }
         SocketServer {
-          active: true
-          path: "/tmp/quickshell.sock"
-          handler: Socket {
-            onConnectedChanged: {
-              //console.log(connected ? "new connection!" : "connection dropped!")
-            }
-            parser: SplitParser {
-              onRead: (message) => {
-                    // Commands echo "<thing>" | socat - UNIX-CONNECT:/tmp/quickshell.sock
-                    if (message === "toggleArchPanel") arch.togglePanel();
-                    if (message === "toggleWifiPanel") sys.toggleWifiPanel();
-                    if (message === "toggleSoundPanel") sys.toggleSoundPanel();
+            active: true
+            path: "/tmp/quickshell.sock"
+            handler: Socket {
+                parser: SplitParser {
+                    onRead: (message) => {
+                        if (message === "toggleArchPanel")
+                            arch.togglePanel()
+                        if (message === "toggleWifiPanel")
+                            sys.toggleWifiPanel()
+                        if (message === "toggleSoundPanel")
+                            sys.toggleSoundPanel()
+                        if (message === "toggleBluetoothPanel")
+                            sys.toggleBluetoothPanel()
+                        if (message === "toggleShutdownPanel")
+                            shutdown.togglePanel()
+                    }
                 }
             }
-          }
         }
-        PwNodeLinkTracker {
-            id: outputLinkTracker
-            node: Pipewire.defaultAudioSink
-        }
-        PwNodeLinkTracker {
-            id: inputLinkTracker
-            node: Pipewire.preferredDefaultAudioSource
+        ShutdownScreen {
+            id: shutdown
+            panelHost: bar
         }
         RowLayout {
             anchors.fill: parent
-            Row {
-                id: leftModules
-                spacing: 8
-
-                Arch { id: arch }
-                SysItems { id: sys; outputLinkGroups: outputLinkTracker.linkGroups; inputLinkGroups: inputLinkTracker.linkGroups; }
+            spacing: 0
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Row {
+                    id: leftModules
+                    spacing: 8
+                    Arch {
+                        id: arch
+                        panelHost: bar
+                        sysItems: sys
+                    }
+                    SysItems {
+                        id: sys
+                        panelHost: bar
+                    }
+                    Tray {
+                        panelHost: bar
+                    }
+                }
             }
-            Row {
-                id: centerModules
-                spacing: 8
-            }
-            Row {
-                id: rightModules
-                spacing: 8
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Row {
+                    id: centerModules
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Workspaces {}
+                }
             }
 
-
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Row {
+                    id: rightModules
+                    anchors.right: parent.right
+                    spacing: 8
+                    Clock {}
+                }
+            }
         }
-
     }
 }

@@ -7,13 +7,14 @@ Rectangle {
     property string icon
     property bool isIconOnly: true
     property string label
+    signal clicked()
     scale: mouseArea.containsMouse ? 1.1 : 1.0
     // Transitions
 
     Behavior on scale {
         NumberAnimation {
             duration: Theme.animationDuration
-            easin.type: Easing.OutExpo
+            easing.type: Easing.OutExpo
         }
     }
     Behavior on color {
@@ -46,6 +47,6 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
-        onClicked: parent.onClicked()
+        onClicked: root.clicked()
     }
 }
