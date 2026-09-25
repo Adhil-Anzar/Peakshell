@@ -9,7 +9,6 @@ import QtQuick.Effects
 import "root:/"
 import "root:/services"
 
-
 Rectangle {
     id: root
     Process {
@@ -17,58 +16,65 @@ Rectangle {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                root.sourceProcessName = this.text.trim()
-                root.symbol = this.text.trim().toLowerCase()
+                root.sourceProcessName = this.text.trim();
+                root.symbol = this.text.trim().toLowerCase();
             }
         }
     }
-    property bool isSourceApplication: true;
+    property bool isSourceApplication: true
     property string symbol: {
-        if (!isSourceApplication) return PipewireResolve.getIconByNode(node)
-        if (!node) return "audio-volume-high";
+        if (!isSourceApplication)
+            return PipewireResolve.getIconByNode(node);
+        if (!node)
+            return "audio-volume-high";
         var icon = node.properties["pipewire.access.portal.app_id"];
-        if (icon) return icon
+        if (icon)
+            return icon;
 
         icon = node.properties["application.icon-name"];
-        if (icon) return icon
+        if (icon)
+            return icon;
 
         const id = node.properties["client.id"];
-        if (!id) return "audio-volume-high"
+        if (!id)
+            return "audio-volume-high";
         //console.log("Fetching for " + id);
-        appName.command = ["sh", "-c", `pw-cli info ${id} | awk -F'"' '/application.name/ {print $2}'`]
+        appName.command = ["sh", "-c", `pw-cli info ${id} | awk -F'"' '/application.name/ {print $2}'`];
         appName.running = true;
-        return "audio-volume-high"
+        return "audio-volume-high";
     }
-    property string sourceProcessName;
+    property string sourceProcessName
     property string label: {
         // application.name -> description -> name
         if (sourceProcessName) {  // Manual Icon is enabled
             const media = node.properties["media.name"];
             const lbl = media !== undefined ? `${sourceProcessName} - ${media}` : sourceProcessName;
             return lbl;
-        }
-        else {
-            if (!node) return "Unknown"
+        } else {
+            if (!node)
+                return "Unknown";
             const app = node.properties["application.process.binary"] ?? (node.properties["application.name"] ?? (node.description !== "" ? node.description : node.name));
             const media = node.properties["media.name"];
             const lbl = media !== undefined ? `${app} - ${media}` : app;
             return lbl;
         }
     }
-    property real iconSize: 36;
+    property real iconSize: 36
 
-    required property PwNode node;
-    property var popup: mainPopup;
+    required property PwNode node
+    property var popup: mainPopup
     // bind the node so we can read its properties
-    PwObjectTracker { objects: [ node ] }
+    PwObjectTracker {
+        objects: [node]
+    }
     PwNodePeakMonitor {
-        id: peakMonitor;
-        node: root.node;
+        id: peakMonitor
+        node: root.node
         // if the thing aint sink its gonna die
         enabled: root.node ? root.node.audio && root.node.isSink && root.visible : false
     }
 
-    signal pressMute();
+    signal pressMute
     color: Theme.bgColor
     border.color: Theme.mutedAccent
     border.width: Theme.generalThickness
@@ -86,13 +92,11 @@ Rectangle {
             IconImage {
                 Layout.alignment: Qt.AlignVCenter
                 implicitSize: Theme.iconFontSize
-                source: Quickshell.iconPath(symbol,"applications-other")
-
+                source: Quickshell.iconPath(symbol, "applications-other")
             }
             Text {
                 Layout.alignment: Qt.AlignVCenter
                 text: root.label
-                width: Theme.soundPanelWidth - (Theme.cornerLargeRadius * 4)
                 color: Theme.mutedFgColor
                 font.pointSize: Theme.labelFontSize
                 font.family: Theme.labelFontFamily
@@ -110,17 +114,19 @@ Rectangle {
                 textRole: "description"
                 visible: !isSourceApplication
                 model: {
-                    if (isSourceApplication) return [];
-                    if (!node) return [];
+                    if (isSourceApplication)
+                        return [];
+                    if (!node)
+                        return [];
                     if (node.isSink)
-                        return PipewireResolve.outputDevices
-                    return PipewireResolve.inputDevices
+                        return PipewireResolve.outputDevices;
+                    return PipewireResolve.inputDevices;
                 }
                 onActivated: {
                     if (node.isSink)
-                        Pipewire.preferredDefaultAudioSink = PipewireResolve.outputDevices[comboBox.currentIndex]
+                        Pipewire.preferredDefaultAudioSink = PipewireResolve.outputDevices[comboBox.currentIndex];
                     else
-                        Pipewire.preferredDefaultAudioSource = PipewireResolve.inputDevices[comboBox.currentIndex]
+                        Pipewire.preferredDefaultAudioSource = PipewireResolve.inputDevices[comboBox.currentIndex];
                 }
                 contentItem: Text {
                     id: currentTextObject
@@ -148,13 +154,13 @@ Rectangle {
                     radius: Theme.cornerRadius
                     Behavior on color {
                         ColorAnimation {
-                        duration: Theme.animationDuration
+                            duration: Theme.animationDuration
                         }
                     }
                     color: comboBoxMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
                     MouseArea {
-                        enabled: parent.enabled
                         id: comboBoxMouseArea
+                        enabled: parent.enabled
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -167,8 +173,8 @@ Rectangle {
                     hoverEnabled: true
                     highlighted: parent.currentIndex === index
                     contentItem: Text {
-                        anchors.fill: parent
                         id: comboBoxDescription
+                        anchors.fill: parent
                         text: modelData.description
                         verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: Text.AlignHCenter
@@ -179,7 +185,7 @@ Rectangle {
                     }
                     background: Rectangle {
                         anchors.fill: parent
-                        color: Qt.darker(Theme.bgColor, 3);
+                        color: Qt.darker(Theme.bgColor, 3)
                         border.color: Theme.mutedAccent
                         border.width: Theme.generalThickness
                         radius: Theme.cornerRadius
@@ -215,8 +221,8 @@ Rectangle {
                 size: root.iconSize
                 bgColor: "transparent"
                 onPress: () => {
-                    console.log("Executing Mute-Unmute for item " + root.label)
-                    node.audio.muted = !node.audio.muted
+                    console.log("Executing Mute-Unmute for item " + root.label);
+                    node.audio.muted = !node.audio.muted;
                 }
             }
             Slider {
@@ -255,7 +261,10 @@ Rectangle {
                         // }
                         blur: peakMonitor.peak === 0 ? 0 : 30
                         Behavior on blur {
-                            NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo }
+                            NumberAnimation {
+                                duration: Theme.animationDuration
+                                easing.type: Easing.OutExpo
+                            }
                         }
                     }
 
@@ -282,8 +291,8 @@ Rectangle {
                     }
                     color: Theme.accent
                 }
-                onMoved : {
-                    node.audio.volume = volumeSlider.value
+                onMoved: {
+                    node.audio.volume = volumeSlider.value;
                 }
             }
             Text {
@@ -291,9 +300,7 @@ Rectangle {
                 color: Theme.mutedFgColor
                 font.pointSize: Theme.labelFontSize
                 font.family: Theme.labelFontFamily
-
             }
         }
     }
-
 }

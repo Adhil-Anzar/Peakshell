@@ -17,8 +17,8 @@ PanelWindow {
 
     function calculateHeight(itemCount, space) {
         if (itemCount > Theme.bluetoothItemMaxCount)
-            return Theme.bluetoothItemSize * Theme.bluetoothItemMaxCount + Math.abs(space * (Theme.bluetoothItemMaxCount - 1))
-        return Theme.bluetoothItemSize * itemCount + Math.abs(space * (itemCount - 1))
+            return Theme.bluetoothItemSize * Theme.bluetoothItemMaxCount + Math.abs(space * (Theme.bluetoothItemMaxCount - 1));
+        return Theme.bluetoothItemSize * itemCount + Math.abs(space * (itemCount - 1));
     }
 
     visible: false
@@ -39,26 +39,27 @@ PanelWindow {
 
     FocusScope {
         focus: true
-        Keys.onPressed: (event) => {
+        Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                bluetoothPanel.visible = false
-                event.accepted = true
+                bluetoothPanel.visible = false;
+                event.accepted = true;
             }
             if (event.key === Qt.Key_Shift)
-                bluetoothPanel.isShiftDown = true
+                bluetoothPanel.isShiftDown = true;
         }
-        Keys.onReleased: (event) => {
+        Keys.onReleased: event => {
             if (event.key === Qt.Key_Shift)
-                bluetoothPanel.isShiftDown = false
+                bluetoothPanel.isShiftDown = false;
         }
         onActiveFocusChanged: {
             if (!activeFocus)
-                bluetoothPanel.isShiftDown = false
+                bluetoothPanel.isShiftDown = false;
         }
     }
 
     Item {
-        x: visible ? bluetoothPanel.barOffset : 0
+        x: visible ? (bluetoothPanel.barOffset + Theme.barHorizontalPad) : 0
+        //y: Theme.dropdownOffset * 2
         visible: bluetoothPanel.visible
         width: Theme.bluetoothPanelWidth
         ColumnLayout {
@@ -102,7 +103,9 @@ PanelWindow {
                         }
                     }
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
                 Rectangle {
                     Layout.preferredHeight: bluetoothSwitch.height + Theme.cornerRadius
                     Layout.preferredWidth: bluetoothSwitch.width + Theme.cornerLargeRadius
@@ -138,7 +141,9 @@ PanelWindow {
                             border.color: Theme.mutedAccent
                             border.width: Theme.generalThickness / 2
                             Behavior on color {
-                                ColorAnimation { duration: Theme.animationDuration }
+                                ColorAnimation {
+                                    duration: Theme.animationDuration
+                                }
                             }
                             Rectangle {
                                 x: bluetoothSwitch.checked ? parent.width - width : 0
@@ -177,7 +182,10 @@ PanelWindow {
                     border.width: Theme.generalThickness
                     RowLayout {
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.bluetoothItemSize - Theme.cornerRadius
@@ -204,17 +212,20 @@ PanelWindow {
                         LabelButton {
                             label: {
                                 if (modelData.pairing)
-                                    return BluetoothDeviceState.toString(modelData.state)
-                                return bluetoothPanel.isShiftDown ? "Forget" : "Disconnect"
+                                    return BluetoothDeviceState.toString(modelData.state);
+                                return bluetoothPanel.isShiftDown ? "Forget" : "Disconnect";
                             }
                             onPress: {
                                 if (bluetoothPanel.isShiftDown)
-                                    BluetoothResolve.forget(modelData)
+                                    BluetoothResolve.forget(modelData);
                                 else
-                                    BluetoothResolve.disconnect(modelData)
+                                    BluetoothResolve.disconnect(modelData);
                             }
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }
@@ -254,7 +265,10 @@ PanelWindow {
                     border.width: Theme.generalThickness
                     RowLayout {
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.bluetoothItemSize - Theme.cornerRadius
@@ -283,17 +297,20 @@ PanelWindow {
                             enabled: modelData.state !== BluetoothDeviceState.Connecting
                             label: {
                                 if (modelData.state === BluetoothDeviceState.Connecting)
-                                    return "Pairing"
-                                return bluetoothPanel.isShiftDown ? "Forget" : "Connect"
+                                    return "Pairing";
+                                return bluetoothPanel.isShiftDown ? "Forget" : "Connect";
                             }
                             onPress: {
                                 if (bluetoothPanel.isShiftDown)
-                                    BluetoothResolve.forget(modelData)
+                                    BluetoothResolve.forget(modelData);
                                 else
-                                    BluetoothResolve.connect(modelData)
+                                    BluetoothResolve.connect(modelData);
                             }
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }
@@ -320,7 +337,9 @@ PanelWindow {
                         color: Theme.fgColor
                     }
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
                 Rectangle {
                     Layout.preferredWidth: unknownBluetoothNumber.width + Theme.cornerLargeRadius
                     Layout.preferredHeight: unknownBluetoothNumber.height + Theme.cornerRadius
@@ -359,7 +378,10 @@ PanelWindow {
                     RowLayout {
                         ListView.delayRemove: true
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.bluetoothItemSize - Theme.cornerRadius
@@ -388,7 +410,10 @@ PanelWindow {
                             label: modelData.state === BluetoothDeviceState.Connecting ? "Pairing" : "Connect"
                             onPress: BluetoothResolve.pair(modelData)
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }

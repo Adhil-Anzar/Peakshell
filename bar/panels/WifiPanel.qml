@@ -17,8 +17,8 @@ PanelWindow {
 
     function calculateHeight(itemCount, space) {
         if (itemCount > Theme.wifiItemMaxCount)
-            return Theme.wifiItemSize * Theme.wifiItemMaxCount + Math.abs(space * (Theme.wifiItemMaxCount - 1))
-        return Theme.wifiItemSize * itemCount + Math.abs(space * (itemCount - 1))
+            return Theme.wifiItemSize * Theme.wifiItemMaxCount + Math.abs(space * (Theme.wifiItemMaxCount - 1));
+        return Theme.wifiItemSize * itemCount + Math.abs(space * (itemCount - 1));
     }
 
     visible: false
@@ -39,26 +39,26 @@ PanelWindow {
 
     FocusScope {
         focus: true
-        Keys.onPressed: (event) => {
+        Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                wifiPanel.visible = false
-                event.accepted = true
+                wifiPanel.visible = false;
+                event.accepted = true;
             }
             if (event.key === Qt.Key_Shift)
-                wifiPanel.isShiftDown = true
+                wifiPanel.isShiftDown = true;
         }
-        Keys.onReleased: (event) => {
+        Keys.onReleased: event => {
             if (event.key === Qt.Key_Shift)
-                wifiPanel.isShiftDown = false
+                wifiPanel.isShiftDown = false;
         }
         onActiveFocusChanged: {
             if (!activeFocus)
-                wifiPanel.isShiftDown = false
+                wifiPanel.isShiftDown = false;
         }
     }
 
     Item {
-        x: visible ? wifiPanel.barOffset : 0
+        x: visible ? (wifiPanel.barOffset + Theme.barHorizontalPad) : 0
         visible: wifiPanel.visible
         width: Theme.wifiPanelWidth
         ColumnLayout {
@@ -102,7 +102,9 @@ PanelWindow {
                         }
                     }
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
                 Rectangle {
                     Layout.preferredHeight: wifiSwitch.height + Theme.cornerRadius
                     Layout.preferredWidth: wifiSwitch.width + Theme.cornerLargeRadius
@@ -138,7 +140,9 @@ PanelWindow {
                             border.color: Theme.mutedAccent
                             border.width: Theme.generalThickness / 2
                             Behavior on color {
-                                ColorAnimation { duration: Theme.animationDuration }
+                                ColorAnimation {
+                                    duration: Theme.animationDuration
+                                }
                             }
                             Rectangle {
                                 x: wifiSwitch.checked ? parent.width - width : 0
@@ -177,7 +181,10 @@ PanelWindow {
                     border.width: Theme.generalThickness
                     RowLayout {
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.wifiItemSize
@@ -204,17 +211,20 @@ PanelWindow {
                         LabelButton {
                             label: {
                                 if (modelData.stateChanging)
-                                    return ConnectionState.toString(modelData.state)
-                                return wifiPanel.isShiftDown ? "Forget" : "Disconnect"
+                                    return ConnectionState.toString(modelData.state);
+                                return wifiPanel.isShiftDown ? "Forget" : "Disconnect";
                             }
                             onPress: {
                                 if (wifiPanel.isShiftDown)
-                                    INetwork.forgetWifi(modelData)
+                                    INetwork.forgetWifi(modelData);
                                 else
-                                    INetwork.disconnect(modelData)
+                                    INetwork.disconnect(modelData);
                             }
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }
@@ -254,7 +264,10 @@ PanelWindow {
                     border.width: Theme.generalThickness
                     RowLayout {
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.wifiItemSize
@@ -282,17 +295,20 @@ PanelWindow {
                             enabled: !modelData.stateChanging
                             label: {
                                 if (modelData.stateChanging)
-                                    return ConnectionState.toString(modelData.state)
-                                return wifiPanel.isShiftDown ? "Forget" : "Join"
+                                    return ConnectionState.toString(modelData.state);
+                                return wifiPanel.isShiftDown ? "Forget" : "Join";
                             }
                             onPress: {
                                 if (wifiPanel.isShiftDown)
-                                    INetwork.forgetWifi(modelData)
+                                    INetwork.forgetWifi(modelData);
                                 else
-                                    INetwork.connectKnownWifi(modelData)
+                                    INetwork.connectKnownWifi(modelData);
                             }
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }
@@ -319,7 +335,9 @@ PanelWindow {
                         color: Theme.fgColor
                     }
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
                 Rectangle {
                     Layout.preferredWidth: unknownNetworksNumber.width + Theme.cornerLargeRadius
                     Layout.preferredHeight: unknownNetworksNumber.height + Theme.cornerRadius
@@ -358,7 +376,10 @@ PanelWindow {
                     RowLayout {
                         ListView.delayRemove: true
                         anchors.fill: parent
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
                             implicitSize: Theme.wifiItemSize
@@ -387,7 +408,10 @@ PanelWindow {
                             label: modelData.stateChanging ? ConnectionState.toString(modelData.state) : "Connect"
                             onPress: INetwork.connectUnknownWifi(modelData)
                         }
-                        Item { height: 1; width: Theme.cornerRadius }
+                        Item {
+                            height: 1
+                            width: Theme.cornerRadius
+                        }
                     }
                 }
             }

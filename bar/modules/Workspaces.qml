@@ -14,7 +14,9 @@ Rectangle {
 
     width: container.width + Theme.cornerLargeRadius
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     color: Theme.bgColor
     border.color: Theme.accent
@@ -32,19 +34,19 @@ Rectangle {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         onClicked: {
-            const focusedWs = Hyprland.focusedWorkspace
+            const focusedWs = Hyprland.focusedWorkspace;
             if (focusedWs) {
-                previewPanel.togglePreview(focusedWs.id, focusedWs.name)
+                previewPanel.togglePreview(focusedWs.id, focusedWs.name);
             } else if (Hypr.activeWsId) {
-                previewPanel.togglePreview(Hypr.activeWsId, "Workspace " + Hypr.activeWsId)
+                previewPanel.togglePreview(Hypr.activeWsId, "Workspace " + Hypr.activeWsId);
             }
         }
     }
 
     Row {
+        id: container
         anchors.horizontalCenter: parent.horizontalCenter
         height: root.height
-        id: container
         spacing: 0
 
         Repeater {
@@ -75,12 +77,15 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
-                    onClicked: (mouse) => {
+                    onEntered: {
+                        hoverDebounce.isDelaying = true;
+                        hoverDebounce.restart();
+                    }
+                    onClicked: mouse => {
                         if (mouse.button === Qt.RightButton) {
-                            previewPanel.togglePreview(modelData.id, modelData.name)
+                            previewPanel.togglePreview(modelData.id, modelData.name);
                         } else {
-                            modelData.activate()
+                            modelData.activate();
                         }
                     }
                 }
@@ -97,33 +102,35 @@ Rectangle {
                 Rectangle {
                     id: wsDot
                     anchors.centerIn: parent
-                    height: 16
+                    height: 12
                     width: this.height
                     radius: width / 2
 
                     color: {
                         if (wsItem.isUrgent)
-                            return Theme.urgentPulseColor
+                            return Theme.urgentPulseColor;
                         if (wsItem.isFocused)
-                            return Theme.mutedFgColor
+                            return Theme.mutedFgColor;
                         if (wsItem.isOccupied)
-                            return Theme.mutedAccent
-                        return Qt.darker(Theme.mutedAccent, 2)
+                            return Theme.mutedAccent;
+                        return Qt.darker(Theme.mutedAccent, 2);
                     }
 
                     scale: {
                         if (wsItem.isFocused)
-                            return 1.15
+                            return 1.15;
                         if (wsItem.isOccupied)
-                            return 0.9
-                        return 0.65
+                            return 0.9;
+                        return 0.65;
                     }
 
                     Behavior on color {
                         CAnim {}
                     }
                     Behavior on scale {
-                        Anim { type: Anim.DefaultSpatial }
+                        Anim {
+                            type: Anim.DefaultSpatial
+                        }
                     }
 
                     // Purple pulse when the workspace has an urgent window
@@ -131,7 +138,7 @@ Rectangle {
                         id: urgentPulse
                         running: wsItem.isUrgent
                         loops: Animation.Infinite
-
+                        alwaysRunToEnd: true
                         Anim {
                             target: wsDot
                             property: "scale"
@@ -148,7 +155,6 @@ Rectangle {
                         }
                     }
                 }
-
             }
         }
     }

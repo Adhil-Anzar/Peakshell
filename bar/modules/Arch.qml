@@ -13,7 +13,7 @@ import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import Quickshell.Networking
 
-Rectangle{
+Rectangle {
     // Properties
     id: root
     required property var panelHost
@@ -23,24 +23,26 @@ Rectangle{
     property bool lowPowerNotified: false
     property real batteryPercent: UPower.displayDevice ? UPower.displayDevice.percentage : 1
     onBatteryPercentChanged: {
-        const percent = Math.round(batteryPercent * 100)
+        const percent = Math.round(batteryPercent * 100);
         if (UPower.onBattery && percent <= Theme.lowPowerThreshold) {
             if (!lowPowerNotified) {
-                lowPower.startDetached()
-                lowPowerNotified = true
+                lowPower.startDetached();
+                lowPowerNotified = true;
             }
         } else {
-            lowPowerNotified = false
+            lowPowerNotified = false;
         }
     }
     // Functions
-    function togglePanel(){
-        panelHost.hideAllPanelExcept("arch")
+    function togglePanel() {
+        panelHost.hideAllPanelExcept("arch");
         dashboard.visible = !dashboard.visible;
         hoverDebounce.isDelaying = true;
         hoverDebounce.restart();
-        if (dashboard.visible) panelHost.toggledPanels["arch"] = dashboard;
-        else panelHost.toggledPanels["arch"] = false;
+        if (dashboard.visible)
+            panelHost.toggledPanels["arch"] = dashboard;
+        else
+            panelHost.toggledPanels["arch"] = false;
     }
     // Processes
     Process {
@@ -49,7 +51,7 @@ Rectangle{
     }
     Process {
         id: toggleMute
-        command: ["sh","-c", "swayosd-client --output-volume mute-toggle"]
+        command: ["sh", "-c", "swayosd-client --output-volume mute-toggle"]
     }
 
     Process {
@@ -78,12 +80,10 @@ Rectangle{
     }
     Process {
         id: netStats
-        command: ["sh", "-c",
-                  "cat /sys/class/net/wlan0/statistics/rx_bytes; " +
-                  "cat /sys/class/net/wlan0/statistics/tx_bytes"]
+        command: ["sh", "-c", "cat /sys/class/net/wlan0/statistics/rx_bytes; " + "cat /sys/class/net/wlan0/statistics/tx_bytes"]
         stdout: StdioCollector {
-            onStreamFinished: networkContainer.set(this.text.trim().split("\n"));
-          }
+            onStreamFinished: networkContainer.set(this.text.trim().split("\n"))
+        }
     }
     Process {
         id: procLogout
@@ -114,7 +114,9 @@ Rectangle{
     // Transitions
     width: container.width + 32
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     Behavior on color {
         CAnim {}
@@ -122,8 +124,8 @@ Rectangle{
     // Styling
     color: {
         if (mouseArea.containsMouse)
-            return Theme.hoveredBgColor
-        return Theme.bgColor
+            return Theme.hoveredBgColor;
+        return Theme.bgColor;
     }
     border.color: Theme.accent
     border.width: Theme.generalThickness
@@ -136,7 +138,11 @@ Rectangle{
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
-        onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart(); root.label = "I use Arch btw"; }
+        onEntered: {
+            hoverDebounce.isDelaying = true;
+            hoverDebounce.restart();
+            root.label = "I use Arch btw";
+        }
         onClicked: root.togglePanel()
     }
     Timer {
@@ -146,7 +152,9 @@ Rectangle{
         repeat: false
         running: !mouseArea.containsMouse && isDelaying
 
-        onTriggered: { isDelaying = false; }
+        onTriggered: {
+            isDelaying = false;
+        }
     }
     // Icon / Label Text
     Row {
@@ -162,14 +170,18 @@ Rectangle{
             visible: hoverDebounce.isDelaying || mouseArea.containsMouse || UPower.onBattery
             anchors.verticalCenter: parent.verticalCenter
             text: UPower.onBattery ? "Discharging..." : root.label
-            font.pointSize: Theme.labelFontSize 
-            font.family: Theme.labelFontFamily 
+            font.pointSize: Theme.labelFontSize
+            font.family: Theme.labelFontFamily
             color: Theme.fgColor
             opacity: visible ? 1 : 0
-            Behavior on opacity { Anim { type: Anim.DefaultEffects } }
+            Behavior on opacity {
+                Anim {
+                    type: Anim.DefaultEffects
+                }
+            }
         }
     }
-    // Popup Part    
+    // Popup Part
     PanelWindow {
         id: dashboard
         visible: false
@@ -197,10 +209,10 @@ Rectangle{
         // The Esc => close
         FocusScope {
             focus: true
-            Keys.onPressed: (event) => {
+            Keys.onPressed: event => {
                 if (event.key === Qt.Key_Escape) {
-                    dashboard.visible = false
-                    event.accepted = true
+                    dashboard.visible = false;
+                    event.accepted = true;
                 }
             }
         }
@@ -210,14 +222,16 @@ Rectangle{
             height: Theme.dashboardHeight
             width: Theme.dashboardWidth
             x: Theme.barHorizontalPad
-            //y: bar.height + Theme.dropdownOffset
+            //y: Theme.dropdownOffset * 2
 
-            ColumnLayout{
+            ColumnLayout {
                 id: mainColumn
                 visible: dashboard.visible
                 spacing: visible ? 5 : 30
                 Behavior on spacing {
-                    Anim { type: Anim.DefaultSpatial }
+                    Anim {
+                        type: Anim.DefaultSpatial
+                    }
                 }
 
                 // Dashboard Title
@@ -247,13 +261,13 @@ Rectangle{
                             font.family: Theme.labelFontFamily
                             color: Theme.fgColor
                         }
-                        ClickButton{
+                        ClickButton {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.right: parent.right
                             symbol: "systemsettings-alt"
                             size: 36
                             onPress: () => {
-                                console.log("Executing Settings")
+                                console.log("Executing Settings");
                                 runSettings.startDetached();
                                 root.togglePanel();
                             }
@@ -281,7 +295,7 @@ Rectangle{
                             symbol: INetwork.networkStrengthIcon
                             isChecked: Networking.wifiEnabled
                             label: INetwork.connectionMessage
-                            onPress: INetwork.setWifi(this.isChecked);
+                            onPress: INetwork.setWifi(this.isChecked)
                         }
                         ToggleButton {
                             symbol: BluetoothResolve.icon
@@ -315,14 +329,14 @@ Rectangle{
                             label: "Power Saver"
                             onPress: {
                                 if (!this.isChecked) {
-                                    setPowerBalanced.startDetached()
-                                }
-                                else setPowerSave.startDetached();
+                                    setPowerBalanced.startDetached();
+                                } else
+                                    setPowerSave.startDetached();
                             }
                         }
                     }
                 }
-                // Volume 
+                // Volume
                 Rectangle {
                     Layout.preferredHeight: 125
                     Layout.preferredWidth: Theme.dashboardWidth
@@ -349,7 +363,6 @@ Rectangle{
                                 color: Theme.mutedFgColor
                                 font.pointSize: Theme.labelFontSize * 1.2
                                 font.family: Theme.labelFontFamily
-                                
                             }
                         }
                         RowLayout {
@@ -359,26 +372,27 @@ Rectangle{
                                 size: 36
                                 bgColor: "transparent"
                                 onPress: () => {
-                                    console.log("Executing Mute-Unmute")
+                                    console.log("Executing Mute-Unmute");
                                     toggleMute.startDetached();
-
                                 }
                             }
                             Slider {
-                                focusPolicy: Qt.NoFocus
                                 id: volumeSlider
+                                focusPolicy: Qt.NoFocus
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
                                 from: 0
                                 to: 1 // its from 0 -> 1
                                 value: visible ? Pipewire.defaultAudioSink.audio.volume : 0
                                 Behavior on value {
-                                    Anim { type: Anim.FastSpatial }
+                                    Anim {
+                                        type: Anim.FastSpatial
+                                    }
                                 }
 
                                 background: Rectangle {
                                     x: volumeSlider.leftPadding
-                                    y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                                    //: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
                                     implicitHeight: 6
                                     width: volumeSlider.availableWidth
                                     height: implicitHeight
@@ -401,12 +415,14 @@ Rectangle{
                                     radius: 12
                                     scale: volumeSlider.pressed ? 1.5 : 1.0
                                     Behavior on scale {
-                                        Anim { type: Anim.DefaultSpatial }
+                                        Anim {
+                                            type: Anim.DefaultSpatial
+                                        }
                                     }
                                     color: Theme.accent
                                 }
-                                onMoved : {
-                                    Pipewire.defaultAudioSink.audio.volume = volumeSlider.value
+                                onMoved: {
+                                    Pipewire.defaultAudioSink.audio.volume = volumeSlider.value;
                                 }
                             }
                             Text {
@@ -414,19 +430,17 @@ Rectangle{
                                 color: Theme.mutedFgColor
                                 font.pointSize: Theme.labelFontSize
                                 font.family: Theme.labelFontFamily
-                                
                             }
                         }
                         LabelButton {
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             label: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.description : "Unknown" // <- The proper name
                             onPress: {
-                                dashboard.visible = false
+                                dashboard.visible = false;
                                 sysItems.openSoundPanel();
                             }
                         }
                     }
-
                 }
                 // Media
                 Rectangle {
@@ -438,8 +452,14 @@ Rectangle{
                     border.color: Theme.mutedAccent
                     border.width: Theme.generalThickness
                     radius: Theme.cornerLargeRadius
-                    onPlayerChanged: { if (mediaContainer.player) mediaContainer.player.positionChanged(); }
-                    onVisibleChanged: { if (mediaContainer.player) mediaContainer.player.positionChanged(); }
+                    onPlayerChanged: {
+                        if (mediaContainer.player)
+                            mediaContainer.player.positionChanged();
+                    }
+                    onVisibleChanged: {
+                        if (mediaContainer.player)
+                            mediaContainer.player.positionChanged();
+                    }
                     readonly property var player: MprisController.activePlayer
                     Timer {
                         running: mediaContainer.player && mediaContainer.player.playbackState === MprisPlaybackState.Playing && parent.visible
@@ -452,7 +472,7 @@ Rectangle{
                     }
                     Connections {
                         target: mediaContainer.player
-                        
+
                         function onPostTrackChanged() {
                             mediaContainer.player.positionChanged();
                         }
@@ -477,13 +497,12 @@ Rectangle{
                                 color: Theme.mutedFgColor
                                 font.pointSize: Theme.labelFontSize * 1.2
                                 font.family: Theme.labelFontFamily
-                                
                             }
                         }
                         RowLayout {
                             spacing: 14
                             ClippingRectangle {
-                                
+
                                 height: Theme.thumbnailSize
                                 width: Theme.thumbnailSize
                                 radius: Theme.cornerRadius
@@ -495,14 +514,14 @@ Rectangle{
                                     fillMode: Image.PreserveAspectCrop
                                 }
                             }
-                            
+
                             Column {
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignVCenter
                                 Text {
                                     text: mediaContainer.player ? mediaContainer.player.trackTitle : "Unknown"
                                     color: Theme.fgColor
-                                    font.pointSize: Theme.labelFontSize 
+                                    font.pointSize: Theme.labelFontSize
                                     font.family: Theme.labelFontFamily
                                 }
                                 Text {
@@ -520,7 +539,7 @@ Rectangle{
                                     symbol: "media-seek-backward"
                                     size: 36
                                     onPress: () => {
-                                        console.log("Executing Previous Media")
+                                        console.log("Executing Previous Media");
                                         mediaGoPrevious.startDetached();
                                     }
                                 }
@@ -530,7 +549,7 @@ Rectangle{
                                     isChecked: mediaContainer.player ? mediaContainer.player.isPlaying : false
                                     label: ""
                                     onPress: () => {
-                                        console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying)
+                                        console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying);
                                         mediaPlayPause.startDetached();
                                     }
                                 }
@@ -538,7 +557,7 @@ Rectangle{
                                     symbol: "media-seek-forward"
                                     size: 36
                                     onPress: () => {
-                                        console.log("Executing Next Media")
+                                        console.log("Executing Next Media");
                                         mediaGoForward.startDetached();
                                     }
                                 }
@@ -552,12 +571,12 @@ Rectangle{
                                 id: playerSlider
                                 focusPolicy: Qt.NoFocus
                                 property real releaseValue: 0
-                                
+
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
                                 from: 0
                                 to: mediaContainer.player ? mediaContainer.player.length : 1
-                                
+
                                 value: playerSlider.pressed ? playerSlider.value : (mediaContainer.player ? mediaContainer.player.position : 0)
                                 Behavior on value {
                                     NumberAnimation {
@@ -598,17 +617,17 @@ Rectangle{
                                     color: "transparent"
                                 }
                                 onMoved: {
-                                    seekDebounce.restart()
+                                    seekDebounce.restart();
                                     playerSlider.releaseValue = playerSlider.value;
                                 }
                                 Timer {
                                     id: seekDebounce
                                     interval: 100
                                     repeat: false
-                                    
+
                                     onTriggered: {
-                                        console.log("Changed to: " + playerSlider.releaseValue)
-                                        mediaContainer.player.position = playerSlider.releaseValue
+                                        console.log("Changed to: " + playerSlider.releaseValue);
+                                        mediaContainer.player.position = playerSlider.releaseValue;
                                     }
                                 }
                             }
@@ -619,8 +638,7 @@ Rectangle{
                                     let mins = Math.floor(seconds / 60);
                                     let secs = Math.floor(seconds % 60);
 
-                                    return mins.toString().padStart(1, "0") + ":" +
-                                        secs.toString().padStart(2, "0");
+                                    return mins.toString().padStart(1, "0") + ":" + secs.toString().padStart(2, "0");
                                 }
                                 Layout.fillWidth: true
                                 Text {
@@ -640,7 +658,6 @@ Rectangle{
                             }
                         }
                     }
-
                 }
                 // Battery & Network
                 RowLayout {
@@ -718,7 +735,7 @@ Rectangle{
                                 to: 1
                                 value: UPower.displayDevice.percentage
 
-                                background: Item { }
+                                background: Item {}
                                 contentItem: Rectangle {
                                     implicitHeight: 6
                                     radius: 3
@@ -746,18 +763,20 @@ Rectangle{
                                     id: powerModeMouseArea
                                     hoverEnabled: true
                                     anchors.fill: parent
-                                    onWheel: (wheel) => {
+                                    onWheel: wheel => {
                                         const mode = PowerProfile.toString(PowerProfiles.profile);
                                         if (wheel.angleDelta.y > 0) {
-                                            if (mode === "PowerSaver") setPowerBalanced.startDetached();
-                                            if (mode === "Balanced") setPowerPerformance.startDetached();
+                                            if (mode === "PowerSaver")
+                                                setPowerBalanced.startDetached();
+                                            if (mode === "Balanced")
+                                                setPowerPerformance.startDetached();
+                                        } else if (wheel.angleDelta.y < 0) {
+                                            if (mode === "Balanced")
+                                                setPowerSave.startDetached();
+                                            if (mode === "Performance")
+                                                setPowerBalanced.startDetached();
                                         }
-                                        else if (wheel.angleDelta.y < 0){
-                                            if (mode === "Balanced") setPowerSave.startDetached();
-                                            if (mode === "Performance") setPowerBalanced.startDetached();
-
-                                        }
-                                   }
+                                    }
                                 }
 
                                 RowLayout {
@@ -770,9 +789,12 @@ Rectangle{
 
                                         function getIcon() {
                                             const mode = PowerProfile.toString(PowerProfiles.profile);
-                                            if (mode === "PowerSaver") return "battery-profile-powersave";
-                                            if (mode === "Balanced") return "battery-profile-balanced";
-                                            if (mode === "Performance") return "battery-profile-performance"
+                                            if (mode === "PowerSaver")
+                                                return "battery-profile-powersave";
+                                            if (mode === "Balanced")
+                                                return "battery-profile-balanced";
+                                            if (mode === "Performance")
+                                                return "battery-profile-performance";
                                         }
                                     }
                                     Text {
@@ -783,8 +805,10 @@ Rectangle{
                                         font.family: Theme.labelFontFamily
                                         function toCleanName() {
                                             const mode = PowerProfile.toString(PowerProfiles.profile);
-                                            if (mode === "PowerSaver") return "Power Saver";
-                                            else return mode;
+                                            if (mode === "PowerSaver")
+                                                return "Power Saver";
+                                            else
+                                                return mode;
                                         }
                                     }
                                 }
@@ -899,10 +923,7 @@ Rectangle{
                                         font.family: Theme.labelFontFamily
                                     }
                                 }
-
                             }
-
-
                         }
                     }
                 }
@@ -934,7 +955,10 @@ Rectangle{
                                 root.togglePanel();
                             }
                         }
-                        Item { width: 4; height: 1}
+                        Item {
+                            width: 4
+                            height: 1
+                        }
                         Text {
                             Layout.alignment: Qt.AlignVCenter
                             Layout.fillWidth: true
@@ -951,10 +975,10 @@ Rectangle{
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: {
-                                console.log("Executing hyprland logout")
+                                console.log("Executing hyprland logout");
                                 procLogout.startDetached();
                                 root.togglePanel();
-                                Qt.quit()
+                                Qt.quit();
                             }
                         }
                         // Sleep
@@ -965,7 +989,7 @@ Rectangle{
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: () => {
-                                console.log("Executing System Suspend")
+                                console.log("Executing System Suspend");
                                 procSleep.startDetached();
                                 root.togglePanel();
                             }
@@ -978,10 +1002,10 @@ Rectangle{
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: {
-                                console.log("Executing Reboot")
+                                console.log("Executing Reboot");
                                 procReboot.startDetached();
                                 root.togglePanel();
-                                Qt.quit()
+                                Qt.quit();
                             }
                         }
                         // Shutdown
@@ -992,10 +1016,10 @@ Rectangle{
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: {
-                                console.log("Executing poweroff")
+                                console.log("Executing poweroff");
                                 procShutdown.startDetached();
                                 root.togglePanel();
-                                Qt.quit()
+                                Qt.quit();
                             }
                         }
                     }

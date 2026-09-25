@@ -12,7 +12,7 @@ QtObject {
     property string fgColor: "#FFFFFFFF"
     property string mutedFgColor: "#FFA0A0A0"
     property string altFgColor: "#FF050505"
-    property string accent:  "#FF8C00BA"
+    property string accent: "#FF8C00BA"
     property string mutedAccent: "#AA797979"
     property string battery: "#FF21AB5F"
     // Sizings
@@ -65,8 +65,10 @@ QtObject {
     // Workspace Panel & Preview
     property real workspacePanelWidth: 400
     property real workspacePanelHeight: 100
-    property real workspacePreviewWidth: 648
-    property real workspacePreviewHeight: 432
+    //property real workspacePreviewWidth: 648
+    //property real workspacePreviewHeight: 432
+    property real workspacePreviewWidth: 1000
+    property real workspacePreviewHeight: 750
     property string urgentPulseColor: "#CC8800FF"
 
     // Clock & Calendar Panel

@@ -30,16 +30,16 @@ PanelWindow {
 
     FocusScope {
         focus: true
-        Keys.onPressed: (event) => {
+        Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                soundPanel.visible = false
-                event.accepted = true
+                soundPanel.visible = false;
+                event.accepted = true;
             }
         }
     }
 
     Item {
-        x: visible ? soundPanel.barOffset : 0
+        x: visible ? (soundPanel.barOffset + Theme.barHorizontalPad) : 0
         visible: soundPanel.visible
 
         ColumnLayout {
@@ -76,21 +76,23 @@ PanelWindow {
                         }
                     }
                     Behavior on color {
-                        ColorAnimation { duration: Theme.animationDuration }
+                        ColorAnimation {
+                            duration: Theme.animationDuration
+                        }
                     }
                     MouseArea {
                         id: soundModeMouseArea
                         hoverEnabled: true
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
-                        onWheel: (wheel) => {
+                        onWheel: wheel => {
                             if (wheel.angleDelta.y > 0)
-                                deviceMode.mode = "output"
+                                deviceMode.mode = "output";
                             else if (wheel.angleDelta.y < 0)
-                                deviceMode.mode = "input"
+                                deviceMode.mode = "input";
                         }
                         onPressed: {
-                            deviceMode.mode = deviceMode.mode === "output" ? "input" : "output"
+                            deviceMode.mode = deviceMode.mode === "output" ? "input" : "output";
                         }
                     }
 
@@ -123,13 +125,13 @@ PanelWindow {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
                 model: {
-                    const nodes = []
+                    const nodes = [];
                     for (let i = 0; i < Pipewire.nodes.values.length; ++i) {
-                        const node = Pipewire.nodes.values[i]
+                        const node = Pipewire.nodes.values[i];
                         if (deviceMode.mode === "output" ? node.isStream && node.isSink : node.isStream && !node.isSink)
-                            nodes.push(node)
+                            nodes.push(node);
                     }
-                    return nodes
+                    return nodes;
                 }
 
                 VolumeMixer {

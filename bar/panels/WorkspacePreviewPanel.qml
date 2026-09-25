@@ -21,9 +21,9 @@ PanelWindow {
     readonly property var wsToplevels: Hypr.toplevelsForWs(targetWorkspaceId)
     readonly property HyprlandToplevel currentToplevel: {
         if (!wsToplevels || wsToplevels.length === 0)
-            return null
-        const idx = Math.max(0, Math.min(selectedIndex, wsToplevels.length - 1))
-        return wsToplevels[idx]
+            return null;
+        const idx = Math.max(0, Math.min(selectedIndex, wsToplevels.length - 1));
+        return wsToplevels[idx];
     }
 
     // When the user swaps desktops while preview is open, automatically switch preview to current desktop
@@ -31,57 +31,57 @@ PanelWindow {
         target: Hypr
         function onActiveWsIdChanged() {
             if (root.visible) {
-                root.targetWorkspaceId = Hypr.activeWsId
-                const ws = Hypr.workspaceById(Hypr.activeWsId)
-                root.targetWorkspaceName = ws ? ws.name : ("Workspace " + Hypr.activeWsId)
-                root.selectedIndex = 0
+                root.targetWorkspaceId = Hypr.activeWsId;
+                const ws = Hypr.workspaceById(Hypr.activeWsId);
+                root.targetWorkspaceName = ws ? ws.name : ("Workspace " + Hypr.activeWsId);
+                root.selectedIndex = 0;
             }
         }
     }
 
     function getAppClass(toplevel) {
         if (!toplevel || !toplevel.lastIpcObject || !toplevel.lastIpcObject.class)
-            return ""
-        return toplevel.lastIpcObject.class
+            return "";
+        return toplevel.lastIpcObject.class;
     }
 
     function getAppIcon(toplevel) {
-        const cls = getAppClass(toplevel)
-        return cls ? Quickshell.iconPath(cls.toLowerCase(), "application-x-executable") : Quickshell.iconPath("application-x-executable")
+        const cls = getAppClass(toplevel);
+        return cls ? Quickshell.iconPath(cls.toLowerCase(), "application-x-executable") : Quickshell.iconPath("application-x-executable");
     }
 
     function getAppTitle(toplevel) {
         if (!toplevel)
-            return "Window"
+            return "Window";
         if (toplevel.title)
-            return toplevel.title
-        return getAppClass(toplevel) || "Window"
+            return toplevel.title;
+        return getAppClass(toplevel) || "Window";
     }
 
     function openPreview(wsId, wsName) {
-        targetWorkspaceId = wsId ? wsId : Hypr.activeWsId
-        targetWorkspaceName = wsName ? wsName : ("Workspace " + targetWorkspaceId)
-        selectedIndex = 0
-        isShiftPressed = false
+        targetWorkspaceId = wsId ? wsId : Hypr.activeWsId;
+        targetWorkspaceName = wsName ? wsName : ("Workspace " + targetWorkspaceId);
+        selectedIndex = 0;
+        isShiftPressed = false;
         if (panelHost && panelHost.hideAllPanelExcept)
-            panelHost.hideAllPanelExcept("workspacePreview")
-        visible = true
+            panelHost.hideAllPanelExcept("workspacePreview");
+        visible = true;
         if (panelHost && panelHost.toggledPanels)
-            panelHost.toggledPanels["workspacePreview"] = root
+            panelHost.toggledPanels["workspacePreview"] = root;
     }
 
     function closePreview() {
-        visible = false
-        isShiftPressed = false
+        visible = false;
+        isShiftPressed = false;
         if (panelHost && panelHost.toggledPanels)
-            panelHost.toggledPanels["workspacePreview"] = false
+            panelHost.toggledPanels["workspacePreview"] = false;
     }
 
     function togglePreview(wsId, wsName) {
         if (visible && targetWorkspaceId === wsId)
-            closePreview()
+            closePreview();
         else
-            openPreview(wsId, wsName)
+            openPreview(wsId, wsName);
     }
 
     visible: false
@@ -110,19 +110,19 @@ PanelWindow {
         anchors.fill: parent
         focus: root.visible
 
-        Keys.onPressed: (event) => {
+        Keys.onPressed: event => {
             if (event.key === Qt.Key_Shift || (event.modifiers & Qt.ShiftModifier)) {
-                root.isShiftPressed = true
+                root.isShiftPressed = true;
             }
             if (event.key === Qt.Key_Escape) {
-                root.closePreview()
-                event.accepted = true
+                root.closePreview();
+                event.accepted = true;
             }
         }
 
-        Keys.onReleased: (event) => {
+        Keys.onReleased: event => {
             if (event.key === Qt.Key_Shift || !(event.modifiers & Qt.ShiftModifier)) {
-                root.isShiftPressed = false
+                root.isShiftPressed = false;
             }
         }
     }
@@ -132,7 +132,7 @@ PanelWindow {
         width: Theme.workspacePreviewWidth
         height: root.wsToplevels.length > 0 ? Theme.workspacePreviewHeight + (root.wsToplevels.length > 1 ? 46 : 0) : 230
         anchors.horizontalCenter: parent.horizontalCenter
-        y: Theme.barHeight + (Theme.dropdownOffset * 2)
+        y: Theme.dropdownOffset * 2
 
         color: Theme.bgColor
         border.color: Theme.mutedAccent
@@ -146,20 +146,49 @@ PanelWindow {
             onClicked: {}
         }
 
+        // Scroll / trackpad gesture navigation
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+
+            onWheel: event => {
+                const count = root.wsToplevels.length;
+
+                if (count <= 1) {
+                    event.accepted = true;
+                    return;
+                }
+
+                if (event.angleDelta.y > 0) {
+                    // Scroll up → previous window
+                    root.selectedIndex = Math.max(root.selectedIndex - 1, 0);
+                } else if (event.angleDelta.y < 0) {
+                    // Scroll down → next window
+                    root.selectedIndex = Math.min(root.selectedIndex + 1, count - 1);
+                }
+
+                event.accepted = true;
+            }
+        }
+
         opacity: root.visible ? 1 : 0
         scale: root.visible ? 1 : 0.92
         transformOrigin: Item.Top
 
         Behavior on opacity {
-            Anim { type: Anim.DefaultEffects }
+            Anim {
+                type: Anim.DefaultEffects
+            }
         }
         Behavior on scale {
-            Anim { type: Anim.DefaultSpatial }
+            Anim {
+                type: Anim.DefaultSpatial
+            }
         }
         Behavior on height {
-            Anim { type: Anim.DefaultSpatial }
+            Anim {
+                type: Anim.DefaultSpatial
+            }
         }
-
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 16
@@ -195,7 +224,9 @@ PanelWindow {
                     font.family: Theme.labelFontFamily
                 }
 
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                }
 
                 ClickButton {
                     symbol: "window-close"
@@ -318,8 +349,12 @@ PanelWindow {
                             border.color: root.isShiftPressed ? "#EF5350" : (killMouse.containsMouse ? Theme.accent : Theme.mutedAccent)
                             border.width: 1
 
-                            Behavior on color { CAnim {} }
-                            Behavior on border.color { CAnim {} }
+                            Behavior on color {
+                                CAnim {}
+                            }
+                            Behavior on border.color {
+                                CAnim {}
+                            }
 
                             MouseArea {
                                 id: killMouse
@@ -328,15 +363,15 @@ PanelWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 acceptedButtons: Qt.LeftButton
 
-                                onClicked: (mouse) => {
-                                    if (!root.currentToplevel) return
-                                    const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier)
+                                onClicked: mouse => {
+                                    if (!root.currentToplevel)
+                                        return;
+                                    const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier);
                                     if (isShift) {
-                                        const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid)
-                                                     ? root.currentToplevel.lastIpcObject.pid : 0
-                                        Hypr.forceKillWindow(pid, root.currentToplevel.address)
+                                        const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid) ? root.currentToplevel.lastIpcObject.pid : 0;
+                                        Hypr.forceKillWindow(pid, root.currentToplevel.address);
                                     } else {
-                                        Hypr.closeWindow(root.currentToplevel.address)
+                                        Hypr.closeWindow(root.currentToplevel.address);
                                     }
                                 }
                             }
@@ -363,7 +398,6 @@ PanelWindow {
                                 }
                             }
                         }
-
                     }
 
                     // Screencopy Live Preview Frame with Generous Margins
@@ -391,10 +425,11 @@ PanelWindow {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 if (root.currentToplevel) {
-                                    const ws = Hypr.workspaceById(root.targetWorkspaceId)
-                                    if (ws) ws.activate()
-                                    Hypr.focusWindow(root.currentToplevel.address)
-                                    root.closePreview()
+                                    const ws = Hypr.workspaceById(root.targetWorkspaceId);
+                                    if (ws)
+                                        ws.activate();
+                                    Hypr.focusWindow(root.currentToplevel.address);
+                                    root.closePreview();
                                 }
                             }
                         }
@@ -425,8 +460,8 @@ PanelWindow {
                         Layout.alignment: Qt.AlignHCenter
                         label: "Switch to Workspace"
                         onPress: {
-                            Hypr.focusWorkspace(root.targetWorkspaceId)
-                            root.closePreview()
+                            Hypr.focusWorkspace(root.targetWorkspaceId);
+                            root.closePreview();
                         }
                     }
                 }

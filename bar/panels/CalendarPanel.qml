@@ -175,7 +175,7 @@ PanelWindow {
         height: Theme.clockPanelHeight
         anchors.right: parent.right
         anchors.rightMargin: Theme.barHorizontalPad
-        y: Theme.barHeight + (Theme.dropdownOffset * 2)
+        y: Theme.dropdownOffset * 2 // yuh
 
         color: Theme.bgColor
         border.color: Theme.mutedAccent
