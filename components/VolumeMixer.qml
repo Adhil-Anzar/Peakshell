@@ -11,6 +11,11 @@ import "root:/services"
 
 Rectangle {
     id: root
+
+    // Explicit sizing / layout bounds
+    implicitWidth: Theme.soundPanelWidth
+    implicitHeight: mainLayout.implicitHeight + (Theme.cornerRadius * 2)
+
     Process {
         id: appName
         running: false
@@ -21,6 +26,7 @@ Rectangle {
             }
         }
     }
+
     property bool isSourceApplication: true
     property string symbol: {
         if (!isSourceApplication)
@@ -38,72 +44,78 @@ Rectangle {
         const id = node.properties["client.id"];
         if (!id)
             return "audio-volume-high";
-        //console.log("Fetching for " + id);
+
         appName.command = ["sh", "-c", `pw-cli info ${id} | awk -F'"' '/application.name/ {print $2}'`];
         appName.running = true;
         return "audio-volume-high";
     }
+
     property string sourceProcessName
     property string label: {
-        // application.name -> description -> name
-        if (sourceProcessName) {  // Manual Icon is enabled
+        if (sourceProcessName) {
             const media = node.properties["media.name"];
-            const lbl = media !== undefined ? `${sourceProcessName} - ${media}` : sourceProcessName;
-            return lbl;
+            return media !== undefined ? `${sourceProcessName} - ${media}` : sourceProcessName;
         } else {
             if (!node)
                 return "Unknown";
             const app = node.properties["application.process.binary"] ?? (node.properties["application.name"] ?? (node.description !== "" ? node.description : node.name));
             const media = node.properties["media.name"];
-            const lbl = media !== undefined ? `${app} - ${media}` : app;
-            return lbl;
+            return media !== undefined ? `${app} - ${media}` : app;
         }
     }
-    property real iconSize: 36
 
+    property real iconSize: 36
     required property PwNode node
     property var popup: mainPopup
-    // bind the node so we can read its properties
+
     PwObjectTracker {
         objects: [node]
     }
+
     PwNodePeakMonitor {
         id: peakMonitor
         node: root.node
-        // if the thing aint sink its gonna die
         enabled: root.node ? root.node.audio && root.node.isSink && root.visible : false
     }
 
     signal pressMute
+
     color: Theme.bgColor
     border.color: Theme.mutedAccent
     border.width: Theme.generalThickness
     radius: Theme.cornerLargeRadius
 
     ColumnLayout {
+        id: mainLayout
         anchors.fill: parent
         anchors.topMargin: Theme.cornerRadius
         anchors.bottomMargin: Theme.cornerRadius
         anchors.leftMargin: Theme.cornerLargeRadius
         anchors.rightMargin: Theme.cornerLargeRadius
-        spacing: 4
+        spacing: 6
+
+        // TOP ROW: Icon + Label / ComboBox
         RowLayout {
+            Layout.fillWidth: true
             spacing: 8
+
             IconImage {
                 Layout.alignment: Qt.AlignVCenter
                 implicitSize: Theme.iconFontSize
                 source: Quickshell.iconPath(symbol, "applications-other")
             }
+
             Text {
                 Layout.alignment: Qt.AlignVCenter
+                Layout.fillWidth: true // Ensures elide works properly
                 text: root.label
                 color: Theme.mutedFgColor
                 font.pointSize: Theme.labelFontSize
                 font.family: Theme.labelFontFamily
                 visible: isSourceApplication
-                font.capitalization: Font.Capitalize
                 elide: Text.ElideRight
             }
+
             ComboBox {
                 id: comboBox
                 Layout.fillWidth: true
@@ -144,7 +156,6 @@ Rectangle {
                         verticalCenter: parent.verticalCenter
                         rightMargin: Theme.cornerRadius / 2
                     }
-
                     implicitSize: Theme.labelFontSize
                     source: Quickshell.iconPath("arrow-down")
                 }
@@ -166,6 +177,7 @@ Rectangle {
                         cursorShape: Qt.PointingHandCursor
                     }
                 }
+
                 delegate: ItemDelegate {
                     required property var modelData
                     required property int index
@@ -191,6 +203,7 @@ Rectangle {
                         radius: Theme.cornerRadius
                     }
                 }
+
                 popup: Popup {
                     id: mainPopup
                     y: parent.height + 4
@@ -214,26 +227,30 @@ Rectangle {
                 }
             }
         }
+
+        // BOTTOM ROW: Mute Button + Slider + Percentage Text
         RowLayout {
+            Layout.fillWidth: true
             spacing: 8
+
             ClickButton {
                 symbol: PipewireResolve.getIconByNode(root.node)
                 size: root.iconSize
                 bgColor: "transparent"
                 onPress: () => {
-                    console.log("Executing Mute-Unmute for item " + root.label);
                     node.audio.muted = !node.audio.muted;
                 }
             }
+
             Slider {
                 id: volumeSlider
                 focusPolicy: Qt.NoFocus
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
-                focus: false
                 from: 0
-                to: 1 // its from 0 -> 1
+                to: 1
                 value: visible && node ? node.audio.volume : 0
+
                 Behavior on value {
                     NumberAnimation {
                         duration: Theme.animationDuration
@@ -248,17 +265,15 @@ Rectangle {
                     width: volumeSlider.availableWidth
                     height: implicitHeight
                     radius: 3
-                    color: Theme.mutedBgColor // Inactive track color
+                    color: Theme.mutedBgColor
+                    clip: true // Prevents sub-rectangle from overflowing rounded corners
+
                     RectangularShadow {
                         z: parent.z - 1
                         anchors.fill: parent
                         color: Qt.darker(Theme.accent, 2.5)
                         radius: spread / 2
                         spread: 15 * peakMonitor.peak
-                        // IF scale down anim is required uncomment
-                        // Behavior on spread {
-                        //     NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutExpo }
-                        // }
                         blur: peakMonitor.peak === 0 ? 0 : 30
                         Behavior on blur {
                             NumberAnimation {
@@ -268,14 +283,14 @@ Rectangle {
                         }
                     }
 
-                    // Active track color
                     Rectangle {
                         width: volumeSlider.visualPosition * parent.width
                         height: parent.height
-                        color: Theme.accent // Active track color
+                        color: Theme.accent
                         radius: 3
                     }
                 }
+
                 handle: Rectangle {
                     x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
                     y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
@@ -291,11 +306,18 @@ Rectangle {
                     }
                     color: Theme.accent
                 }
+
                 onMoved: {
-                    node.audio.volume = volumeSlider.value;
+                    if (node && node.audio) {
+                        node.audio.volume = volumeSlider.value;
+                    }
                 }
             }
+
             Text {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 36 // Prevents layout jitter when percentage digits change
+                horizontalAlignment: Text.AlignRight
                 text: Math.round(volumeSlider.value * 100) + "%"
                 color: Theme.mutedFgColor
                 font.pointSize: Theme.labelFontSize
