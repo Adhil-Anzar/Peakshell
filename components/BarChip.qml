@@ -9,18 +9,20 @@ Rectangle {
     property string label
     property int extraButtons: 0
     readonly property bool expanded: hoverDebounce.isDelaying || mouseArea.containsMouse
-    signal leftClicked()
-    signal rightClicked()
+    signal leftClicked
+    signal rightClicked
 
     function keepExpanded() {
-        hoverDebounce.isDelaying = true
-        hoverDebounce.restart()
+        hoverDebounce.isDelaying = true;
+        hoverDebounce.restart();
     }
 
     height: Theme.barHeight - (Theme.generalThickness * 2)
     width: expanded ? content.width + 32 : content.width + 16
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     radius: Theme.cornerRadius
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
@@ -35,11 +37,11 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | extraButtons
         onEntered: root.keepExpanded()
-        onClicked: function(mouse) {
+        onClicked: function (mouse) {
             if (mouse.button === Qt.RightButton)
-                root.rightClicked()
+                root.rightClicked();
             if (mouse.button === Qt.LeftButton)
-                root.leftClicked()
+                root.leftClicked();
         }
     }
 
@@ -69,8 +71,16 @@ Rectangle {
             font.family: Theme.labelFontFamily
             color: Theme.fgColor
             opacity: visible ? 1 : 0
+            scale: visible ? 1 : 0
             Behavior on opacity {
-                Anim { type: Anim.DefaultEffects }
+                Anim {
+                    type: Anim.SlowSpatial
+                }
+            }
+            Behavior on scale {
+                Anim {
+                    type: Anim.SlowSpatial
+                }
             }
         }
     }

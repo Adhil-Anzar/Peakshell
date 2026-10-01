@@ -34,11 +34,23 @@ PanelWindow {
                 root.targetWorkspaceId = Hypr.activeWsId;
                 const ws = Hypr.workspaceById(Hypr.activeWsId);
                 root.targetWorkspaceName = ws ? ws.name : ("Workspace " + Hypr.activeWsId);
-                root.selectedIndex = 0;
+
+                // Find index of currently focused window
+                let targetIndex = 0;
+                const toplevels = Hypr.toplevelsForWs(Hypr.activeWsId);
+                if (Hypr.activeToplevel && toplevels) {
+                    for (let i = 0; i < toplevels.length; i++) {
+                        if (toplevels[i].address === Hypr.activeToplevel.address) {
+                            targetIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                root.selectedIndex = targetIndex;
             }
         }
     }
-
     function getAppClass(toplevel) {
         if (!toplevel || !toplevel.lastIpcObject || !toplevel.lastIpcObject.class)
             return "";
@@ -83,6 +95,15 @@ PanelWindow {
         else
             openPreview(wsId, wsName);
     }
+    function focusSelected() {
+        if (root.currentToplevel) {
+            const ws = Hypr.workspaceById(root.targetWorkspaceId);
+            if (ws)
+                ws.activate();
+            Hypr.focusWindow(root.currentToplevel.address);
+            root.closePreview();
+        }
+    }
 
     visible: false
     focusable: true
@@ -109,7 +130,11 @@ PanelWindow {
     FocusScope {
         anchors.fill: parent
         focus: root.visible
-
+        onActiveFocusChanged: event => {
+            if (!event.activeFocus) {
+                root.isShiftPressed = false;
+            }
+        }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Shift || (event.modifiers & Qt.ShiftModifier)) {
                 root.isShiftPressed = true;
@@ -118,12 +143,32 @@ PanelWindow {
                 root.closePreview();
                 event.accepted = true;
             }
+            if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+                focusSelected();
+            }
         }
 
         Keys.onReleased: event => {
             if (event.key === Qt.Key_Shift || !(event.modifiers & Qt.ShiftModifier)) {
                 root.isShiftPressed = false;
             }
+        }
+        Keys.onTabPressed: event => {
+            const count = root.wsToplevels.length;
+
+            if (count > 1) {
+                root.selectedIndex = (root.selectedIndex + 1) % count;
+            }
+
+            event.accepted = true; // Prevents default Tab focus-shifting behavior
+        }
+        Keys.onBacktabPressed: event => {
+            const count = root.wsToplevels.length;
+
+            if (count > 1)
+                root.selectedIndex = (root.selectedIndex - 1 + count) % count;
+
+            event.accepted = true;
         }
     }
 
@@ -169,7 +214,6 @@ PanelWindow {
                 event.accepted = true;
             }
         }
-
         opacity: root.visible ? 1 : 0
         scale: root.visible ? 1 : 0.92
         transformOrigin: Item.Top
@@ -411,27 +455,66 @@ PanelWindow {
                         border.width: 1
                         clip: true
 
-                        ScreencopyView {
-                            id: screencopy
+                        Item {
+                            id: bufferContainer
                             anchors.fill: parent
                             anchors.margins: 8
-                            captureSource: root.currentToplevel ? root.currentToplevel.wayland : null
-                            live: root.visible
+
+                            // Track which view is currently active
+                            property bool useFirst: true
+
+                            // Store the specific toplevel for each view independently
+                            property var toplevel1: root.currentToplevel
+                            property var toplevel2: null
+
+                            // Listen for window changes and swap the buffers
+                            Connections {
+                                target: root
+                                function onCurrentToplevelChanged() {
+                                    fuckassRetardedIntelGPUS = ignoreMe;
+                                }
+                            }
+
+                            // Buffer 1
+                            ScreencopyView {
+                                anchors.fill: parent
+                                captureSource: parent.toplevel1 ? parent.toplevel1.wayland : null
+                                live: parent.useFirst && root.visible
+                                paintCursor: true
+                                layer.enabled: true
+
+                                opacity: parent.useFirst ? 1 : 0
+                                Behavior on opacity {
+                                    NumberAnimation {
+                                        duration: 150
+                                        easing.type: Easing.InOutQuad
+                                    }
+                                }
+                            }
+
+                            // Buffer 2
+                            ScreencopyView {
+                                anchors.fill: parent
+                                captureSource: parent.toplevel2 ? parent.toplevel2.wayland : null
+                                live: !parent.useFirst && root.visible
+                                paintCursor: true
+                                layer.enabled: true
+
+                                opacity: !parent.useFirst ? 1 : 0
+                                Behavior on opacity {
+                                    NumberAnimation {
+                                        duration: 150
+                                        easing.type: Easing.InOutQuad
+                                    }
+                                }
+                            }
                         }
 
                         // Clicking anywhere on the preview focuses that window
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (root.currentToplevel) {
-                                    const ws = Hypr.workspaceById(root.targetWorkspaceId);
-                                    if (ws)
-                                        ws.activate();
-                                    Hypr.focusWindow(root.currentToplevel.address);
-                                    root.closePreview();
-                                }
-                            }
+                            onClicked: focusSelected()
                         }
                     }
                 }

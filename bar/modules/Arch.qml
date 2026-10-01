@@ -345,6 +345,30 @@ Rectangle {
                     border.color: Theme.mutedAccent
                     border.width: Theme.generalThickness
                     radius: Theme.cornerLargeRadius
+                    // Prevent clicks inside card from propagating to background dismiss
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {}
+                    }
+                    // Scroll / trackpad gesture navigation
+                    WheelHandler {
+                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+
+                        onWheel: event => {
+                            var node = Pipewire.defaultAudioSink;
+                            if (!node)
+                                return;
+                            if (event.angleDelta.y > 0) {
+                                // Scroll up → Volume up
+                                node.audio.volume = Math.min(node.audio.volume + 0.05, 1);
+                            } else if (event.angleDelta.y < 0) {
+                                // Scroll down → Volume down
+                                node.audio.volume = Math.max(node.audio.volume - 0.05, 0);
+                            }
+                            event.accepted = true;
+                        }
+                    }
+
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.topMargin: Theme.cornerRadius
@@ -477,7 +501,9 @@ Rectangle {
                             mediaContainer.player.positionChanged();
                         }
                     }
-                    visible: player
+                    visible: {
+                        return player;
+                    }
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.topMargin: Theme.cornerRadius
@@ -521,13 +547,16 @@ Rectangle {
                                 Text {
                                     text: mediaContainer.player ? mediaContainer.player.trackTitle : "Unknown"
                                     color: Theme.fgColor
+                                    width: parent.width
                                     font.pointSize: Theme.labelFontSize
+                                    elide: Text.ElideRight
                                     font.family: Theme.labelFontFamily
                                 }
                                 Text {
                                     text: mediaContainer.player ? mediaContainer.player.trackArtist : "Unknown"
                                     color: Theme.mutedFgColor
                                     font.pointSize: Theme.labelFontSize
+                                    elide: Text.ElideRight
                                     font.family: Theme.labelFontFamily
                                 }
                             }
@@ -545,7 +574,7 @@ Rectangle {
                                 }
                                 ToggleButton {
                                     size: 36
-                                    symbol: isChecked ? "media-playback-pause" : "media-playback-start"
+                                    symbol: this.isChecked ? "media-playback-pause" : "media-playback-start"
                                     isChecked: mediaContainer.player ? mediaContainer.player.isPlaying : false
                                     label: ""
                                     onPress: () => {
@@ -825,10 +854,17 @@ Rectangle {
                         border.color: Theme.mutedAccent
                         border.width: Theme.generalThickness
                         radius: Theme.cornerLargeRadius
+
                         property double downSpeed: 0
                         property double upSpeed: 0
-                        property int lastRx: 0
-                        property int lastTx: 0
+                        // Changed to double to prevent 32-bit integer overflow after 2.1GB of traffic
+                        property double lastRx: 0
+                        property double lastTx: 0
+                        property bool isBytes: true
+                        MouseArea {
+                            acceptedButtons: Qt.LeftButton
+                            onClicked: parent.isBytes = !parent.isBytes
+                        }
                         Timer {
                             interval: Theme.networkUpdateInterval
                             running: parent.visible
@@ -837,13 +873,52 @@ Rectangle {
 
                             onTriggered: netStats.running = true
                         }
+                        function getSpeed(bytes) {
+                            if (networkContainer.isBytes) {
+                                if (bytes >= 1048576)
+                                    return (bytes / 1048576).toFixed(1);
+                                if (bytes >= 1024)
+                                    return (bytes / 1024).toFixed(1);
+                                return bytes.toFixed(1);
+                            } else {
+                                if (bytes >= 1048576)
+                                    return (bytes / 1048576 * 8).toFixed(1);
+                                if (bytes >= 1024)
+                                    return (bytes / 1024 * 8).toFixed(1);
+                                return bytes.toFixed(1);
+                            }
+                        }
+                        function getUnits(bytes) {
+                            if (networkContainer.isBytes) {
+                                if (bytes >= 1048576)
+                                    return "MB/s";
+                                if (bytes >= 1024)
+                                    return "KB/s";
+                                return "B/s";
+                            } else {
+                                if (bytes >= 1048576)
+                                    return "Mbps";
+                                if (bytes >= 1024)
+                                    return "Kbps";
+                                return "bps";
+                            }
+                        }
                         function set(lines) {
                             const rx = Number(lines[0]);
                             const tx = Number(lines[1]);
 
-                            if (networkContainer.lastRx !== 0) {
-                                networkContainer.downSpeed = (rx - networkContainer.lastRx) / 1024; // KB/s
-                                networkContainer.upSpeed = (tx - networkContainer.lastTx) / 1024;
+                            if (networkContainer.lastRx > 0 && networkContainer.lastTx > 0) {
+                                // Math.max prevents negative spikes if the network interface resets
+                                let rxDelta = Math.max(0, rx - networkContainer.lastRx);
+                                let txDelta = Math.max(0, tx - networkContainer.lastTx);
+
+                                // Calculate multiplier to scale the interval up to 1 full second (1000ms)
+                                // If interval is 250ms, this multiplies the data by 4
+                                let timeMultiplier = 1000.0 / Theme.networkUpdateInterval;
+
+                                // Store raw Bytes per second (UI handles the KB/MB conversion)
+                                networkContainer.downSpeed = rxDelta * timeMultiplier;
+                                networkContainer.upSpeed = txDelta * timeMultiplier;
                             }
 
                             networkContainer.lastRx = rx;
@@ -883,21 +958,22 @@ Rectangle {
                                         source: Quickshell.iconPath("arrow-up")
                                     }
                                     Text {
-                                        text: networkContainer.upSpeed.toFixed(1)
+                                        text: networkContainer.getSpeed(networkContainer.upSpeed)
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
                                     }
                                     Text {
-                                        text: "KB/s"
-                                        color: Theme.mutedFgColor
+                                        text: networkContainer.getUnits(networkContainer.downSpeed)
                                         anchors.horizontalCenter: parent.horizontalCenter
+                                        color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize
                                         horizontalAlignment: Text.AlignHCenter
                                         font.family: Theme.labelFontFamily
                                     }
                                 }
+
                                 // Download
                                 Column {
                                     Layout.alignment: Qt.AlignCenter
@@ -910,14 +986,14 @@ Rectangle {
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: networkContainer.downSpeed > 1024 ? (networkContainer.downSpeed / 1024).toFixed(1) : networkContainer.downSpeed.toFixed(1)
+                                        text: networkContainer.getSpeed(networkContainer.downSpeed)
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: networkContainer.downSpeed > 1024 ? "MB/s" : "KB/s"
+                                        text: networkContainer.getUnits(networkContainer.downSpeed)
                                         color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily

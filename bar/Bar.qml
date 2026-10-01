@@ -15,7 +15,7 @@ Scope {
         function hideAllPanelExcept(exception) {
             for (const k in toggledPanels) {
                 if (toggledPanels[k] && k !== exception)
-                    toggledPanels[k].visible = false
+                    toggledPanels[k].visible = false;
             }
         }
 
@@ -34,26 +34,28 @@ Scope {
             top: Theme.barVerticalPad
             bottom: 0
         }
-        SocketServer {
-            active: true
-            path: "/tmp/quickshell.sock"
-            handler: Socket {
-                parser: SplitParser {
-                    onRead: (message) => {
-                        if (message === "toggleArchPanel")
-                            arch.togglePanel()
-                        if (message === "toggleWifiPanel")
-                            sys.toggleWifiPanel()
-                        if (message === "toggleSoundPanel")
-                            sys.toggleSoundPanel()
-                        if (message === "toggleBluetoothPanel")
-                            sys.toggleBluetoothPanel()
-                        if (message === "toggleShutdownPanel")
-                            shutdown.togglePanel()
-                        if (message === "toggleCalendarPanel")
-                            clock.togglePanel()
-                    }
-                }
+        IpcHandler {
+            target: "ii1qe"
+            function arch() {
+                arch.togglePanel();
+            }
+            function wifi() {
+                sys.toggleWifiPanel();
+            }
+            function sound() {
+                sys.toggleSoundPanel();
+            }
+            function bluetooth() {
+                sys.toggleBluetoothPanel();
+            }
+            function shutdown() {
+                shutdown.togglePanel();
+            }
+            function calendar() {
+                clock.togglePanel();
+            }
+            function workspace() {
+                workspaces.togglePanel();
             }
         }
         ShutdownScreen {

@@ -9,7 +9,9 @@ import "root:/services"
 
 Rectangle {
     id: root
-
+    function togglePanel() {
+        previewPanel.togglePreview(Hypr.activeWsId, Hypr.activeWsId);
+    }
     property var panelHost
 
     width: container.width + Theme.cornerLargeRadius

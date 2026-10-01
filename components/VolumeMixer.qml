@@ -15,6 +15,7 @@ Rectangle {
     // Explicit sizing / layout bounds
     implicitWidth: Theme.soundPanelWidth
     implicitHeight: mainLayout.implicitHeight + (Theme.cornerRadius * 2)
+    clip: true
 
     Process {
         id: appName
@@ -85,6 +86,29 @@ Rectangle {
     border.width: Theme.generalThickness
     radius: Theme.cornerLargeRadius
 
+    // Prevent clicks inside card from propagating to background dismiss
+    MouseArea {
+        anchors.fill: parent
+        onClicked: {}
+    }
+    // Scroll / trackpad gesture navigation
+    WheelHandler {
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+
+        onWheel: event => {
+            if (!node)
+                return;
+            if (event.angleDelta.y > 0) {
+                // Scroll up → Volume up
+                node.audio.volume = Math.min(node.audio.volume + 0.05, 1);
+            } else if (event.angleDelta.y < 0) {
+                // Scroll down → Volume down
+                node.audio.volume = Math.max(node.audio.volume - 0.05, 0);
+            }
+            event.accepted = true;
+        }
+    }
+
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
@@ -144,6 +168,8 @@ Rectangle {
                     id: currentTextObject
                     anchors.centerIn: parent
                     text: parent.currentText
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: Theme.cornerRadius / 2 // ss
                     color: Theme.mutedFgColor
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
@@ -266,21 +292,14 @@ Rectangle {
                     height: implicitHeight
                     radius: 3
                     color: Theme.mutedBgColor
-                    clip: true // Prevents sub-rectangle from overflowing rounded corners
 
                     RectangularShadow {
                         z: parent.z - 1
                         anchors.fill: parent
                         color: Qt.darker(Theme.accent, 2.5)
                         radius: spread / 2
-                        spread: 15 * peakMonitor.peak
-                        blur: peakMonitor.peak === 0 ? 0 : 30
-                        Behavior on blur {
-                            NumberAnimation {
-                                duration: Theme.animationDuration
-                                easing.type: Easing.OutExpo
-                            }
-                        }
+                        spread: Theme.cornerRadius * peakMonitor.peak
+                        blur: peakMonitor.peak === 0 ? 0 : 20
                     }
 
                     Rectangle {
@@ -316,7 +335,7 @@ Rectangle {
 
             Text {
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: 36 // Prevents layout jitter when percentage digits change
+                Layout.preferredWidth: 36
                 horizontalAlignment: Text.AlignRight
                 text: Math.round(volumeSlider.value * 100) + "%"
                 color: Theme.mutedFgColor
