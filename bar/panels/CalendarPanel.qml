@@ -11,6 +11,7 @@ PanelWindow {
     id: root
 
     property var panelHost
+    //screen: panelHost ? panelHost.screen : null
 
     // View modes: 0 = Weeks, 1 = Months (default), 2 = Years
     property int currentView: 1

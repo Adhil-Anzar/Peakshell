@@ -4,13 +4,18 @@ import QtQuick.Layouts
 import Quickshell.Io
 import "root:/"
 import "modules"
+import "root:/bar/panels"
 
 Scope {
+    id: root
+    property var screen: null
+
     IpcHandler {
         target: "bar"
     }
     PanelWindow {
         id: bar
+        screen: root.screen
         property var toggledPanels: ({})
         function hideAllPanelExcept(exception) {
             for (const k in toggledPanels) {
@@ -57,11 +62,25 @@ Scope {
             function workspace() {
                 workspaces.togglePanel();
             }
+            function nextWallpaper() {
+                wallpaperPreview.nextWallpaper();
+            }
+            function previousWallpaper() {
+                wallpaperPreview.previousWallpaper();
+            }
+            function showWallpaper() {
+                wallpaperPreview.showWallpaper();
+            }
         }
         ShutdownScreen {
             id: shutdown
             panelHost: bar
         }
+        WallpaperPreviewPanel {
+            id: wallpaperPreview
+            panelHost: bar
+        }
+
         RowLayout {
             anchors.fill: parent
             spacing: 0
@@ -107,6 +126,10 @@ Scope {
                     id: rightModules
                     anchors.right: parent.right
                     spacing: 8
+                    CriticalWarning {
+                        id: criticalWarning
+                        panelHost: bar
+                    }
                     Clock {
                         id: clock
                         panelHost: bar

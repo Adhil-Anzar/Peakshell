@@ -65,23 +65,24 @@ Rectangle {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.expanded
+            visible: root.expanded || opacity > 0.01
             text: root.label
             font.pointSize: Theme.labelFontSize
             font.family: Theme.labelFontFamily
             color: Theme.fgColor
-            opacity: visible ? 1 : 0
-            scale: visible ? 1 : 0
+            opacity: root.expanded ? 1 : 0
+            scale: root.expanded ? 1 : 0.8
             Behavior on opacity {
                 Anim {
-                    type: Anim.SlowSpatial
+                    type: Anim.DefaultEffects
                 }
             }
             Behavior on scale {
                 Anim {
-                    type: Anim.SlowSpatial
+                    type: Anim.FastSpatial
                 }
             }
         }
+
     }
 }

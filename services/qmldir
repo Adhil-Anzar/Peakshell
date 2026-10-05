@@ -5,3 +5,7 @@ singleton Swaync 1.0 Swaync.qml
 singleton MprisController 1.0 MprisController.qml
 singleton Time 1.0 Time.qml
 singleton Hypr 1.0 Hypr.qml
+singleton SystemMonitor 1.0 SystemMonitor.qml
+singleton Power 1.0 Power.qml
+singleton WallpaperService 1.0 WallpaperService.qml
+

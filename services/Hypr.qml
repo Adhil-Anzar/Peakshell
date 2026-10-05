@@ -62,11 +62,19 @@ Singleton {
     function trimWsName(name) {
         return (name && name.startsWith("special:")) ? name.slice("special:".length) : (name || "");
     }
+    function getActiveWsTopLevelIndex() {
+        var i = 0;
+        for (var t of Hyprland.toplevels.values) {
+            if (t.workspace.id === Hypr.activeWsId) {
+                if (t === Hyprland.activeToplevel)
+                    break;
+                i++;
+            }
+        }
+        return i;
+    }
 
-    // ------- Urgency tracking -------
-    // Map of workspaceId -> true for workspaces with an urgent window
     property var urgentWorkspaceIds: ({})
-    // Last cleared workspace id for the timer
     property int _urgentClearWsId: -1
 
     Timer {
@@ -74,11 +82,11 @@ Singleton {
         interval: 3000
         repeat: false
         onTriggered: {
-            const id = root._urgentClearWsId
+            const id = root._urgentClearWsId;
             if (id !== -1) {
-                const copy = Object.assign({}, root.urgentWorkspaceIds)
-                delete copy[id]
-                root.urgentWorkspaceIds = copy
+                const copy = Object.assign({}, root.urgentWorkspaceIds);
+                delete copy[id];
+                root.urgentWorkspaceIds = copy;
             }
         }
     }
@@ -108,8 +116,9 @@ Singleton {
             if (n === "urgent") {
                 const rawAddr = event.data ? event.data.trim() : "";
                 // Hyprland emits the address with 0x prefix in urgent events
-                const t = Hyprland.toplevels.values.find(function(top) {
-                    if (!top.lastIpcObject) return false;
+                const t = Hyprland.toplevels.values.find(function (top) {
+                    if (!top.lastIpcObject)
+                        return false;
                     const a = top.lastIpcObject.address || "";
                     return a === rawAddr || a === ("0x" + rawAddr) || ("0x" + a) === rawAddr;
                 });
@@ -125,4 +134,3 @@ Singleton {
         }
     }
 }
-

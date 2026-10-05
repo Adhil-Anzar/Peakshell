@@ -7,43 +7,46 @@ import "root:/bar/panels"
 
 Rectangle {
     id: root
+    clip: true
     required property var panelHost
 
     function registerPanel(name, panel, visible) {
         if (visible)
-            panelHost.toggledPanels[name] = panel
+            panelHost.toggledPanels[name] = panel;
         else
-            panelHost.toggledPanels[name] = false
+            panelHost.toggledPanels[name] = false;
     }
 
     function toggleSoundPanel() {
-        panelHost.hideAllPanelExcept("sound")
-        soundPanel.visible = !soundPanel.visible
-        soundChip.keepExpanded()
-        registerPanel("sound", soundPanel, soundPanel.visible)
+        panelHost.hideAllPanelExcept("sound");
+        soundPanel.visible = !soundPanel.visible;
+        soundChip.keepExpanded();
+        registerPanel("sound", soundPanel, soundPanel.visible);
     }
     function toggleWifiPanel() {
-        panelHost.hideAllPanelExcept("wifi")
-        wifiPanel.visible = !wifiPanel.visible
-        wifiChip.keepExpanded()
-        registerPanel("wifi", wifiPanel, wifiPanel.visible)
+        panelHost.hideAllPanelExcept("wifi");
+        wifiPanel.visible = !wifiPanel.visible;
+        wifiChip.keepExpanded();
+        registerPanel("wifi", wifiPanel, wifiPanel.visible);
     }
     function toggleBluetoothPanel() {
-        panelHost.hideAllPanelExcept("bluetooth")
-        bluetoothPanel.visible = !bluetoothPanel.visible
-        bluetoothChip.keepExpanded()
-        registerPanel("bluetooth", bluetoothPanel, bluetoothPanel.visible)
+        panelHost.hideAllPanelExcept("bluetooth");
+        bluetoothPanel.visible = !bluetoothPanel.visible;
+        bluetoothChip.keepExpanded();
+        registerPanel("bluetooth", bluetoothPanel, bluetoothPanel.visible);
     }
     function openSoundPanel() {
-        panelHost.hideAllPanelExcept("sound")
-        soundPanel.visible = true
-        soundChip.keepExpanded()
-        registerPanel("sound", soundPanel, true)
+        panelHost.hideAllPanelExcept("sound");
+        soundPanel.visible = true;
+        soundChip.keepExpanded();
+        registerPanel("sound", soundPanel, true);
     }
 
     width: container.width + 32
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.FastEffects
+        }
     }
     color: Theme.bgColor
     border.color: Theme.accent
@@ -54,7 +57,7 @@ Rectangle {
     Row {
         id: container
         function getSpacingDistance() {
-            return container.mapToGlobal(0, 0).x
+            return panelHost ? container.mapToItem(panelHost.contentItem, 0, 0).x : container.mapToGlobal(0, 0).x;
         }
         anchors.centerIn: parent
         spacing: 5
@@ -65,8 +68,8 @@ Rectangle {
             label: Swaync.nullableMessage
             onRightClicked: Swaync.toggleDnd()
             onLeftClicked: {
-                panelHost.hideAllPanelExcept("notifications")
-                Swaync.togglePanel()
+                panelHost.hideAllPanelExcept("notifications");
+                Swaync.togglePanel();
             }
         }
         BarChip {

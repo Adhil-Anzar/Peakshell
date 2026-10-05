@@ -13,6 +13,7 @@ PanelWindow {
     id: bluetoothPanel
     property real barOffset: 0
     property var panelHost
+    //screen: panelHost ? panelHost.screen : null
     property bool isShiftDown: false
 
     function calculateHeight(itemCount, space) {

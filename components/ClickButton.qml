@@ -5,12 +5,14 @@ import "root:/"
 
 Rectangle {
     id: root
-    signal press()
+    signal press
+    signal scroll(int delta)
+
     property real size: Theme.iconFontSize
     property string symbol
     property real cornerRadius: Theme.cornerRadius
     property string bgColor: Theme.mutedBgColor
-    
+
     width: size
     height: size
     radius: cornerRadius
@@ -20,7 +22,9 @@ Rectangle {
     }
     scale: mouseArea.containsMouse ? 1.25 : 1.0
     Behavior on scale {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     IconImage {
         implicitSize: Theme.iconFontSize
@@ -34,5 +38,12 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
         onClicked: root.press()
+
+        onWheel: wheel => {
+            let delta = wheel.angleDelta.y > 0 ? 1 : (wheel.angleDelta.y < 0 ? -1 : 0);
+            if (delta !== 0) {
+                root.scroll(delta);
+            }
+        }
     }
 }

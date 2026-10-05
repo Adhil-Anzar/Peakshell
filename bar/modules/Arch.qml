@@ -86,26 +86,10 @@ Rectangle {
         }
     }
     Process {
-        id: procLogout
-        command: ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"]
-    }
-    Process {
-        id: procSleep
-        command: ["sh", "-c", "systemctl suspend"]
-    }
-
-    Process {
-        id: procReboot
-        command: ["sh", "-c", "hyprshutdown -t 'Restarting...' --post-cmd 'reboot'"]
-    }
-    Process {
-        id: procShutdown
-        command: ["sh", "-c", "hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'"]
-    }
-    Process {
         id: execKitty
         command: ["kitty"]
     }
+
     Process {
         id: lowPower
         command: ["sh", "-c", "notify-send 'Low Power' 'Please charge your arch gng!' -i battery-caution"]
@@ -184,6 +168,7 @@ Rectangle {
     // Popup Part
     PanelWindow {
         id: dashboard
+        //screen: root.panelHost ? root.panelHost.screen : null
         visible: false
         focusable: true
         color: "transparent"
@@ -1052,9 +1037,8 @@ Rectangle {
                             cornerRadius: Theme.cornerRadius
                             onPress: {
                                 console.log("Executing hyprland logout");
-                                procLogout.startDetached();
+                                Power.execute("logout");
                                 root.togglePanel();
-                                Qt.quit();
                             }
                         }
                         // Sleep
@@ -1066,7 +1050,7 @@ Rectangle {
                             cornerRadius: Theme.cornerRadius
                             onPress: () => {
                                 console.log("Executing System Suspend");
-                                procSleep.startDetached();
+                                Power.execute("sleep");
                                 root.togglePanel();
                             }
                         }
@@ -1079,9 +1063,8 @@ Rectangle {
                             cornerRadius: Theme.cornerRadius
                             onPress: {
                                 console.log("Executing Reboot");
-                                procReboot.startDetached();
+                                Power.execute("reboot");
                                 root.togglePanel();
-                                Qt.quit();
                             }
                         }
                         // Shutdown
@@ -1093,9 +1076,8 @@ Rectangle {
                             cornerRadius: Theme.cornerRadius
                             onPress: {
                                 console.log("Executing poweroff");
-                                procShutdown.startDetached();
+                                Power.execute("shutdown");
                                 root.togglePanel();
-                                Qt.quit();
                             }
                         }
                     }

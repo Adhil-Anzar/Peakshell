@@ -13,6 +13,7 @@ PanelWindow {
     id: soundPanel
     property real barOffset: 0
     property var panelHost
+    //screen: panelHost ? panelHost.screen : null
 
     visible: false
     focusable: true

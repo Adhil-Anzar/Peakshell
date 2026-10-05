@@ -12,71 +12,76 @@ PanelWindow {
     id: root
 
     property var panelHost
+    //screen: panelHost ? panelHost.screen : null
     property real barOffset: 0
     property QsMenuHandle targetMenu: null
     property string menuTitle: ""
 
     function openMenu(menuHandle, title, offset) {
         if (!menuHandle)
-            return
-
-        panelHost.hideAllPanelExcept("traymenu")
-        targetMenu = menuHandle
-        menuTitle = title || ""
-        barOffset = offset || 0
+            return;
+        panelHost.hideAllPanelExcept("traymenu");
+        targetMenu = menuHandle;
+        menuTitle = title || "";
+        barOffset = offset || 0;
 
         // Reset stack view to root menu
         while (stackView.depth > 1) {
-            stackView.pop()
+            stackView.pop();
         }
 
-        visible = true
+        visible = true;
         if (panelHost.toggledPanels)
-            panelHost.toggledPanels["traymenu"] = root
+            panelHost.toggledPanels["traymenu"] = root;
     }
 
     function closeMenu() {
-        visible = false
+        visible = false;
         if (panelHost.toggledPanels)
-            panelHost.toggledPanels["traymenu"] = false
+            panelHost.toggledPanels["traymenu"] = false;
     }
 
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: visible ? Theme.trayMenuWidth + Theme.barHorizontalPad + barOffset + 20 : 0
-    implicitHeight: menuContainer.height + Theme.dropdownOffset + 20
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
     anchors {
         top: true
-        bottom: false
+        bottom: true
         left: true
-        right: false
+        right: true
+    }
+
+    // Dismiss on clicking outside
+    MouseArea {
+        anchors.fill: parent
+        onClicked: root.closeMenu()
     }
 
     FocusScope {
         anchors.fill: parent
         focus: root.visible
 
-        Keys.onPressed: (event) => {
+        Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 if (stackView.depth > 1) {
-                    stackView.pop()
+                    stackView.pop();
                 } else {
-                    root.closeMenu()
+                    root.closeMenu();
                 }
-                event.accepted = true
+                event.accepted = true;
             }
         }
     }
 
     Item {
         id: menuContainer
-        x: Math.max(Theme.barHorizontalPad, root.barOffset)
-        y: Theme.dropdownOffset
+        readonly property real maxOffset: root.width > 0 ? (root.width - Theme.trayMenuWidth - Theme.barHorizontalPad) : root.barOffset
+        x: Math.max(Theme.barHorizontalPad, Math.min(root.barOffset, maxOffset))
+        y: Theme.barHeight + Theme.dropdownOffset
         width: Theme.trayMenuWidth
         height: stackView.implicitHeight
 
@@ -85,10 +90,14 @@ PanelWindow {
         transformOrigin: Item.TopLeft
 
         Behavior on opacity {
-            Anim { type: Anim.DefaultEffects }
+            Anim {
+                type: Anim.DefaultEffects
+            }
         }
         Behavior on scale {
-            Anim { type: Anim.DefaultSpatial }
+            Anim {
+                type: Anim.DefaultSpatial
+            }
         }
 
         Rectangle {
@@ -112,20 +121,68 @@ PanelWindow {
                 }
 
                 pushEnter: Transition {
-                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.effectsDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "x"; from: 30; to: 0; duration: Theme.fastSpatialDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 0
+                        to: 1
+                        duration: Theme.effectsDuration
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        property: "x"
+                        from: 30
+                        to: 0
+                        duration: Theme.fastSpatialDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
                 pushExit: Transition {
-                    NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.effectsDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "x"; from: 0; to: -30; duration: Theme.fastSpatialDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 1
+                        to: 0
+                        duration: Theme.effectsDuration
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        property: "x"
+                        from: 0
+                        to: -30
+                        duration: Theme.fastSpatialDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
                 popEnter: Transition {
-                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.effectsDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "x"; from: -30; to: 0; duration: Theme.fastSpatialDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 0
+                        to: 1
+                        duration: Theme.effectsDuration
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        property: "x"
+                        from: -30
+                        to: 0
+                        duration: Theme.fastSpatialDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
                 popExit: Transition {
-                    NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.effectsDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "x"; from: 0; to: 30; duration: Theme.fastSpatialDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 1
+                        to: 0
+                        duration: Theme.effectsDuration
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        property: "x"
+                        from: 0
+                        to: 30
+                        duration: Theme.fastSpatialDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
             }
         }
@@ -167,7 +224,9 @@ PanelWindow {
                 color: backMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
 
                 Behavior on color {
-                    ColorAnimation { duration: Theme.animationDuration }
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                    }
                 }
 
                 MouseArea {
@@ -223,13 +282,15 @@ PanelWindow {
                     radius: Theme.cornerRadius
                     color: {
                         if (modelData.isSeparator)
-                            return Theme.mutedAccent
-                        return itemMouse.containsMouse && modelData.enabled ? Theme.hoveredBgColor : "transparent"
+                            return Theme.mutedAccent;
+                        return itemMouse.containsMouse && modelData.enabled ? Theme.hoveredBgColor : "transparent";
                     }
                     opacity: modelData.isSeparator ? 0.4 : (modelData.enabled ? 1.0 : 0.4)
 
                     Behavior on color {
-                        ColorAnimation { duration: Theme.animationDuration }
+                        ColorAnimation {
+                            duration: Theme.animationDuration
+                        }
                     }
 
                     MouseArea {
@@ -245,10 +306,10 @@ PanelWindow {
                                     handle: entryItem.modelData,
                                     isRoot: false,
                                     title: entryItem.modelData.text
-                                })
+                                });
                             } else {
-                                entryItem.modelData.triggered()
-                                root.closeMenu()
+                                entryItem.modelData.triggered();
+                                root.closeMenu();
                             }
                         }
                     }

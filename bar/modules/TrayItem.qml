@@ -18,8 +18,9 @@ Rectangle {
         if (trayMenuPanel.visible && trayMenuPanel.targetMenu === modelData.menu) {
             trayMenuPanel.closeMenu()
         } else {
-            const p = mapToGlobal(0, 0)
-            trayMenuPanel.openMenu(modelData.menu, modelData.title || modelData.id, p.x)
+            const p = panelHost ? mapToItem(panelHost.contentItem, 0, 0) : mapToGlobal(0, 0)
+            const offsetX = panelHost ? (p.x + Theme.barHorizontalPad) : p.x
+            trayMenuPanel.openMenu(modelData.menu, modelData.title || modelData.id, offsetX)
         }
     }
 
@@ -43,11 +44,12 @@ Rectangle {
                 if (modelData.hasMenu && trayMenuPanel) {
                     toggleMenu()
                 } else if (modelData.hasMenu) {
-                    const p = parent.mapFromGlobal(0,0)
-                    modelData.display(panelHost, Math.abs(p.x), Theme.barHeight + Theme.barHorizontalPad / 2)
+                    const p = panelHost ? mapToItem(panelHost.contentItem, 0, 0) : Qt.point(0, 0)
+                    modelData.display(panelHost, Math.max(0, p.x), Theme.barHeight + Theme.barHorizontalPad / 2)
                 }
                 return;
             }
+
             if (mouse.button === Qt.LeftButton) {
                 if (modelData.onlyMenu && modelData.hasMenu && trayMenuPanel) {
                     toggleMenu()

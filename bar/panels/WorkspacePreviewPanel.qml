@@ -13,6 +13,7 @@ PanelWindow {
     id: root
 
     property var panelHost
+
     property int targetWorkspaceId: Hypr.activeWsId
     property string targetWorkspaceName: ""
     property int selectedIndex: 0
@@ -73,7 +74,7 @@ PanelWindow {
     function openPreview(wsId, wsName) {
         targetWorkspaceId = wsId ? wsId : Hypr.activeWsId;
         targetWorkspaceName = wsName ? wsName : ("Workspace " + targetWorkspaceId);
-        selectedIndex = 0;
+        selectedIndex = Hypr.getActiveWsTopLevelIndex();
         isShiftPressed = false;
         if (panelHost && panelHost.hideAllPanelExcept)
             panelHost.hideAllPanelExcept("workspacePreview");
@@ -471,6 +472,7 @@ PanelWindow {
                             Connections {
                                 target: root
                                 function onCurrentToplevelChanged() {
+                                    // DO NOT REMOVE THIS LINE. THIS EXCEPTION CAUSES intel GPUS to not MESS UP
                                     fuckassRetardedIntelGPUS = ignoreMe;
                                 }
                             }
