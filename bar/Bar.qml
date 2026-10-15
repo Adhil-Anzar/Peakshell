@@ -71,6 +71,9 @@ Scope {
             function showWallpaper() {
                 wallpaperPreview.showWallpaper();
             }
+            function launcher() {
+                launcherPanel.toggle();
+            }
         }
         ShutdownScreen {
             id: shutdown
@@ -78,6 +81,10 @@ Scope {
         }
         WallpaperPreviewPanel {
             id: wallpaperPreview
+            panelHost: bar
+        }
+        LauncherPanel {
+            id: launcherPanel
             panelHost: bar
         }
 

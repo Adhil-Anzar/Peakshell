@@ -8,4 +8,5 @@ singleton Hypr 1.0 Hypr.qml
 singleton SystemMonitor 1.0 SystemMonitor.qml
 singleton Power 1.0 Power.qml
 singleton WallpaperService 1.0 WallpaperService.qml
+singleton AppScanner 1.0 AppScanner.qml
 

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell.Widgets
 import Quickshell
 import "root:/"
@@ -12,6 +13,8 @@ Rectangle {
     property string symbol
     property real cornerRadius: Theme.cornerRadius
     property string bgColor: Theme.mutedBgColor
+    property var iconColor: undefined
+    readonly property bool isHovered: mouseArea.containsMouse
 
     width: size
     height: size
@@ -30,6 +33,15 @@ Rectangle {
         implicitSize: Theme.iconFontSize
         anchors.centerIn: parent
         source: Quickshell.iconPath(symbol)
+        layer.enabled: root.iconColor !== undefined
+        layer.effect: MultiEffect {
+            colorization: 1.0
+            brightness: 1.0
+            colorizationColor: root.iconColor !== undefined ? root.iconColor : "transparent"
+            Behavior on colorizationColor {
+                CAnim {}
+            }
+        }
     }
     MouseArea {
         id: mouseArea

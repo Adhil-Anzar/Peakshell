@@ -82,6 +82,15 @@ QtObject {
     property real trayMenuWidth: 260
     property real trayMenuItemHeight: 34
 
+    // Launcher
+    property real launcherWidth: 600
+    property real launcherPadding: 8
+    property real launcherSearchHeight: 52
+    property real launcherItemHeight: 56
+    property real launcherIconSize: 28
+    property int  launcherSearchFontSize: 15  // larger font for search input
+    property int  launcherMaxItems: 5
+
     // Power
     property int lowPowerThreshold: 20
 }
