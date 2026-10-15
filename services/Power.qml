@@ -12,13 +12,19 @@ Singleton {
             id: "logout",
             name: "Logout",
             icon: "system-log-out",
-            cmd: ["sh", "-c", "hyprshutdown"]
+            cmd: ["sh", "-c", "echo 'I shouldnt be executed!'"]
+        },
+        {
+            id: "switch",
+            name: "Switch User",
+            icon: "system-switch-user",
+            cmd: ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"]
         },
         {
             id: "reboot",
             name: "Reboot",
             icon: "system-reboot",
-            cmd: ["sh", "-c", "'hyprshutdown -t 'Restarting...' --post-cmd 'systemctl reboot' || systemctl reboot'"]
+            cmd: ["sh", "-c", "hyprshutdown -t 'Restarting...' --post-cmd 'systemctl reboot' || systemctl reboot"]
         },
         {
             id: "sleep",
@@ -30,7 +36,7 @@ Singleton {
             id: "hibernate",
             name: "Hibernate",
             icon: "system-suspend-hibernate",
-            cmd: ["sh", "-c", "'hyprshutdown -t 'Hibernating...' --post-cmd 'systemctl hibernate' || systemctl hibernate'"]
+            cmd: ["sh", "-c", "hyprshutdown -t 'Hibernating...' --post-cmd 'systemctl hibernate' || systemctl hibernate"]
         },
         {
             id: "shutdown",

@@ -23,7 +23,7 @@ NumberAnimation {
         case Anim.DefaultEffects:
             return Theme.effectsDuration;
         case Anim.FastEffects:
-            return 150;
+            return Theme.fastEffectsDuration;
         case Anim.DefaultSpatial:
         default:
             return Theme.spatialDuration;

@@ -15,6 +15,8 @@ QtObject {
     property string accent: "#FF8C00BA"
     property string mutedAccent: "#AA797979"
     property string battery: "#FF21AB5F"
+    property string danger: "#55FF3333"
+    property string dangerPulse: "#FFFF3333"
     // Sizings
     property real barHeight: 40
     property real barHorizontalPad: 20
@@ -35,6 +37,7 @@ QtObject {
     property int fastSpatialDuration: 300
     property int slowSpatialDuration: 600
     property int effectsDuration: 200
+    property int fastEffectsDuration: 150
     property int mediaPlayerUpdateDuration: 1000
     property int networkUpdateInterval: 1000
     property int hoverDuration: 3000
@@ -68,7 +71,7 @@ QtObject {
     //property real workspacePreviewWidth: 648
     //property real workspacePreviewHeight: 432
     property real workspacePreviewWidth: 1000
-    property real workspacePreviewHeight: 750
+    property real workspacePreviewHeight: 650
     property string urgentPulseColor: "#CC8800FF"
 
     // Clock & Calendar Panel

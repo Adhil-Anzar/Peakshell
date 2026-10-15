@@ -20,10 +20,14 @@ Rectangle {
     width: isCritical ? container.width + Theme.cornerLargeRadius : 0
 
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     Behavior on opacity {
-        Anim { type: Anim.DefaultEffects }
+        Anim {
+            type: Anim.DefaultEffects
+        }
     }
 
     // Background same as other bar chips; red border kept as indicator
@@ -32,21 +36,27 @@ Rectangle {
     radius: Theme.cornerRadius
 
     // Pulsing red border — the only thing that distinguishes it from normal chips
-    property color borderColor: "#FFFF3333"
+    property color borderColor: Theme.dangerPulse
     border.color: borderColor
 
     SequentialAnimation {
         running: root.isCritical
         loops: Animation.Infinite
         ColorAnimation {
-            target: root; property: "borderColor"
-            from: "#FFFF3333"; to: "#55FF3333"
-            duration: 750; easing.type: Easing.InOutSine
+            target: root
+            property: "borderColor"
+            from: Theme.dangerPulse
+            to: Theme.danger
+            duration: 750
+            easing.type: Easing.InOutSine
         }
         ColorAnimation {
-            target: root; property: "borderColor"
-            from: "#55FF3333"; to: "#FFFF3333"
-            duration: 750; easing.type: Easing.InOutSine
+            target: root
+            property: "borderColor"
+            from: Theme.danger
+            to: Theme.dangerPulse
+            duration: 750
+            easing.type: Easing.InOutSine
         }
     }
 
@@ -67,10 +77,10 @@ Rectangle {
             implicitSize: Theme.iconFontSize
             // Try themed name first; fall back to the known Papirus/YAMIS panel icon
             source: {
-                const icon = SystemMonitor.criticalIcon
+                const icon = SystemMonitor.criticalIcon;
                 // indicator-sensors-cpu lives in the panel/ category of most icon themes
                 // Quickshell.iconPath searches all categories, so pass it directly
-                return Quickshell.iconPath(icon, "cpu")
+                return Quickshell.iconPath(icon, "cpu");
             }
         }
 

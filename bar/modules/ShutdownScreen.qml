@@ -23,6 +23,14 @@ PanelWindow {
     function executeAction(index) {
         if (index < 0 || index >= powerActions.length)
             return;
+
+        if (powerActions[index].id === "sleep") {
+            lockScreen.lock();
+        } else if (powerActions[index].id === "logout") {
+            lockScreen.lock();
+            close();
+            return;
+        }
         Power.executeAction(index);
         close();
     }
@@ -110,7 +118,7 @@ PanelWindow {
                     height: 80
                     radius: 40
                     color: Theme.mutedBgColor
-                    border.color: "#44FFFFFF"
+                    border.color: Theme.borderColor
                     border.width: Theme.generalThickness
 
                     IconImage {

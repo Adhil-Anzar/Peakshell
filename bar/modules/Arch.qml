@@ -157,6 +157,7 @@ Rectangle {
             font.pointSize: Theme.labelFontSize
             font.family: Theme.labelFontFamily
             color: Theme.fgColor
+            elide: Text.ElideRight
             opacity: visible ? 1 : 0
             Behavior on opacity {
                 Anim {
@@ -442,6 +443,7 @@ Rectangle {
                             }
                         }
                         LabelButton {
+                            maxWidth: parent.width * 0.8
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             label: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.description : "Unknown" // <- The proper name
                             onPress: {
@@ -1008,7 +1010,7 @@ Rectangle {
                         ClickButton {
                             Layout.alignment: Qt.AlignVCenter
                             Layout.fillHeight: true
-                            symbol: "config-users"
+                            symbol: "user-identity"
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: () => {
@@ -1036,8 +1038,7 @@ Rectangle {
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: {
-                                console.log("Executing hyprland logout");
-                                Power.execute("logout");
+                                lockScreen.lock();
                                 root.togglePanel();
                             }
                         }
@@ -1049,7 +1050,7 @@ Rectangle {
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: () => {
-                                console.log("Executing System Suspend");
+                                lockScreen.lock();
                                 Power.execute("sleep");
                                 root.togglePanel();
                             }
@@ -1062,7 +1063,6 @@ Rectangle {
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: {
-                                console.log("Executing Reboot");
                                 Power.execute("reboot");
                                 root.togglePanel();
                             }

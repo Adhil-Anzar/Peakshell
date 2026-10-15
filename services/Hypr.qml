@@ -65,7 +65,7 @@ Singleton {
     function getActiveWsTopLevelIndex() {
         var i = 0;
         for (var t of Hyprland.toplevels.values) {
-            if (t.workspace.id === Hypr.activeWsId) {
+            if (t && t.workspace && t.workspace.id === Hypr.activeWsId) {
                 if (t === Hyprland.activeToplevel)
                     break;
                 i++;
