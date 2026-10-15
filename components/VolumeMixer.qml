@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.Pipewire
-import Quickshell.Io
+import PeakShell
 import QtQuick.Effects
 import "root:/"
 import "root:/services"
@@ -16,17 +16,6 @@ Rectangle {
     implicitWidth: Theme.soundPanelWidth
     implicitHeight: mainLayout.implicitHeight + (Theme.cornerRadius * 2)
     clip: true
-
-    Process {
-        id: appName
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.sourceProcessName = this.text.trim();
-                root.symbol = this.text.trim().toLowerCase();
-            }
-        }
-    }
 
     property bool isSourceApplication: true
     property string symbol: {
@@ -46,8 +35,11 @@ Rectangle {
         if (!id)
             return "audio-volume-high";
 
-        appName.command = ["sh", "-c", `pw-cli info ${id} | awk -F'"' '/application.name/ {print $2}'`];
-        appName.running = true;
+        const app = Utils.pipewireClientAppName(parseInt(id));
+        if (app) {
+            root.sourceProcessName = app;
+            return app.toLowerCase();
+        }
         return "audio-volume-high";
     }
 

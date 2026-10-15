@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Io
+import PeakShell
 
 Singleton {
     id: root
@@ -39,16 +39,10 @@ Singleton {
 
     function forceKillWindow(pid, address) {
         if (pid) {
-            forceKillProc.command = ["kill", "-9", String(pid)];
-            forceKillProc.running = true;
+            Utils.killProcess(pid);
         } else if (address) {
             closeWindow(address);
         }
-    }
-
-    Process {
-        id: forceKillProc
-        running: false
     }
 
     function toplevelsForWs(wsId) {

@@ -3,7 +3,8 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
 import QtQuick.Controls
-import Quickshell.Io
+import PeakShell
+import PeakShell.Services
 import "root:/"
 import "root:/components"
 import "root:/services"
@@ -26,7 +27,7 @@ Rectangle {
         const percent = Math.round(batteryPercent * 100);
         if (UPower.onBattery && percent <= Theme.lowPowerThreshold) {
             if (!lowPowerNotified) {
-                lowPower.startDetached();
+                Utils.notify("Low Power", "Please charge your arch gng!", "battery-caution");
                 lowPowerNotified = true;
             }
         } else {
@@ -43,56 +44,6 @@ Rectangle {
             panelHost.toggledPanels["arch"] = dashboard;
         else
             panelHost.toggledPanels["arch"] = false;
-    }
-    // Processes
-    Process {
-        id: runSettings
-        command: ["hyprmod"]
-    }
-    Process {
-        id: toggleMute
-        command: ["sh", "-c", "swayosd-client --output-volume mute-toggle"]
-    }
-
-    Process {
-        id: mediaGoPrevious
-        command: ["sh", "-c", "swayosd-client --playerctl previous"]
-    }
-    Process {
-        id: mediaGoForward
-        command: ["sh", "-c", "swayosd-client --playerctl next"]
-    }
-    Process {
-        id: mediaPlayPause
-        command: ["sh", "-c", "swayosd-client --playerctl play-pause"]
-    }
-    Process {
-        id: setPowerSave
-        command: ["sh", "-c", "powerprofilesctl set power-saver"]
-    }
-    Process {
-        id: setPowerBalanced
-        command: ["sh", "-c", "powerprofilesctl set balanced"]
-    }
-    Process {
-        id: setPowerPerformance
-        command: ["sh", "-c", "powerprofilesctl set performance"]
-    }
-    Process {
-        id: netStats
-        command: ["sh", "-c", "cat /sys/class/net/wlan0/statistics/rx_bytes; " + "cat /sys/class/net/wlan0/statistics/tx_bytes"]
-        stdout: StdioCollector {
-            onStreamFinished: networkContainer.set(this.text.trim().split("\n"))
-        }
-    }
-    Process {
-        id: execKitty
-        command: ["kitty"]
-    }
-
-    Process {
-        id: lowPower
-        command: ["sh", "-c", "notify-send 'Low Power' 'Please charge your arch gng!' -i battery-caution"]
     }
 
     // Transitions
@@ -254,7 +205,7 @@ Rectangle {
                             size: 36
                             onPress: () => {
                                 console.log("Executing Settings");
-                                runSettings.startDetached();
+                                Utils.execute("hyprmod");
                                 root.togglePanel();
                             }
                         }
@@ -315,9 +266,9 @@ Rectangle {
                             label: "Power Saver"
                             onPress: {
                                 if (!this.isChecked) {
-                                    setPowerBalanced.startDetached();
+                                    Utils.execute("powerprofilesctl", ["set", "balanced"]);
                                 } else
-                                    setPowerSave.startDetached();
+                                    Utils.execute("powerprofilesctl", ["set", "power-saver"]);
                             }
                         }
                     }
@@ -383,7 +334,7 @@ Rectangle {
                                 bgColor: "transparent"
                                 onPress: () => {
                                     console.log("Executing Mute-Unmute");
-                                    toggleMute.startDetached();
+                                    Utils.execute("swayosd-client", ["--output-volume", "mute-toggle"]);
                                 }
                             }
                             Slider {
@@ -556,7 +507,7 @@ Rectangle {
                                     size: 36
                                     onPress: () => {
                                         console.log("Executing Previous Media");
-                                        mediaGoPrevious.startDetached();
+                                        Utils.execute("swayosd-client", ["--playerctl", "previous"]);
                                     }
                                 }
                                 ToggleButton {
@@ -566,7 +517,7 @@ Rectangle {
                                     label: ""
                                     onPress: () => {
                                         console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying);
-                                        mediaPlayPause.startDetached();
+                                        Utils.execute("swayosd-client", ["--playerctl", "play-pause"]);
                                     }
                                 }
                                 ClickButton {
@@ -574,7 +525,7 @@ Rectangle {
                                     size: 36
                                     onPress: () => {
                                         console.log("Executing Next Media");
-                                        mediaGoForward.startDetached();
+                                        Utils.execute("swayosd-client", ["--playerctl", "next"]);
                                     }
                                 }
                             }
@@ -783,14 +734,14 @@ Rectangle {
                                         const mode = PowerProfile.toString(PowerProfiles.profile);
                                         if (wheel.angleDelta.y > 0) {
                                             if (mode === "PowerSaver")
-                                                setPowerBalanced.startDetached();
+                                                Utils.execute("powerprofilesctl", ["set", "balanced"]);
                                             if (mode === "Balanced")
-                                                setPowerPerformance.startDetached();
+                                                Utils.execute("powerprofilesctl", ["set", "performance"]);
                                         } else if (wheel.angleDelta.y < 0) {
                                             if (mode === "Balanced")
-                                                setPowerSave.startDetached();
+                                                Utils.execute("powerprofilesctl", ["set", "power-saver"]);
                                             if (mode === "Performance")
-                                                setPowerBalanced.startDetached();
+                                                Utils.execute("powerprofilesctl", ["set", "balanced"]);
                                         }
                                     }
                                 }
@@ -842,23 +793,12 @@ Rectangle {
                         border.width: Theme.generalThickness
                         radius: Theme.cornerLargeRadius
 
-                        property double downSpeed: 0
-                        property double upSpeed: 0
-                        // Changed to double to prevent 32-bit integer overflow after 2.1GB of traffic
-                        property double lastRx: 0
-                        property double lastTx: 0
+                        readonly property double downSpeed: NetworkUsage.downloadSpeed
+                        readonly property double upSpeed: NetworkUsage.uploadSpeed
                         property bool isBytes: true
                         MouseArea {
                             acceptedButtons: Qt.LeftButton
                             onClicked: parent.isBytes = !parent.isBytes
-                        }
-                        Timer {
-                            interval: Theme.networkUpdateInterval
-                            running: parent.visible
-                            repeat: true
-                            triggeredOnStart: true
-
-                            onTriggered: netStats.running = true
                         }
                         function getSpeed(bytes) {
                             if (networkContainer.isBytes) {
@@ -889,27 +829,6 @@ Rectangle {
                                     return "Kbps";
                                 return "bps";
                             }
-                        }
-                        function set(lines) {
-                            const rx = Number(lines[0]);
-                            const tx = Number(lines[1]);
-
-                            if (networkContainer.lastRx > 0 && networkContainer.lastTx > 0) {
-                                // Math.max prevents negative spikes if the network interface resets
-                                let rxDelta = Math.max(0, rx - networkContainer.lastRx);
-                                let txDelta = Math.max(0, tx - networkContainer.lastTx);
-
-                                // Calculate multiplier to scale the interval up to 1 full second (1000ms)
-                                // If interval is 250ms, this multiplies the data by 4
-                                let timeMultiplier = 1000.0 / Theme.networkUpdateInterval;
-
-                                // Store raw Bytes per second (UI handles the KB/MB conversion)
-                                networkContainer.downSpeed = rxDelta * timeMultiplier;
-                                networkContainer.upSpeed = txDelta * timeMultiplier;
-                            }
-
-                            networkContainer.lastRx = rx;
-                            networkContainer.lastTx = tx;
                         }
 
                         ColumnLayout {
@@ -1014,7 +933,7 @@ Rectangle {
                             size: 36
                             cornerRadius: Theme.cornerRadius
                             onPress: () => {
-                                execKitty.startDetached();
+                                Utils.execute("kitty");
                                 root.togglePanel();
                             }
                         }
