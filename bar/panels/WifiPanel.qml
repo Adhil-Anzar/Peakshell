@@ -73,7 +73,7 @@ PanelWindow {
 
     Item {
         x: wifiPanel.barOffset + Theme.barHorizontalPad
-        y: Theme.barHeight + Theme.dropdownOffset
+        y: 0
         width: Theme.wifiPanelWidth
         height: wifiColumnContainer.height
         visible: wifiPanel.visible

@@ -5,6 +5,7 @@
 #include <qqmlintegration.h>
 #include <qqmllist.h>
 #include <qstring.h>
+#include <qvariant.h>
 
 namespace peakshell::apps {
 
@@ -63,6 +64,23 @@ public:
 
     Q_INVOKABLE void scan();
     Q_INVOKABLE void launch(AppEntry* entry);
+
+    // OpenSearch-style unified search: fuzzy-matched apps + toggleable
+    // `peakshell ipc call ii1qe <fn>` actions + exprtk calculator result +
+    // smart web-search fallback, ranked exactly like OpenSearch
+    // (fuzzy score, then ResultItem::matchScore boost ordering).
+    // Returns a list of QVariantMap with keys:
+    //   name, genericName, comment, icon, exec, keywords, terminal(bool),
+    //   kind ("app" | "ipc" | "calc" | "web"), ipcFunction, uid, score.
+    // `uid` is a stable per-row identity for ScriptModel objectProp so list
+    // reorder animations keep working across keystrokes.
+    // Does NOT include "run in terminal" entries.
+    Q_INVOKABLE QVariantList search(const QString& query);
+
+    // Executes one entry produced by search(). Calculator results are copied
+    // to the clipboard; web results open the browser; ipc results invoke
+    // `peakshell ipc call ii1qe <fn>`; app results launch normally.
+    Q_INVOKABLE void activateResult(const QVariantMap& entry);
 
 signals:
     void appsChanged();

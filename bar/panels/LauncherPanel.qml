@@ -17,6 +17,11 @@ PanelWindow {
     readonly property int itemSpacing: 6
 
     property var filteredApps: []
+    // Stable identity cache for result rows. The ListView shuffle/move
+    // transitions track rows by object identity, so app/ipc rows (whose
+    // display fields never change) reuse the same object across searches.
+    // Calculator/web rows carry per-query text and stay fresh objects.
+    property var _entryCache: ({})
     readonly property int visibleCount: filteredApps.length
     readonly property int displayCount: Math.min(visibleCount, maxVisibleItems)
     readonly property bool hasResults: visibleCount > 0 && searchInput.text.trim().length > 0
@@ -33,25 +38,46 @@ PanelWindow {
     }
 
     function updateFilter() {
-        var q = searchInput.text.toLowerCase().trim();
+        var q = searchInput.text.trim();
         if (!q) {
             root.filteredApps = [];
             appList.currentIndex = -1;
             return;
         }
 
-        var results = [];
-        var all = AppScanner.apps;
-        for (var i = 0; i < all.length; i++) {
-            if (root._matches(all[i], q)) {
-                results.push(all[i]);
-            }
-        }
+        // Ranked OpenSearch-style search (C++): fuzzy apps + ii1qe toggle
+        // actions + exprtk calculator + smart web-search fallback.
+        var results = AppScanner.search(q);
+        results = root._stableize(results);
         root.filteredApps = results;
         appList.currentIndex = results.length > 0 ? 0 : -1;
         if (results.length > 0) {
             appList.positionViewAtBeginning();
         }
+    }
+
+    // Reuse cached objects for rows with static display fields so the
+    // ListView move/displaced transitions keep working across keystrokes.
+    function _stableize(results) {
+        var out = [];
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var key = "";
+            if (r.kind === "app")
+                key = "app:" + r.exec + "\n" + r.name;
+            else if (r.kind === "ipc")
+                key = "ipc:" + r.ipcFunction;
+            if (key) {
+                var old = root._entryCache[key];
+                if (old) {
+                    out.push(old);
+                    continue;
+                }
+                root._entryCache[key] = r;
+            }
+            out.push(r);
+        }
+        return out;
     }
 
     readonly property real listHeight: hasResults ? displayCount * Theme.launcherItemHeight + Math.max(0, displayCount - 1) * itemSpacing : 0
@@ -88,8 +114,18 @@ PanelWindow {
         var idx = root.selectedIndex;
         if (idx < 0 || idx >= filteredApps.length)
             return;
-        AppScanner.launch(filteredApps[idx]);
-        close();
+        root.activateItem(filteredApps[idx]);
+    }
+
+    // Dispatches a ranked result map. Calculator results are copied to the
+    // clipboard and keep the launcher open (mirrors OpenSearch); everything
+    // else closes the launcher after activation.
+    function activateItem(entry) {
+        if (!entry)
+            return;
+        AppScanner.activateResult(entry);
+        if (entry.kind !== "calc")
+            close();
     }
 
     function moveSelection(delta) {
@@ -101,13 +137,11 @@ PanelWindow {
         appList.positionViewAtIndex(next, ListView.Contain);
     }
 
-    function _matches(app, q) {
-        return (app.name && app.name.toLowerCase().includes(q)) || (app.genericName && app.genericName.toLowerCase().includes(q)) || (app.comment && app.comment.toLowerCase().includes(q)) || (app.keywords && app.keywords.toLowerCase().includes(q));
-    }
-
     Connections {
         target: AppScanner
         function onScanComplete() {
+            // App data may have changed; drop stabilized identities once.
+            root._entryCache = ({});
             root.updateFilter();
         }
     }
@@ -319,6 +353,9 @@ PanelWindow {
                 ScriptModel {
                     id: appScriptModel
                     values: root.filteredApps
+                    // Compare rows by stable uid so reorders animate instead
+                    // of rebuilding every delegate (incl. the web row).
+                    objectProp: "uid"
                 }
 
                 ListView {
@@ -482,8 +519,7 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                AppScanner.launch(del.modelData);
-                                root.close();
+                                root.activateItem(del.modelData);
                             }
                             onEntered: appList.currentIndex = del.index
                             onWheel: wheel => {

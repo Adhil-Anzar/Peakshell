@@ -72,7 +72,7 @@ PanelWindow {
 
     Item {
         x: bluetoothPanel.barOffset + Theme.barHorizontalPad
-        y: Theme.barHeight + Theme.dropdownOffset
+        y: 0
         width: Theme.bluetoothPanelWidth
         height: bluetoothColumnContainer.height
         visible: bluetoothPanel.visible

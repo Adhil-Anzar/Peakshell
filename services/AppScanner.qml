@@ -23,6 +23,16 @@ Singleton {
         root.close();
     }
 
+    // OpenSearch-style ranked search (fuzzy apps + ii1qe actions + calculator
+    // + web fallback). Returns an array of result maps; see AppScanner.search.
+    function search(query) {
+        return AppScanner.search(query);
+    }
+
+    function activateResult(entry) {
+        AppScanner.activateResult(entry);
+    }
+
     // Overridden by LauncherPanel via Connections
     function close() {}
 

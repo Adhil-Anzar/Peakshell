@@ -46,7 +46,7 @@ PanelWindow {
 
     Item {
         x: soundPanel.barOffset + Theme.barHorizontalPad
-        y: Theme.barHeight + Theme.dropdownOffset
+        y: 0
         width: Theme.soundPanelWidth
         height: soundColumnContainer.height
         visible: soundPanel.visible
