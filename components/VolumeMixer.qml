@@ -156,16 +156,21 @@ Rectangle {
                     else
                         Pipewire.preferredDefaultAudioSource = PipewireResolve.inputDevices[comboBox.currentIndex];
                 }
-                contentItem: Text {
+                // NOTE: must stay a TextField, not a Text. The org.kde.desktop
+                // style calls text-edit APIs (positionToRectangle) on the
+                // content item; a plain Text throws a TypeError on every open.
+                contentItem: TextField {
                     id: currentTextObject
                     anchors.centerIn: parent
                     text: parent.currentText
-                    verticalAlignment: Text.AlignVCenter
-                    leftPadding: Theme.cornerRadius / 2 // ss
+                    verticalAlignment: TextInput.AlignVCenter
+                    leftPadding: Theme.cornerRadius / 2
                     color: Theme.mutedFgColor
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
-                    elide: Text.ElideRight
+                    readOnly: true
+                    focusPolicy: Qt.NoFocus
+                    background: null
                 }
 
                 indicator: IconImage {

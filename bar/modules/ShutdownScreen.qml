@@ -12,7 +12,10 @@ PanelWindow {
     id: main
 
     required property var panelHost
-    screen: Hypr.focusedMonitor
+
+    // Fullscreen overlay on all screens (same as LauncherPanel): no screen
+    // assignment. (Hypr.focusedMonitor is a HyprlandMonitor, not a
+    // QuickshellScreenInfo, so assigning it here only logs a warning.)
 
     property int currentIndex: 0
     property string activePressed: ""

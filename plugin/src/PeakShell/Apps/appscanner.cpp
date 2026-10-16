@@ -71,6 +71,10 @@ constexpr int kMinReverseNameLen = 3;
 // Quiet period before a filesystem change triggers a rescan (bursts from
 // package installs / file managers collapse into one scan).
 constexpr int kRescanDebounceMs = 400;
+// Frequency preference: each launch adds this to the rank, capped after
+// kFreqCap launches so usage nudges ordering without drowning text matches.
+constexpr double kFreqBoostPerLaunch = 15.0;
+constexpr int kFreqCap = 20;
 
 constexpr char kWebSearchName[] = "Search Google";
 constexpr char kWebSearchIcon[] = "system-search";
@@ -165,6 +169,16 @@ inline double webFallbackScore(qsizetype queryLength) {
     const double over = static_cast<double>(qMax(qsizetype{0}, queryLength - kWebInitCount));
     const double grown = 100.0 * (1.0 - std::exp(-kWebCurveMultiplier * over));
     return qMin(kFuzzyThreshold + 10.0, grown);
+}
+
+// Settings key for an exec string (percent-encoded so any exec is a safe
+// single key segment).
+inline QString countKey(const QString& exec) {
+    return u"counts/"_s + QString::fromUtf8(QUrl::toPercentEncoding(exec));
+}
+
+inline double freqBoost(int launches) {
+    return kFreqBoostPerLaunch * static_cast<double>(std::min(launches, kFreqCap));
 }
 
 inline QVariantMap makeMap(const QString& name, const QString& genericName,
@@ -412,7 +426,8 @@ bool    AppEntry::terminal()    const { return m_terminal; }
 // --- AppScanner --------------------------------------------------------------
 
 AppScanner::AppScanner(QObject* parent)
-    : QObject(parent) {
+    : QObject(parent)
+    , m_settings(u"PeakShell"_s, u"PeakShell"_s) {
     m_rescanTimer.setSingleShot(true);
     m_rescanTimer.setInterval(kRescanDebounceMs);
     connect(&m_rescanTimer, &QTimer::timeout, this, &AppScanner::onRescanTimeout);
@@ -420,6 +435,14 @@ AppScanner::AppScanner(QObject* parent)
             this, [this](const QString&) { scheduleRescan(); });
     connect(&m_watcher, &QFileSystemWatcher::fileChanged,
             this, [this](const QString&) { scheduleRescan(); });
+    // Load persisted launch counts (keys are percent-encoded exec strings).
+    m_settings.beginGroup(u"counts"_s);
+    const QStringList keys = m_settings.childKeys();
+    for (const QString& k : keys) {
+        const QString exec = QUrl::fromPercentEncoding(k.toUtf8());
+        m_launchCounts.insert(exec, m_settings.value(k, 0).toInt());
+    }
+    m_settings.endGroup();
     doScan();
 }
 
@@ -458,6 +481,18 @@ void AppScanner::doScan() {
             desktopFiles << r.filePath;
         }
         updateWatches(desktopFiles);
+        // Drop counts for apps that no longer exist.
+        QSet<QString> live;
+        for (const AppEntry* app : std::as_const(m_apps))
+            live.insert(app->exec());
+        for (auto it = m_launchCounts.begin(); it != m_launchCounts.end();) {
+            if (!live.contains(it.key())) {
+                m_settings.remove(countKey(it.key()));
+                it = m_launchCounts.erase(it);
+            } else {
+                ++it;
+            }
+        }
         m_scanActive = false;
         if (!m_loaded) {
             m_loaded = true;
@@ -519,9 +554,25 @@ void AppScanner::updateWatches(const QStringList& desktopFiles) {
     m_watcher.addPaths(dirsToWatch + desktopFiles);
 }
 
+void AppScanner::recordLaunch(const QString& exec) {
+    if (exec.isEmpty())
+        return;
+    const int n = m_launchCounts.value(exec, 0) + 1;
+    m_launchCounts.insert(exec, n);
+    m_settings.setValue(countKey(exec), n);
+    m_settings.sync();
+}
+
+void AppScanner::resetLaunchCounts() {
+    m_launchCounts.clear();
+    m_settings.remove(u"counts"_s);
+    m_settings.sync();
+}
+
 void AppScanner::launch(AppEntry* entry) {
     if (!entry || entry->exec().isEmpty())
         return;
+    recordLaunch(entry->exec());
     launchCommand(entry->exec(), entry->terminal(), entry->name());
 }
 
@@ -569,7 +620,10 @@ QVariantList AppScanner::search(const QString& query) {
                                 QString(), u"app:"_s + app->exec() + u"\n"_s + app->name(),
                                 score);
         m.insert(u"categories"_s, app->categories());
-        acc.append({ m, matchSortKey(app->name(), app->genericName(), app->keywords(), q, score) });
+        // Frequently launched apps sort higher (capped boost).
+        const double key = matchSortKey(app->name(), app->genericName(), app->keywords(), q, score)
+            + freqBoost(m_launchCounts.value(app->exec(), 0));
+        acc.append({ m, key });
     }
 
     // 2. Toggleable ii1qe IPC actions, fuzzy-matched the same way
@@ -657,7 +711,9 @@ void AppScanner::activateResult(const QVariantMap& entry) {
         invokeIpc(entry.value(u"ipcFunction"_s, entry.value(u"exec"_s)).toString());
         return;
     }
-    launchCommand(entry.value(u"exec"_s).toString(),
+    const QString exec = entry.value(u"exec"_s).toString();
+    recordLaunch(exec);
+    launchCommand(exec,
                   entry.value(u"terminal"_s, false).toBool(),
                   entry.value(u"name"_s).toString());
 }

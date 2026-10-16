@@ -7,6 +7,8 @@
 #include <qstring.h>
 #include <qvariant.h>
 #include <qfilesystemwatcher.h>
+#include <qhash.h>
+#include <qsettings.h>
 #include <qtimer.h>
 
 namespace peakshell::apps {
@@ -92,6 +94,9 @@ public:
     // Copies arbitrary text to the clipboard (used for right-click copy).
     Q_INVOKABLE void copyToClipboard(const QString& text);
 
+    // Clears all stored launch counts (frequency preference reset).
+    Q_INVOKABLE void resetLaunchCounts();
+
 signals:
     void appsChanged();
     void loadedChanged();
@@ -107,9 +112,15 @@ private:
     void scheduleRescan();
     void onRescanTimeout();
     void updateWatches(const QStringList& desktopFiles);
+    void recordLaunch(const QString& exec);
 
     QList<AppEntry*> m_apps;
     bool m_loaded = false;
+
+    // Launch counts per app exec, persisted via QSettings and used to prefer
+    // frequently launched apps in search ranking.
+    QHash<QString, int> m_launchCounts;
+    QSettings m_settings;
 
     // Tracks the .desktop application directories (and the files themselves)
     // so adds/deletes/edits refresh the internal list automatically.

@@ -6,7 +6,6 @@
 import Quickshell
 import "bar"
 import "bar/panels"
-import "lock" // Path to your LockScreen component
 
 ShellRoot {
     // Global lock screen instance

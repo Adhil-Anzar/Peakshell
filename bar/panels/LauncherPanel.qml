@@ -14,15 +14,41 @@ PanelWindow {
     id: root
     property var panelHost
 
+    // Shorthands so each Behavior/Transition is a one-liner.
+    component SpatialAnim: Anim {
+        type: Anim.DefaultSpatial
+    }
+    component EffectsAnim: Anim {
+        type: Anim.DefaultEffects
+    }
+
     readonly property int maxVisibleItems: 5
     readonly property int itemSpacing: 6
 
     property var filteredApps: []
-    // Stable identity cache for result rows. The ListView shuffle/move
-    // transitions track rows by object identity, so app/ipc rows (whose
-    // display fields never change) reuse the same object across searches.
-    // Calculator/web rows carry per-query text and stay fresh objects.
-    property var _entryCache: ({})
+    // Previous result window (key -> {obj, idx}) used to keep row identity
+    // across searches so the ListView can slide rows instead of rebuilding
+    // them. Only rows inside the visible window are tracked: sliding a row in
+    // from (or out to) far off-screen strands its delegate outside the view.
+    property var _prevRows: ({})
+    // Bumped after every search. Web/calc rows keep their object identity (so
+    // they slide) while their fields are updated in place; plain JS objects
+    // aren't reactive, so delegate bindings depend on this to re-read them.
+    property int rowRevision: 0
+    // Latest contents of per-query rows (web/calc), key -> row. The model only
+    // keeps the snapshot a row had when it was inserted, so delegates read
+    // these rows from here instead of from modelData.
+    property var _live: ({})
+
+    // Identity key for per-query rows ("" for everything else).
+    function _queryRowKey(r) {
+        if (r && (r.kind === "web" || r.kind === "calc") && r.uid !== undefined && r.uid !== "")
+            return r.kind + ":" + r.uid;
+        return "";
+    }
+    // While held, Alt previews the selected row's hover tags (same logic as
+    // hovering; pairs with Alt+Enter copy). Reset on open/close.
+    property bool altHeld: false
     readonly property int visibleCount: filteredApps.length
     readonly property int displayCount: Math.min(visibleCount, maxVisibleItems)
     readonly property bool hasResults: visibleCount > 0 && searchInput.text.trim().length > 0
@@ -41,8 +67,10 @@ PanelWindow {
     function updateFilter() {
         var q = searchInput.text.trim();
         if (!q) {
+            root._prevRows = ({});
             root.filteredApps = [];
             appList.currentIndex = -1;
+            appList.forceLayout();
             return;
         }
 
@@ -51,16 +79,24 @@ PanelWindow {
         var results = AppScanner.search(q);
         results = root._stableize(results);
         root.filteredApps = results;
+        root.rowRevision++;
         appList.currentIndex = results.length > 0 ? 0 : -1;
+        appList.forceLayout();
         if (results.length > 0) {
             appList.positionViewAtBeginning();
         }
     }
 
-    // Reuse cached objects for rows with static display fields so the
-    // ListView move/displaced transitions keep working across keystrokes.
+    // Keep object identity only for app/ipc rows that sit inside the visible
+    // window both before and after this search (short slides). Everything else
+    // is a fresh row. Rows that collide (same identity key or uid) are dropped
+    // so no object appears twice.
     function _stableize(results) {
+        var win = root.maxVisibleItems;
         var out = [];
+        var seen = ({});
+        var next = ({});
+        var live = ({});
         for (var i = 0; i < results.length; i++) {
             var r = results[i];
             var key = "";
@@ -68,16 +104,43 @@ PanelWindow {
                 key = "app:" + r.exec + "\n" + r.name;
             else if (r.kind === "ipc")
                 key = "ipc:" + r.ipcFunction;
+            else
+                key = root._queryRowKey(r);
+            var uidKey = (r.uid !== undefined && r.uid !== "") ? "uid:" + r.uid : "";
+            if ((key && seen[key]) || (uidKey && seen[uidKey]))
+                continue;
+            if (key)
+                seen[key] = true;
+            if (uidKey)
+                seen[uidKey] = true;
+
+            var row = r;
             if (key) {
-                var old = root._entryCache[key];
-                if (old) {
-                    out.push(old);
-                    continue;
+                var prev = root._prevRows[key];
+                if (prev && prev.idx < win && out.length < win) {
+                    row = prev.obj;
+                    // Per-query rows: same object, fresh contents.
+                    if (r.kind === "web" || r.kind === "calc") {
+                        for (var k in row)
+                            if (!(k in r))
+                                delete row[k];
+                        for (var k2 in r)
+                            row[k2] = r[k2];
+                    }
                 }
-                root._entryCache[key] = r;
+                if (out.length < win)
+                    next[key] = {
+                        obj: row,
+                        idx: out.length
+                    };
             }
-            out.push(r);
+            var qk = root._queryRowKey(r);
+            if (qk)
+                live[qk] = r;
+            out.push(row);
         }
+        root._live = live;
+        root._prevRows = next;
         return out;
     }
 
@@ -94,12 +157,19 @@ PanelWindow {
         if (panelHost && panelHost.toggledPanels)
             panelHost.toggledPanels["launcher"] = root;
         searchInput.text = "";
+        _prevRows = ({});
         filteredApps = [];
         appList.currentIndex = -1;
         searchInput.forceActiveFocus();
     }
 
     function close() {
+        // Release text-input focus while the surface is still mapped (first
+        // funneling focus through the search field so a focused command field
+        // also lets go cleanly). Hiding with a focused input makes Qt log
+        // disableSurface warnings about a null focused surface.
+        searchInput.forceActiveFocus();
+        searchInput.focus = false;
         visible = false;
         if (panelHost && panelHost.toggledPanels)
             panelHost.toggledPanels["launcher"] = false;
@@ -107,17 +177,24 @@ PanelWindow {
         searchInput.text = "";
         filteredApps = [];
         appList.currentIndex = -1;
+        altHeld = false;
     }
 
     function toggle() {
         visible ? close() : open();
     }
 
+    // The freshest contents for a row (per-query rows are updated in place).
+    function _latest(entry) {
+        var k = root._queryRowKey(entry);
+        return (k && root._live[k]) ? root._live[k] : entry;
+    }
+
     function launchCurrent() {
         var idx = root.selectedIndex;
         if (idx < 0 || idx >= filteredApps.length)
             return;
-        root.activateItem(filteredApps[idx]);
+        root.activateItem(root._latest(filteredApps[idx]));
     }
 
     // Dispatches a ranked result map. Calculator results are copied to the
@@ -161,10 +238,11 @@ PanelWindow {
         var idx = root.selectedIndex;
         if (idx < 0 || idx >= filteredApps.length)
             return;
-        root.copyCommand(filteredApps[idx]);
+        root.copyCommand(root._latest(filteredApps[idx]));
     }
 
-    // First ";" separated token of a .desktop list field (Keywords/Categories).
+    // First ";" separated token of a .desktop list field (Keywords/Categories),
+    // capitalized for pill display.
     function _firstListToken(s) {
         if (!s)
             return "";
@@ -172,7 +250,7 @@ PanelWindow {
         for (var i = 0; i < parts.length; i++) {
             var t = parts[i].trim();
             if (t.length > 0)
-                return t;
+                return t.charAt(0).toUpperCase() + t.slice(1);
         }
         return "";
     }
@@ -183,14 +261,32 @@ PanelWindow {
         var current = (appList.currentIndex < 0) ? 0 : appList.currentIndex;
         var next = Math.max(0, Math.min(current + delta, filteredApps.length - 1));
         appList.currentIndex = next;
-        appList.positionViewAtIndex(next, ListView.Contain);
+        root.ensureVisible(next);
+    }
+
+    // Scrolls just far enough to show row idx including the extra height of
+    // its expanded command line. ListView.Contain only knows the fixed slot
+    // height, so it would clip the bottom of the expanded card.
+    function ensureVisible(idx) {
+        var step = Theme.launcherItemHeight + itemSpacing;
+        var top = idx * step;
+        var bottom = top + Theme.launcherItemHeight + commandExtra;
+        var viewH = appList.height;
+        var cy = appList.contentY - appList.originY;
+        if (top < cy)
+            cy = top;
+        else if (bottom > cy + viewH)
+            cy = bottom - viewH;
+        var maxY = Math.max(0, appList.contentHeight + appList.bottomMargin - viewH);
+        cy = Math.max(0, Math.min(cy, maxY));
+        appList.contentY = cy + appList.originY;
     }
 
     Connections {
         target: AppScanner
         function onScanComplete() {
             // App data may have changed; drop stabilized identities once.
-            root._entryCache = ({});
+            root._prevRows = ({});
             root.updateFilter();
         }
     }
@@ -219,6 +315,10 @@ PanelWindow {
         focus: root.visible
 
         Keys.onPressed: event => {
+            if (event.key === Qt.Key_Alt) {
+                root.altHeld = true;
+                return;
+            }
             switch (event.key) {
             case Qt.Key_Escape:
                 root.close();
@@ -243,31 +343,30 @@ PanelWindow {
             }
         }
 
+        Keys.onReleased: event => {
+            if (event.key === Qt.Key_Alt)
+                root.altHeld = false;
+        }
+
         Item {
             id: launcher
             anchors.centerIn: parent
             width: Theme.launcherWidth
 
-            // Smooth fluid height animation using M3 expressive bezier curve
+            // The only height animation: resultsArea follows this value.
             height: root.totalHeight
             Behavior on height {
-                Anim {
-                    type: Anim.DefaultSpatial
-                }
+                SpatialAnim {}
             }
 
             opacity: root.visible ? 1 : 0
             scale: root.visible ? 1 : 0.94
             transformOrigin: Item.Center
             Behavior on opacity {
-                Anim {
-                    type: Anim.DefaultEffects
-                }
+                EffectsAnim {}
             }
             Behavior on scale {
-                Anim {
-                    type: Anim.DefaultSpatial
-                }
+                SpatialAnim {}
             }
 
             MouseArea {
@@ -275,7 +374,7 @@ PanelWindow {
                 onClicked: {}
             }
 
-            // ── Search bar pill ─────────────────────────────────────────────
+            // Search bar pill
             Rectangle {
                 id: searchBar
                 anchors.top: parent.top
@@ -371,43 +470,31 @@ PanelWindow {
                         }
 
                         Behavior on opacity {
-                            Anim {
-                                type: Anim.DefaultEffects
-                            }
+                            EffectsAnim {}
                         }
                     }
                 }
             }
 
-            // ── Results list container (fixed viewport of up to 5 items, scrollable) ─
+            // Results list container (fixed viewport of up to 5 items, scrollable)
             Item {
                 id: resultsArea
                 anchors.top: searchBar.bottom
                 anchors.topMargin: root.itemSpacing
                 anchors.left: parent.left
                 anchors.right: parent.right
-                height: root.listHeight
+                // Follows the launcher's animated height (no second animation).
+                height: Math.max(0, launcher.height - searchBar.height - root.itemSpacing)
                 clip: true
-
-                Behavior on height {
-                    Anim {
-                        type: Anim.DefaultSpatial
-                    }
-                }
 
                 opacity: root.hasResults ? 1 : 0
                 Behavior on opacity {
-                    Anim {
-                        type: Anim.DefaultEffects
-                    }
+                    EffectsAnim {}
                 }
 
                 ScriptModel {
                     id: appScriptModel
                     values: root.filteredApps
-                    // Compare rows by stable uid so reorders animate instead
-                    // of rebuilding every delegate (incl. the web row).
-                    objectProp: "uid"
                 }
 
                 ListView {
@@ -419,40 +506,26 @@ PanelWindow {
                     currentIndex: -1
                     highlight: null
                     boundsBehavior: Flickable.StopAtBounds
+                    // Rows have a fixed slot height; the selected card grows
+                    // visually by commandExtra, so keep that room at the end.
+                    bottomMargin: root.commandExtra
 
                     ScrollBar.vertical: ScrollBar {
                         policy: ScrollBar.AlwaysOff
                         visible: false
                     }
 
-                    // ── Shuffle & displacement transitions ───────────────────
-                    add: Transition {
-                        Anim {
-                            property: "opacity"
-                            from: 0
-                            to: 1
-                            type: Anim.DefaultEffects
-                        }
-                    }
-
-                    move: Transition {
-                        Anim {
-                            property: "y"
-                            type: Anim.DefaultSpatial
-                        }
-                    }
-
-                    addDisplaced: Transition {
-                        Anim {
-                            property: "y"
-                            type: Anim.DefaultSpatial
-                        }
-                    }
-
+                    // Shuffle & displacement transitions
+                    // Rows slide to their new slots. `displaced` also covers
+                    // add/remove displacement. (No `add` fade for now.)
                     displaced: Transition {
-                        Anim {
+                        SpatialAnim {
                             property: "y"
-                            type: Anim.DefaultSpatial
+                        }
+                    }
+                    move: Transition {
+                        SpatialAnim {
+                            property: "y"
                         }
                     }
 
@@ -463,90 +536,137 @@ PanelWindow {
 
                         // Avoid animating scale when delegate is initially scrolled in
                         property bool ready: false
-                        Component.onCompleted: ready = true
+
+                        // Cascade entrance ("shuffle")
+                        // 0 -> 1 when this row is created. Drives a drop-in
+                        // (translate), a small scale-up and a fade, staggered by
+                        // row position. Owned entirely by the row, so it can't
+                        // leave anything stranded by the ListView.
+                        property real enter: 0
+
+                        // Reads a field of the row; depends on rowRevision so
+                        // in-place updates to a reused row refresh the UI.
+                        function liveRow() {
+                            root.rowRevision;
+                            return root._latest(del.modelData);
+                        }
+                        function field(name) {
+                            return del.liveRow()[name];
+                        }
+                        SequentialAnimation {
+                            id: enterAnim
+                            PauseAnimation {
+                                duration: Math.max(0, Math.min(del.index, 6)) * 35
+                            }
+                            SpatialAnim {
+                                target: del
+                                property: "enter"
+                                from: 0
+                                to: 1
+                            }
+                        }
+                        Component.onCompleted: {
+                            ready = true;
+                            enterAnim.start();
+                        }
+                        opacity: Math.min(1, del.enter)
 
                         readonly property int distance: Math.abs(del.index - root.selectedIndex)
                         readonly property bool isSelected: del.index === root.selectedIndex
 
-                        Connections {
-                            target: appList
-                            function onCurrentIndexChanged() {
-                                appList.forceLayout();
-                            }
-                        }
-
-                        // Pills for the tag row: kind first, then keyword /
-                        // category info (or a sensible fallback) on hover.
-                        readonly property var pillDefs: {
-                            var d = del.modelData;
-                            var pills = [
-                                {
-                                    "label": "App",
-                                    "accent": true
-                                }
-                            ];
+                        // Pills for the tag row: the kind pill plus, on hover,
+                        // keyword/category info pills (or a sensible fallback).
+                        // On hover the kind pill steps aside whenever keyword
+                        // or category pills take over.
+                        // Hovered rows show the extended tag logic; holding Alt
+                        // previews the same for the selected row.
+                        readonly property bool tagsHover: delMa.containsMouse || (root.altHeld && del.isSelected)
+                        readonly property string kindLabel: {
+                            root.rowRevision;
+                            var d = del.liveRow();
                             if (d.kind === "ipc")
-                                pills[0].label = "Action";
-                            else if (d.kind === "calc")
-                                pills[0].label = "Calc";
-                            else if (d.kind === "web")
-                                pills[0].label = "Web";
-                            else if (d.terminal)
-                                pills[0].label = "CLI";
-                            if (!delMa.containsMouse)
-                                return pills;
+                                return "Action";
+                            if (d.kind === "calc")
+                                return "Calc";
+                            if (d.kind === "web")
+                                return "Web";
+                            return d.terminal ? "CLI" : "App";
+                        }
+                        readonly property bool kindStepsAside: {
+                            root.rowRevision;
+                            var d = del.liveRow();
+                            if (!del.tagsHover || d.kind !== "app")
+                                return false;
+                            return root._firstListToken(d.keywords).length > 0 || root._firstListToken(d.categories).length > 0;
+                        }
+                        readonly property var infoPills: {
+                            root.rowRevision;
+                            if (!del.tagsHover)
+                                return [];
+                            var d = del.liveRow();
+                            var pills = [];
                             if (d.kind === "app") {
                                 var kw = root._firstListToken(d.keywords);
                                 var cat = root._firstListToken(d.categories);
                                 if (kw.length > 0)
-                                    pills.push({
-                                        "label": kw,
-                                        "accent": false
-                                    });
+                                    pills.push(kw);
                                 if (cat.length > 0)
-                                    pills.push({
-                                        "label": cat,
-                                        "accent": false
-                                    });
-                                if (kw.length === 0 && cat.length === 0)
-                                    pills.push({
-                                        "label": d.terminal ? "Terminal" : "Application",
-                                        "accent": false
-                                    });
+                                    pills.push(cat);
+                                if (pills.length === 0)
+                                    pills.push(d.terminal ? "Terminal" : "Application");
                             } else if (d.kind === "ipc") {
-                                pills.push({
-                                    "label": d.ipcFunction,
-                                    "accent": false
-                                });
-                            } else if (d.kind === "calc" && d.detail) {
-                                pills.push({
-                                    "label": d.detail,
-                                    "accent": false
-                                });
-                            } else if (d.kind === "web" && d.detail) {
-                                pills.push({
-                                    "label": d.detail,
-                                    "accent": false
-                                });
+                                pills.push(d.ipcFunction);
+                            } else if ((d.kind === "calc" || d.kind === "web") && d.detail) {
+                                pills.push(d.detail);
                             }
                             return pills;
                         }
 
                         width: appList.width
-                        height: Theme.launcherItemHeight + (del.isSelected ? root.commandExtra : 0)
+                        // Fixed slot height: the ListView never has to re-measure
+                        // rows when the selection changes, so row positions (and
+                        // the shuffle transitions' targets) can't go stale.
+                        height: Theme.launcherItemHeight
                         transformOrigin: Item.Center
 
-                        // Maximum scale is strictly 1.0 (matching the search bar width).
-                        // Sibling items progressively shrink down based on distance from selected index.
+                        // The one animated value for the selection expansion:
+                        // extra card height for the selected row's command line.
+                        property real extraH: del.isSelected ? root.commandExtra : 0
+                        Behavior on extraH {
+                            enabled: del.ready
+                            SpatialAnim {}
+                        }
+                        // 0..1 progress derived from extraH; drives the command
+                        // row and tag row so they need no animations of their own.
+                        readonly property real expand: del.extraH / root.commandExtra
+
+                        // Rows below the selected one are pushed down visually
+                        // (a transform, not layout) to make room for that extra.
+                        property real pushY: (root.selectedIndex >= 0 && del.index > root.selectedIndex) ? root.commandExtra : 0
+                        Behavior on pushY {
+                            enabled: del.ready
+                            SpatialAnim {}
+                        }
+                        transform: [
+                            Translate {
+                                y: del.pushY + (1 - del.enter) * -18
+                            },
+                            Scale {
+                                origin.x: del.width / 2
+                                origin.y: del.height / 2
+                                xScale: 0.92 + 0.08 * del.enter
+                                yScale: 0.92 + 0.08 * del.enter
+                            }
+                        ]
+
+                        // Max scale is 1.0 (matches the search bar width); siblings
+                        // shrink with distance from the selected row.
                         readonly property real baseScale: Math.max(0.88, 1.0 - del.distance * 0.03)
                         readonly property real targetScale: del.isSelected ? 1.0 : (delMa.containsMouse ? Math.min(0.99, del.baseScale + 0.03) : del.baseScale)
-
                         scale: del.targetScale
                         Behavior on scale {
                             enabled: del.ready
-                            Anim {
-                                type: Anim.DefaultSpatial
-                            }
+                            SpatialAnim {}
                         }
 
                         z: del.isSelected ? 20 : (15 - Math.min(10, del.distance))
@@ -554,7 +674,10 @@ PanelWindow {
                         // Floating Card with matching cornerLargeRadius
                         Rectangle {
                             id: itemCard
-                            anchors.fill: parent
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: Theme.launcherItemHeight + del.extraH
                             radius: Theme.cornerLargeRadius
                             color: del.isSelected ? Theme.hoveredBgColor : (delMa.containsMouse ? Theme.mutedBgColor : Theme.bgColor)
                             border.color: del.isSelected ? Theme.accent : Theme.mutedAccent
@@ -564,9 +687,7 @@ PanelWindow {
 
                             opacity: (del.isSelected || delMa.containsMouse) ? 1.0 : Math.max(0.65, 1.0 - del.distance * 0.08)
                             Behavior on opacity {
-                                Anim {
-                                    type: Anim.DefaultEffects
-                                }
+                                EffectsAnim {}
                             }
 
                             Behavior on color {
@@ -592,7 +713,7 @@ PanelWindow {
                                 IconImage {
                                     Layout.alignment: Qt.AlignVCenter
                                     implicitSize: Theme.launcherIconSize
-                                    source: Quickshell.iconPath(del.modelData.icon || "application-x-executable", "application-x-executable")
+                                    source: Quickshell.iconPath(del.field("icon") || "application-x-executable", "application-x-executable")
                                     smooth: true
                                     mipmap: true
                                 }
@@ -604,7 +725,7 @@ PanelWindow {
 
                                     Text {
                                         width: parent.width
-                                        text: del.modelData.name || ""
+                                        text: del.field("name") || ""
                                         color: Theme.fgColor
                                         font.bold: true
                                         font.pointSize: Theme.labelFontSize + 2
@@ -616,7 +737,7 @@ PanelWindow {
 
                                     Text {
                                         width: parent.width
-                                        text: del.modelData.comment || del.modelData.genericName || ""
+                                        text: del.field("comment") || del.field("genericName") || ""
                                         color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize * 0.9
                                         font.family: Theme.labelFontFamily
@@ -626,25 +747,14 @@ PanelWindow {
                                         antialiasing: true
                                     }
 
-                                    // ── Command line: what will be executed (selectable) ──
+                                    // Command line: what will be executed (selectable)
                                     Row {
                                         width: parent.width
-                                        height: del.isSelected ? 20 : 0
+                                        height: 20 * del.expand
                                         visible: height > 0
-                                        opacity: del.isSelected ? 1 : 0
+                                        opacity: del.expand
                                         spacing: 6
                                         clip: true
-
-                                        Behavior on height {
-                                            Anim {
-                                                type: Anim.DefaultSpatial
-                                            }
-                                        }
-                                        Behavior on opacity {
-                                            Anim {
-                                                type: Anim.DefaultEffects
-                                            }
-                                        }
 
                                         Text {
                                             id: commandLabel
@@ -663,7 +773,10 @@ PanelWindow {
                                             width: parent.width - commandLabel.width - parent.spacing
                                             height: parent.height
                                             verticalAlignment: TextInput.AlignVCenter
-                                            text: root.commandFor(del.modelData)
+                                            text: {
+                                                root.rowRevision;
+                                                return root.commandFor(del.liveRow());
+                                            }
                                             color: Theme.fgColor
                                             selectionColor: Theme.accent
                                             selectedTextColor: Theme.fgColor
@@ -706,63 +819,89 @@ PanelWindow {
                                     }
                                 }
 
-                                // ── Tag row: kind pill + keyword/category pills ──
-                                // Selected row only; hovering extends it with
-                                // keyword/category pills (or a sensible fallback).
+                                // Tag row: info pills + kind pill
+                                // Selected row only. On hover the kind pill steps
+                                // aside (animated, to the right) whenever keyword
+                                // or category pills take over.
                                 Row {
                                     id: tagRow
                                     Layout.alignment: Qt.AlignVCenter
-                                    Layout.preferredWidth: del.isSelected ? Math.min(tagRow.implicitWidth, appList.width * 0.5) : 0
+                                    Layout.preferredWidth: Math.min(tagRow.implicitWidth, appList.width * 0.5) * del.expand
                                     spacing: 6
                                     clip: true
-                                    opacity: del.isSelected ? 1 : 0
-                                    scale: del.isSelected ? 1 : 0.7
-                                    transformOrigin: Item.Right
+                                    opacity: del.expand
                                     visible: Layout.preferredWidth > 1
 
-                                    Behavior on Layout.preferredWidth {
-                                        Anim {
-                                            type: Anim.DefaultSpatial
-                                        }
-                                    }
-                                    Behavior on opacity {
-                                        Anim {
-                                            type: Anim.DefaultEffects
-                                        }
-                                    }
-                                    Behavior on scale {
-                                        Anim {
-                                            type: Anim.DefaultSpatial
-                                        }
-                                    }
+                                    Row {
+                                        id: infoRow
+                                        spacing: 6
 
-                                    Repeater {
-                                        model: del.pillDefs
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            width: Math.min(pillLabel.implicitWidth + 20, 140)
-                                            height: pillLabel.implicitHeight + 10
-                                            radius: height * 0.5
-                                            color: modelData.accent ? Theme.accent : "transparent"
-                                            border.color: modelData.accent ? Theme.accent : Theme.mutedAccent
-                                            border.width: 1
-                                            clip: true
+                                        Repeater {
+                                            model: del.infoPills
+                                            delegate: Rectangle {
+                                                required property var modelData
+                                                width: Math.min(infoPillLabel.implicitWidth + 20, 140)
+                                                height: infoPillLabel.implicitHeight + 10
+                                                radius: height * 0.5
+                                                color: "transparent"
+                                                border.color: Theme.mutedAccent
+                                                border.width: 1
+                                                clip: true
 
-                                            Text {
-                                                id: pillLabel
-                                                width: Math.max(0, Math.min(implicitWidth, parent.width - 20))
-                                                height: implicitHeight
-                                                anchors.centerIn: parent
-                                                verticalAlignment: Text.AlignVCenter
-                                                elide: Text.ElideRight
-                                                text: modelData.label
-                                                color: modelData.accent ? Theme.fgColor : Theme.mutedFgColor
-                                                font.bold: modelData.accent
-                                                font.pointSize: Theme.labelFontSize * 0.85
-                                                font.family: Theme.labelFontFamily
-                                                renderType: Text.CurveRendering
-                                                antialiasing: true
+                                                Text {
+                                                    id: infoPillLabel
+                                                    width: Math.max(0, Math.min(implicitWidth, parent.width - 20))
+                                                    height: implicitHeight
+                                                    anchors.centerIn: parent
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    elide: Text.ElideRight
+                                                    text: modelData
+                                                    color: Theme.mutedFgColor
+                                                    font.pointSize: Theme.labelFontSize * 0.85
+                                                    font.family: Theme.labelFontFamily
+                                                    renderType: Text.CurveRendering
+                                                    antialiasing: true
+                                                }
                                             }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        id: kindPill
+                                        width: del.kindStepsAside ? 0 : Math.min(kindPillLabel.implicitWidth + 20, 140)
+                                        height: kindPillLabel.implicitHeight + 10
+                                        visible: width > 1
+                                        radius: height * 0.5
+                                        color: Theme.accent
+                                        opacity: del.kindStepsAside ? 0 : 1
+                                        scale: del.kindStepsAside ? 0.7 : 1
+                                        transformOrigin: Item.Right
+                                        clip: true
+
+                                        Behavior on width {
+                                            SpatialAnim {}
+                                        }
+                                        Behavior on opacity {
+                                            EffectsAnim {}
+                                        }
+                                        Behavior on scale {
+                                            SpatialAnim {}
+                                        }
+
+                                        Text {
+                                            id: kindPillLabel
+                                            width: Math.max(0, Math.min(implicitWidth, parent.width - 20))
+                                            height: implicitHeight
+                                            anchors.centerIn: parent
+                                            verticalAlignment: Text.AlignVCenter
+                                            elide: Text.ElideRight
+                                            text: del.kindLabel
+                                            color: Theme.fgColor
+                                            font.bold: true
+                                            font.pointSize: Theme.labelFontSize * 0.85
+                                            font.family: Theme.labelFontFamily
+                                            renderType: Text.CurveRendering
+                                            antialiasing: true
                                         }
                                     }
                                 }
@@ -771,19 +910,21 @@ PanelWindow {
 
                         MouseArea {
                             id: delMa
-                            anchors.fill: parent
+                            anchors.fill: itemCard
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: mouse => {
                                 if (mouse.button === Qt.RightButton) {
                                     appList.currentIndex = del.index;
-                                    root.copyCommand(del.modelData);
+                                    root.copyCommand(del.liveRow());
                                 } else {
-                                    root.activateItem(del.modelData);
+                                    root.activateItem(del.liveRow());
                                 }
                             }
-                            onEntered: appList.currentIndex = del.index
+                            onEntered: {
+                                appList.currentIndex = del.index;
+                            }
                             onWheel: wheel => {
                                 wheel.accepted = false; // Allow ListView to handle scrolling
                             }

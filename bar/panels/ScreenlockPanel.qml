@@ -33,6 +33,10 @@ Scope {
             lockScope.authenticating = false;
             if (result === PamResult.Success) {
                 lockScope.authError = "";
+                // Release the password field before the lock surface hides so
+                // the Wayland text-input protocol disables against a mapped,
+                // focused surface instead of logging disableSurface warnings.
+                pwdInput.focus = false;
                 sessionLock.locked = false;
             } else {
                 lockScope.authError = pam.message !== "" ? pam.message : "Authentication failed.";
