@@ -18,28 +18,36 @@ Rectangle {
     }
 
     function toggleSoundPanel() {
+        soundLoader.active = true;
+        const panel = soundLoader.item;
         panelHost.hideAllPanelExcept("sound");
-        soundPanel.visible = !soundPanel.visible;
+        panel.visible = !panel.visible;
         soundChip.keepExpanded();
-        registerPanel("sound", soundPanel, soundPanel.visible);
+        registerPanel("sound", panel, panel.visible);
     }
     function toggleWifiPanel() {
+        wifiLoader.active = true;
+        const panel = wifiLoader.item;
         panelHost.hideAllPanelExcept("wifi");
-        wifiPanel.visible = !wifiPanel.visible;
+        panel.visible = !panel.visible;
         wifiChip.keepExpanded();
-        registerPanel("wifi", wifiPanel, wifiPanel.visible);
+        registerPanel("wifi", panel, panel.visible);
     }
     function toggleBluetoothPanel() {
+        bluetoothLoader.active = true;
+        const panel = bluetoothLoader.item;
         panelHost.hideAllPanelExcept("bluetooth");
-        bluetoothPanel.visible = !bluetoothPanel.visible;
+        panel.visible = !panel.visible;
         bluetoothChip.keepExpanded();
-        registerPanel("bluetooth", bluetoothPanel, bluetoothPanel.visible);
+        registerPanel("bluetooth", panel, panel.visible);
     }
     function openSoundPanel() {
+        soundLoader.active = true;
+        const panel = soundLoader.item;
         panelHost.hideAllPanelExcept("sound");
-        soundPanel.visible = true;
+        panel.visible = true;
         soundChip.keepExpanded();
-        registerPanel("sound", soundPanel, true);
+        registerPanel("sound", panel, true);
     }
 
     width: container.width + 32
@@ -93,19 +101,28 @@ Rectangle {
         }
     }
 
-    SoundPanel {
-        id: soundPanel
-        panelHost: root.panelHost
-        barOffset: container.getSpacingDistance()
+    LazyLoader {
+        id: soundLoader
+        loading: true
+        SoundPanel {
+            panelHost: root.panelHost
+            barOffset: container.getSpacingDistance()
+        }
     }
-    WifiPanel {
-        id: wifiPanel
-        panelHost: root.panelHost
-        barOffset: container.getSpacingDistance()
+    LazyLoader {
+        id: wifiLoader
+        loading: true
+        WifiPanel {
+            panelHost: root.panelHost
+            barOffset: container.getSpacingDistance()
+        }
     }
-    BluetoothPanel {
-        id: bluetoothPanel
-        panelHost: root.panelHost
-        barOffset: container.getSpacingDistance()
+    LazyLoader {
+        id: bluetoothLoader
+        loading: true
+        BluetoothPanel {
+            panelHost: root.panelHost
+            barOffset: container.getSpacingDistance()
+        }
     }
 }

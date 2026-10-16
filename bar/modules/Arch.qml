@@ -40,12 +40,14 @@ Rectangle {
 
     // Functions
     function togglePanel() {
+        dashLoader.active = true;
+        const dash = dashLoader.item;
         panelHost.hideAllPanelExcept("arch");
-        dashboard.visible = !dashboard.visible;
+        dash.visible = !dash.visible;
         hoverDebounce.isDelaying = true;
         hoverDebounce.restart();
-        if (dashboard.visible)
-            panelHost.toggledPanels["arch"] = dashboard;
+        if (dash.visible)
+            panelHost.toggledPanels["arch"] = dash;
         else
             panelHost.toggledPanels["arch"] = false;
     }
@@ -121,35 +123,34 @@ Rectangle {
             }
         }
     }
-    // Popup Part
-    PanelWindow {
-        id: dashboard
+    // Popup Part (lazy: instantiated in background, forced on first open)
+    LazyLoader {
+        id: dashLoader
+        loading: true
+        PanelWindow {
+            id: dashboard
         //screen: root.panelHost ? root.panelHost.screen : null
         visible: false
         focusable: true
         color: "transparent"
-        implicitWidth: Theme.dashboardWidth + Theme.barHorizontalPad
-        implicitHeight: mainColumn.height
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
         //exclusionMode: ExclusionMode.Ignore
         anchors {
             top: true
-            bottom: false
+            bottom: true
             left: true
-            right: false
+            right: true
         }
-        // The mouse out of bound
-        // Rectangle {
-        //     color: "Transparent"
-        //     anchors.fill: parent
-        //     TapHandler {
-        //         onTapped: dashboard.visible = false
-        //     }
-        // }
+        // Dismiss on clicking outside
+        MouseArea {
+            anchors.fill: parent
+            onClicked: dashboard.visible = false
+        }
         // The Esc => close
         FocusScope {
-            focus: true
+            anchors.fill: parent
+            focus: dashboard.visible
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Escape) {
                     dashboard.visible = false;
@@ -160,20 +161,36 @@ Rectangle {
         // Actual Dashboard
         Item {
             z: 1
-            height: Theme.dashboardHeight
             width: Theme.dashboardWidth
+            height: mainColumn.height
             x: Theme.barHorizontalPad
-            //y: Theme.dropdownOffset * 2
+            y: Theme.barHeight + Theme.dropdownOffset
+            visible: dashboard.visible
+
+            opacity: dashboard.visible ? 1 : 0
+            scale: dashboard.visible ? 1 : 0.94
+            transformOrigin: Item.TopLeft
+
+            Behavior on opacity {
+                Anim {
+                    type: Anim.DefaultEffects
+                }
+            }
+            Behavior on scale {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
+
+            // Absorb clicks so they don't reach the dismiss area
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
 
             ColumnLayout {
                 id: mainColumn
-                visible: dashboard.visible
-                spacing: visible ? 5 : 30
-                Behavior on spacing {
-                    Anim {
-                        type: Anim.DefaultSpatial
-                    }
-                }
+                spacing: 5
 
                 // Dashboard Title
                 Rectangle {
@@ -1006,6 +1023,7 @@ Rectangle {
                     }
                 }
             }
+        }
         }
     }
 }

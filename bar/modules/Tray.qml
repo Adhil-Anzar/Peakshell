@@ -31,13 +31,16 @@ Rectangle {
             model: SystemTray.items
             delegate: TrayItem {
                 panelHost: root.panelHost
-                trayMenuPanel: trayMenuPanel
+                menuLoader: trayMenuLoader
             }
         }
     }
 
-    TrayMenuPanel {
-        id: trayMenuPanel
-        panelHost: root.panelHost
+    LazyLoader {
+        id: trayMenuLoader
+        loading: true
+        TrayMenuPanel {
+            panelHost: root.panelHost
+        }
     }
 }

@@ -12,7 +12,8 @@ Rectangle {
     property var panelHost
 
     function togglePanel() {
-        calendarPanel.togglePanel()
+        calendarLoader.active = true;
+        calendarLoader.item.togglePanel();
     }
 
     Behavior on width {
@@ -92,8 +93,11 @@ Rectangle {
         }
     }
 
-    CalendarPanel {
-        id: calendarPanel
-        panelHost: root.panelHost
+    LazyLoader {
+        id: calendarLoader
+        loading: true
+        CalendarPanel {
+            panelHost: root.panelHost
+        }
     }
 }

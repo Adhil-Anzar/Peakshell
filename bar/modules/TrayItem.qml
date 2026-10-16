@@ -9,18 +9,23 @@ import "root:/components"
 Rectangle {
     required property SystemTrayItem modelData;
     required property var panelHost;
-    property var trayMenuPanel: null
+    property var menuLoader: null
 
     function toggleMenu() {
-        if (!modelData.hasMenu || !trayMenuPanel)
+        if (!modelData.hasMenu || !menuLoader)
             return
 
-        if (trayMenuPanel.visible && trayMenuPanel.targetMenu === modelData.menu) {
-            trayMenuPanel.closeMenu()
+        menuLoader.active = true;
+        const menu = menuLoader.item;
+        if (!menu)
+            return;
+
+        if (menu.visible && menu.targetMenu === modelData.menu) {
+            menu.closeMenu()
         } else {
             const p = panelHost ? mapToItem(panelHost.contentItem, 0, 0) : mapToGlobal(0, 0)
             const offsetX = panelHost ? (p.x + Theme.barHorizontalPad) : p.x
-            trayMenuPanel.openMenu(modelData.menu, modelData.title || modelData.id, offsetX)
+            menu.openMenu(modelData.menu, modelData.title || modelData.id, offsetX)
         }
     }
 
@@ -41,7 +46,7 @@ Rectangle {
         onEntered: { hoverDebounce.isDelaying = true; hoverDebounce.restart() }
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) {
-                if (modelData.hasMenu && trayMenuPanel) {
+                if (modelData.hasMenu && menuLoader) {
                     toggleMenu()
                 } else if (modelData.hasMenu) {
                     const p = panelHost ? mapToItem(panelHost.contentItem, 0, 0) : Qt.point(0, 0)
@@ -51,7 +56,7 @@ Rectangle {
             }
 
             if (mouse.button === Qt.LeftButton) {
-                if (modelData.onlyMenu && modelData.hasMenu && trayMenuPanel) {
+                if (modelData.onlyMenu && modelData.hasMenu && menuLoader) {
                     toggleMenu()
                     return
                 }

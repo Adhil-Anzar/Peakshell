@@ -25,21 +25,33 @@ PanelWindow {
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: visible ? Theme.bluetoothPanelWidth + Theme.barHorizontalPad + barOffset : 0
-    implicitHeight: bluetoothColumnContainer.height
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-    onVisibleChanged: BluetoothResolve.setDiscovering(visible)
+    onVisibleChanged: {
+        // Defer starting discovery so the open animation renders first.
+        // Stopping still happens immediately.
+        if (visible)
+            Qt.callLater(() => BluetoothResolve.setDiscovering(true));
+        else
+            BluetoothResolve.setDiscovering(false);
+    }
 
     anchors {
         top: true
-        bottom: false
+        bottom: true
         left: true
-        right: false
+        right: true
+    }
+
+    // Dismiss on clicking outside
+    MouseArea {
+        anchors.fill: parent
+        onClicked: bluetoothPanel.visible = false
     }
 
     FocusScope {
-        focus: true
+        anchors.fill: parent
+        focus: bluetoothPanel.visible
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 bluetoothPanel.visible = false;
@@ -59,21 +71,37 @@ PanelWindow {
     }
 
     Item {
-        x: visible ? (bluetoothPanel.barOffset + Theme.barHorizontalPad) : 0
-        //y: Theme.dropdownOffset * 2
-        visible: bluetoothPanel.visible
+        x: bluetoothPanel.barOffset + Theme.barHorizontalPad
+        y: Theme.barHeight + Theme.dropdownOffset
         width: Theme.bluetoothPanelWidth
+        height: bluetoothColumnContainer.height
+        visible: bluetoothPanel.visible
+
+        opacity: bluetoothPanel.visible ? 1 : 0
+        scale: bluetoothPanel.visible ? 1 : 0.94
+        transformOrigin: Item.TopLeft
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+        Behavior on scale {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+
+        // Absorb clicks so they don't reach the dismiss area
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {}
+        }
+
         ColumnLayout {
             id: bluetoothColumnContainer
             width: Theme.bluetoothPanelWidth
-            visible: bluetoothPanel.visible
-            spacing: visible ? 5 : 30
-            Behavior on spacing {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutExpo
-                }
-            }
+            spacing: 5
             RowLayout {
                 Layout.fillWidth: true
                 Rectangle {

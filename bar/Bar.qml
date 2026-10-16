@@ -56,7 +56,8 @@ Scope {
                 sys.toggleBluetoothPanel();
             }
             function shutdown() {
-                shutdown.togglePanel();
+                shutdownLoader.active = true;
+                shutdownLoader.item.togglePanel();
             }
             function calendar() {
                 clock.togglePanel();
@@ -65,36 +66,53 @@ Scope {
                 workspaces.togglePanel();
             }
             function nextWallpaper() {
-                wallpaperPreview.nextWallpaper();
+                wallpaperPreviewLoader.active = true;
+                wallpaperPreviewLoader.item.nextWallpaper();
             }
             function previousWallpaper() {
-                wallpaperPreview.previousWallpaper();
+                wallpaperPreviewLoader.active = true;
+                wallpaperPreviewLoader.item.previousWallpaper();
             }
             function showWallpaper() {
-                wallpaperPreview.showWallpaper();
+                wallpaperPreviewLoader.active = true;
+                wallpaperPreviewLoader.item.showWallpaper();
             }
             function launcher() {
-                launcherPanel.toggle();
+                launcherLoader.active = true;
+                launcherLoader.item.toggle();
             }
             function overlay() {
-                sysMonitorOverlay.toggle();
+                sysOverlayLoader.active = true;
+                sysOverlayLoader.item.toggle();
             }
         }
-        ShutdownScreen {
-            id: shutdown
-            panelHost: bar
+        LazyLoader {
+            id: shutdownLoader
+            loading: true
+            ShutdownScreen {
+                panelHost: bar
+            }
         }
-        WallpaperPreviewPanel {
-            id: wallpaperPreview
-            panelHost: bar
+        LazyLoader {
+            id: wallpaperPreviewLoader
+            loading: true
+            WallpaperPreviewPanel {
+                panelHost: bar
+            }
         }
-        LauncherPanel {
-            id: launcherPanel
-            panelHost: bar
+        LazyLoader {
+            id: launcherLoader
+            loading: true
+            LauncherPanel {
+                panelHost: bar
+            }
         }
-        SystemMonitorOverlay {
-            id: sysMonitorOverlay
-            screen: root.screen
+        LazyLoader {
+            id: sysOverlayLoader
+            loading: true
+            SystemMonitorOverlay {
+                screen: root.screen
+            }
         }
 
         RowLayout {

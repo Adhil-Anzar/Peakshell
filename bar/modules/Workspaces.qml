@@ -10,7 +10,8 @@ import "root:/services"
 Rectangle {
     id: root
     function togglePanel() {
-        previewPanel.togglePreview(Hypr.activeWsId, Hypr.activeWsId);
+        previewLoader.active = true;
+        previewLoader.item.togglePreview(Hypr.activeWsId, Hypr.activeWsId);
     }
     property var panelHost
 
@@ -26,9 +27,12 @@ Rectangle {
     radius: Theme.cornerRadius
     implicitHeight: Theme.barHeight
 
-    WorkspacePreviewPanel {
-        id: previewPanel
-        panelHost: root.panelHost
+    LazyLoader {
+        id: previewLoader
+        loading: true
+        WorkspacePreviewPanel {
+            panelHost: root.panelHost
+        }
     }
 
     // Right-click on workspaces container opens preview for focused workspace
@@ -37,10 +41,11 @@ Rectangle {
         acceptedButtons: Qt.RightButton
         onClicked: {
             const focusedWs = Hyprland.focusedWorkspace;
+            previewLoader.active = true;
             if (focusedWs) {
-                previewPanel.togglePreview(focusedWs.id, focusedWs.name);
+                previewLoader.item.togglePreview(focusedWs.id, focusedWs.name);
             } else if (Hypr.activeWsId) {
-                previewPanel.togglePreview(Hypr.activeWsId, "Workspace " + Hypr.activeWsId);
+                previewLoader.item.togglePreview(Hypr.activeWsId, "Workspace " + Hypr.activeWsId);
             }
         }
     }
@@ -85,7 +90,8 @@ Rectangle {
                     }
                     onClicked: mouse => {
                         if (mouse.button === Qt.RightButton) {
-                            previewPanel.togglePreview(modelData.id, modelData.name);
+                            previewLoader.active = true;
+                            previewLoader.item.togglePreview(modelData.id, modelData.name);
                         } else {
                             modelData.activate();
                         }

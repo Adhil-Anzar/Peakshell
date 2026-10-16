@@ -26,21 +26,33 @@ PanelWindow {
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: visible ? Theme.wifiPanelWidth + Theme.barHorizontalPad + barOffset : 0
-    implicitHeight: wifiColumnContainer.height
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-    onVisibleChanged: INetwork.setScan(visible)
+    onVisibleChanged: {
+        // Defer starting the scan so the open animation renders first.
+        // Stopping still happens immediately.
+        if (visible)
+            Qt.callLater(() => INetwork.setScan(true));
+        else
+            INetwork.setScan(false);
+    }
 
     anchors {
         top: true
-        bottom: false
+        bottom: true
         left: true
-        right: false
+        right: true
+    }
+
+    // Dismiss on clicking outside
+    MouseArea {
+        anchors.fill: parent
+        onClicked: wifiPanel.visible = false
     }
 
     FocusScope {
-        focus: true
+        anchors.fill: parent
+        focus: wifiPanel.visible
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 wifiPanel.visible = false;
@@ -60,20 +72,37 @@ PanelWindow {
     }
 
     Item {
-        x: visible ? (wifiPanel.barOffset + Theme.barHorizontalPad) : 0
-        visible: wifiPanel.visible
+        x: wifiPanel.barOffset + Theme.barHorizontalPad
+        y: Theme.barHeight + Theme.dropdownOffset
         width: Theme.wifiPanelWidth
+        height: wifiColumnContainer.height
+        visible: wifiPanel.visible
+
+        opacity: wifiPanel.visible ? 1 : 0
+        scale: wifiPanel.visible ? 1 : 0.94
+        transformOrigin: Item.TopLeft
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+        Behavior on scale {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+
+        // Absorb clicks so they don't reach the dismiss area
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {}
+        }
+
         ColumnLayout {
             id: wifiColumnContainer
             width: Theme.wifiPanelWidth
-            visible: wifiPanel.visible
-            spacing: visible ? 5 : 30
-            Behavior on spacing {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutExpo
-                }
-            }
+            spacing: 5
             RowLayout {
                 Layout.fillWidth: true
                 Rectangle {

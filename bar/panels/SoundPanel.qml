@@ -18,19 +18,24 @@ PanelWindow {
     visible: false
     focusable: true
     color: "transparent"
-    implicitWidth: visible ? Theme.soundPanelWidth + Theme.barHorizontalPad + barOffset : 0
-    implicitHeight: soundColumnContainer.height
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     anchors {
         top: true
-        bottom: false
+        bottom: true
         left: true
-        right: false
+        right: true
+    }
+
+    // Dismiss on clicking outside
+    MouseArea {
+        anchors.fill: parent
+        onClicked: soundPanel.visible = false
     }
 
     FocusScope {
-        focus: true
+        anchors.fill: parent
+        focus: soundPanel.visible
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 soundPanel.visible = false;
@@ -40,20 +45,37 @@ PanelWindow {
     }
 
     Item {
-        x: visible ? (soundPanel.barOffset + Theme.barHorizontalPad) : 0
+        x: soundPanel.barOffset + Theme.barHorizontalPad
+        y: Theme.barHeight + Theme.dropdownOffset
+        width: Theme.soundPanelWidth
+        height: soundColumnContainer.height
         visible: soundPanel.visible
+
+        opacity: soundPanel.visible ? 1 : 0
+        scale: soundPanel.visible ? 1 : 0.94
+        transformOrigin: Item.TopLeft
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+        Behavior on scale {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+
+        // Absorb clicks so they don't reach the dismiss area
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {}
+        }
 
         ColumnLayout {
             id: soundColumnContainer
             width: Theme.soundPanelWidth
-            visible: soundPanel.visible
-            spacing: visible ? 5 : 30
-            Behavior on spacing {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutExpo
-                }
-            }
+            spacing: 5
             Rectangle {
                 Layout.preferredHeight: deviceMode.height + Theme.generalThickness
                 Layout.preferredWidth: deviceMode.width + Theme.generalThickness
