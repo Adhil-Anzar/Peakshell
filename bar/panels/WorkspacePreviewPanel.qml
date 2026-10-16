@@ -537,17 +537,17 @@ PanelWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 acceptedButtons: Qt.LeftButton
 
-                                onClicked: mouse => {
-                                    if (!root.currentToplevel)
-                                        return;
-                                    const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier);
-                                    if (isShift) {
-                                        const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid) ? root.currentToplevel.lastIpcObject.pid : 0;
-                                        Hypr.forceKillWindow(pid, root.currentToplevel.address);
-                                    } else {
-                                        Hypr.closeWindow(root.currentToplevel.address);
-                                    }
-                                }
+                                 onClicked: mouse => {
+                                     if (!root.currentToplevel)
+                                         return;
+                                     const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier);
+                                     if (isShift) {
+                                         const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid) ? root.currentToplevel.lastIpcObject.pid : 0;
+                                         Hypr.forceKillWindow(pid, root.currentToplevel.address);
+                                     } else {
+                                         Hypr.dispatch("closewindow address:" + root.currentToplevel.address);
+                                     }
+                                 }
                             }
 
                             RowLayout {

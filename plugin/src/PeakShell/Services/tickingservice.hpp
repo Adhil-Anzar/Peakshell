@@ -7,28 +7,29 @@ namespace peakshell::services {
 
 // Base for services that need periodic polling.
 class TickingService : public QObject {
-    Q_OBJECT
+  Q_OBJECT
 
-    Q_PROPERTY(int updateInterval READ updateInterval WRITE setUpdateInterval NOTIFY updateIntervalChanged)
+  Q_PROPERTY(int updateInterval READ updateInterval WRITE setUpdateInterval
+                 NOTIFY updateIntervalChanged)
 
 public:
-    explicit TickingService(QObject* parent = nullptr);
-    ~TickingService() override = default;
+  explicit TickingService(QObject *parent = nullptr);
+  ~TickingService() override = default;
 
-    [[nodiscard]] int updateInterval() const;
-    void setUpdateInterval(int ms);
+  [[nodiscard]] int updateInterval() const;
+  void setUpdateInterval(int ms);
 
 signals:
-    void updateIntervalChanged();
+  void updateIntervalChanged();
 
 protected:
-    virtual void tick() = 0;
+  virtual void tick() = 0;
 
 private:
-    void applyInterval(int ms);
+  void applyInterval(int ms);
 
-    QTimer* m_timer;
-    int m_interval = 1000;
+  QTimer *m_timer;
+  int m_interval = 500;
 };
 
 } // namespace peakshell::services

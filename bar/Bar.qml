@@ -1,6 +1,7 @@
 import Quickshell
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Wayland
 import Quickshell.Io
 import "root:/"
 import "modules"
@@ -16,6 +17,7 @@ Scope {
     PanelWindow {
         id: bar
         screen: root.screen
+        WlrLayershell.layer: WlrLayer.Top
         property var toggledPanels: ({})
         function hideAllPanelExcept(exception) {
             for (const k in toggledPanels) {
@@ -74,6 +76,9 @@ Scope {
             function launcher() {
                 launcherPanel.toggle();
             }
+            function overlay() {
+                sysMonitorOverlay.toggle();
+            }
         }
         ShutdownScreen {
             id: shutdown
@@ -86,6 +91,10 @@ Scope {
         LauncherPanel {
             id: launcherPanel
             panelHost: bar
+        }
+        SystemMonitorOverlay {
+            id: sysMonitorOverlay
+            screen: root.screen
         }
 
         RowLayout {

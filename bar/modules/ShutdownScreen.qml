@@ -118,7 +118,7 @@ PanelWindow {
                     height: 80
                     radius: 40
                     color: Theme.mutedBgColor
-                    border.color: Theme.borderColor
+                    border.color: Theme.accent
                     border.width: Theme.generalThickness
 
                     IconImage {

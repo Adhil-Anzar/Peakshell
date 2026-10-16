@@ -12,6 +12,7 @@ Singleton {
     readonly property int cpuLoad: SystemMonitor.cpuLoad
     readonly property int cpuTemp: SystemMonitor.cpuTemp
     readonly property int gpuTemp: SystemMonitor.gpuTemp
+    readonly property int memUsage: SystemMonitor.memUsage
 
     readonly property bool hasBattery: UPower.displayDevice && UPower.displayDevice.isPresent
     readonly property real batteryPercent: hasBattery ? Math.round(UPower.displayDevice.percentage * 100) : 100

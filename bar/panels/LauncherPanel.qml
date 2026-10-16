@@ -14,17 +14,15 @@ PanelWindow {
     property var panelHost
 
     readonly property int maxVisibleItems: 5
-    readonly property int itemSpacing:     6
+    readonly property int itemSpacing: 6
 
     property var filteredApps: []
-    readonly property int visibleCount:    filteredApps.length
-    readonly property int displayCount:    Math.min(visibleCount, maxVisibleItems)
-    readonly property bool hasResults:     visibleCount > 0 && searchInput.text.trim().length > 0
+    readonly property int visibleCount: filteredApps.length
+    readonly property int displayCount: Math.min(visibleCount, maxVisibleItems)
+    readonly property bool hasResults: visibleCount > 0 && searchInput.text.trim().length > 0
 
     // Currently active/selected index (defaults to first item when results are shown)
-    readonly property int selectedIndex: (appList.currentIndex >= 0)
-        ? appList.currentIndex
-        : (hasResults ? 0 : -1)
+    readonly property int selectedIndex: (appList.currentIndex >= 0) ? appList.currentIndex : (hasResults ? 0 : -1)
 
     // Debounce timer: only recalculates at the end of each text change
     Timer {
@@ -56,13 +54,9 @@ PanelWindow {
         }
     }
 
-    readonly property real listHeight: hasResults
-        ? displayCount * Theme.launcherItemHeight
-          + Math.max(0, displayCount - 1) * itemSpacing
-        : 0
+    readonly property real listHeight: hasResults ? displayCount * Theme.launcherItemHeight + Math.max(0, displayCount - 1) * itemSpacing : 0
 
-    readonly property real totalHeight: Theme.launcherSearchHeight
-        + (hasResults ? itemSpacing + listHeight : 0)
+    readonly property real totalHeight: Theme.launcherSearchHeight + (hasResults ? itemSpacing + listHeight : 0)
 
     function open() {
         if (panelHost && panelHost.hideAllPanelExcept)
@@ -86,17 +80,21 @@ PanelWindow {
         appList.currentIndex = -1;
     }
 
-    function toggle() { visible ? close() : open(); }
+    function toggle() {
+        visible ? close() : open();
+    }
 
     function launchCurrent() {
         var idx = root.selectedIndex;
-        if (idx < 0 || idx >= filteredApps.length) return;
+        if (idx < 0 || idx >= filteredApps.length)
+            return;
         AppScanner.launch(filteredApps[idx]);
         close();
     }
 
     function moveSelection(delta) {
-        if (filteredApps.length === 0) return;
+        if (filteredApps.length === 0)
+            return;
         var current = (appList.currentIndex < 0) ? 0 : appList.currentIndex;
         var next = Math.max(0, Math.min(current + delta, filteredApps.length - 1));
         appList.currentIndex = next;
@@ -104,10 +102,7 @@ PanelWindow {
     }
 
     function _matches(app, q) {
-        return (app.name        && app.name.toLowerCase().includes(q))
-            || (app.genericName && app.genericName.toLowerCase().includes(q))
-            || (app.comment     && app.comment.toLowerCase().includes(q))
-            || (app.keywords    && app.keywords.toLowerCase().includes(q));
+        return (app.name && app.name.toLowerCase().includes(q)) || (app.genericName && app.genericName.toLowerCase().includes(q)) || (app.comment && app.comment.toLowerCase().includes(q)) || (app.keywords && app.keywords.toLowerCase().includes(q));
     }
 
     Connections {
@@ -124,9 +119,17 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-    anchors { top: true; bottom: true; left: true; right: true }
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
 
-    MouseArea { anchors.fill: parent; onClicked: root.close() }
+    MouseArea {
+        anchors.fill: parent
+        onClicked: root.close()
+    }
 
     FocusScope {
         anchors.fill: parent
@@ -134,11 +137,23 @@ PanelWindow {
 
         Keys.onPressed: event => {
             switch (event.key) {
-            case Qt.Key_Escape:  root.close();         event.accepted = true; break;
-            case Qt.Key_Up:      root.moveSelection(-1); event.accepted = true; break;
-            case Qt.Key_Down:    root.moveSelection(1);  event.accepted = true; break;
+            case Qt.Key_Escape:
+                root.close();
+                event.accepted = true;
+                break;
+            case Qt.Key_Up:
+                root.moveSelection(-1);
+                event.accepted = true;
+                break;
+            case Qt.Key_Down:
+                root.moveSelection(1);
+                event.accepted = true;
+                break;
             case Qt.Key_Return:
-            case Qt.Key_Enter:   root.launchCurrent();  event.accepted = true; break;
+            case Qt.Key_Enter:
+                root.launchCurrent();
+                event.accepted = true;
+                break;
             }
         }
 
@@ -150,22 +165,35 @@ PanelWindow {
             // Smooth fluid height animation using M3 expressive bezier curve
             height: root.totalHeight
             Behavior on height {
-                Anim { type: Anim.DefaultSpatial }
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
             }
 
             opacity: root.visible ? 1 : 0
-            scale:   root.visible ? 1 : 0.94
+            scale: root.visible ? 1 : 0.94
             transformOrigin: Item.Center
-            Behavior on opacity { Anim { type: Anim.DefaultEffects } }
-            Behavior on scale   { Anim { type: Anim.DefaultSpatial  } }
+            Behavior on opacity {
+                Anim {
+                    type: Anim.DefaultEffects
+                }
+            }
+            Behavior on scale {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
 
-            MouseArea { anchors.fill: parent; onClicked: {} }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
 
             // ── Search bar pill ─────────────────────────────────────────────
             Rectangle {
                 id: searchBar
-                anchors.top:   parent.top
-                anchors.left:  parent.left
+                anchors.top: parent.top
+                anchors.left: parent.left
                 anchors.right: parent.right
                 height: Theme.launcherSearchHeight
 
@@ -175,7 +203,9 @@ PanelWindow {
                 border.width: Theme.generalThickness
                 antialiasing: true
                 smooth: true
-                Behavior on border.color { CAnim {} }
+                Behavior on border.color {
+                    CAnim {}
+                }
 
                 HoverHandler {
                     id: searchBarHover
@@ -255,7 +285,9 @@ PanelWindow {
                         }
 
                         Behavior on opacity {
-                            Anim { type: Anim.DefaultEffects }
+                            Anim {
+                                type: Anim.DefaultEffects
+                            }
                         }
                     }
                 }
@@ -272,11 +304,17 @@ PanelWindow {
                 clip: true
 
                 Behavior on height {
-                    Anim { type: Anim.DefaultSpatial }
+                    Anim {
+                        type: Anim.DefaultSpatial
+                    }
                 }
 
                 opacity: root.hasResults ? 1 : 0
-                Behavior on opacity { Anim { type: Anim.DefaultEffects } }
+                Behavior on opacity {
+                    Anim {
+                        type: Anim.DefaultEffects
+                    }
+                }
 
                 ScriptModel {
                     id: appScriptModel
@@ -341,21 +379,21 @@ PanelWindow {
                         readonly property int distance: Math.abs(del.index - root.selectedIndex)
                         readonly property bool isSelected: del.index === root.selectedIndex
 
-                        width:  appList.width
+                        width: appList.width
                         height: Theme.launcherItemHeight
                         transformOrigin: Item.Center
 
                         // Maximum scale is strictly 1.0 (matching the search bar width).
                         // Sibling items progressively shrink down based on distance from selected index.
                         readonly property real baseScale: Math.max(0.88, 1.0 - del.distance * 0.03)
-                        readonly property real targetScale: del.isSelected
-                            ? 1.0
-                            : (delMa.containsMouse ? Math.min(0.99, del.baseScale + 0.03) : del.baseScale)
+                        readonly property real targetScale: del.isSelected ? 1.0 : (delMa.containsMouse ? Math.min(0.99, del.baseScale + 0.03) : del.baseScale)
 
                         scale: del.targetScale
                         Behavior on scale {
                             enabled: del.ready
-                            Anim { type: Anim.DefaultSpatial }
+                            Anim {
+                                type: Anim.DefaultSpatial
+                            }
                         }
 
                         z: del.isSelected ? 20 : (15 - Math.min(10, del.distance))
@@ -365,31 +403,35 @@ PanelWindow {
                             id: itemCard
                             anchors.fill: parent
                             radius: Theme.cornerLargeRadius
-                            color: del.isSelected
-                                ? Theme.hoveredBgColor
-                                : (delMa.containsMouse ? Theme.mutedBgColor : Theme.bgColor)
+                            color: del.isSelected ? Theme.hoveredBgColor : (delMa.containsMouse ? Theme.mutedBgColor : Theme.bgColor)
                             border.color: del.isSelected ? Theme.accent : Theme.mutedAccent
                             border.width: del.isSelected ? Theme.generalThickness : 1
                             antialiasing: true
                             smooth: true
 
-                            opacity: (del.isSelected || delMa.containsMouse)
-                                ? 1.0
-                                : Math.max(0.65, 1.0 - del.distance * 0.08)
+                            opacity: (del.isSelected || delMa.containsMouse) ? 1.0 : Math.max(0.65, 1.0 - del.distance * 0.08)
                             Behavior on opacity {
-                                Anim { type: Anim.DefaultEffects }
+                                Anim {
+                                    type: Anim.DefaultEffects
+                                }
                             }
 
-                            Behavior on color        { CAnim {} }
-                            Behavior on border.color { CAnim {} }
+                            Behavior on color {
+                                CAnim {}
+                            }
+                            Behavior on border.color {
+                                CAnim {}
+                            }
                             Behavior on border.width {
-                                NumberAnimation { duration: Theme.fastEffectsDuration }
+                                NumberAnimation {
+                                    duration: Theme.fastEffectsDuration
+                                }
                             }
 
                             RowLayout {
                                 anchors {
                                     fill: parent
-                                    leftMargin:  18
+                                    leftMargin: 18
                                     rightMargin: 18
                                 }
                                 spacing: 14
@@ -397,10 +439,7 @@ PanelWindow {
                                 IconImage {
                                     Layout.alignment: Qt.AlignVCenter
                                     implicitSize: Theme.launcherIconSize
-                                    source: Quickshell.iconPath(
-                                        del.modelData.icon || "application-x-executable",
-                                        "application-x-executable"
-                                    )
+                                    source: Quickshell.iconPath(del.modelData.icon || "application-x-executable", "application-x-executable")
                                     smooth: true
                                     mipmap: true
                                 }
@@ -424,9 +463,7 @@ PanelWindow {
 
                                     Text {
                                         width: parent.width
-                                        text: del.modelData.comment
-                                           || del.modelData.genericName
-                                           || ""
+                                        text: del.modelData.comment || del.modelData.genericName || ""
                                         color: Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize * 0.9
                                         font.family: Theme.labelFontFamily
@@ -444,18 +481,19 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: { AppScanner.launch(del.modelData); root.close(); }
+                            onClicked: {
+                                AppScanner.launch(del.modelData);
+                                root.close();
+                            }
                             onEntered: appList.currentIndex = del.index
-                            onWheel: (wheel) => {
+                            onWheel: wheel => {
                                 wheel.accepted = false; // Allow ListView to handle scrolling
                             }
                         }
                     }
 
                     Text {
-                        visible: root.filteredApps.length === 0
-                            && AppScanner.loaded
-                            && searchInput.text.trim().length > 0
+                        visible: root.filteredApps.length === 0 && AppScanner.loaded && searchInput.text.trim().length > 0
                         anchors.centerIn: parent
                         text: "No results for \"" + searchInput.text.trim() + "\""
                         color: Theme.mutedFgColor
@@ -470,6 +508,7 @@ PanelWindow {
     }
 
     Component.onCompleted: {
-        if (!AppScanner.loaded) AppScanner.scan();
+        if (!AppScanner.loaded)
+            AppScanner.scan();
     }
 }
