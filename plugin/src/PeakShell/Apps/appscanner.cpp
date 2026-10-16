@@ -7,6 +7,7 @@
 #include <qclipboard.h>
 #include <qdesktopservices.h>
 #include <qdir.h>
+#include <qdiriterator.h>
 #include <qfile.h>
 #include <qfileinfo.h>
 #include <qguiapplication.h>
@@ -47,10 +48,17 @@ Q_LOGGING_CATEGORY(lcApps, "peakshell.apps", QtInfoMsg)
 namespace {
 
 constexpr double kFuzzyThreshold = 57.0;
-constexpr double kNameWeight = 0.7;
-constexpr double kGenericWeight = 0.1;
-constexpr double kCommentWeight = 0.1;
+constexpr double kNameWeight = 0.6;
+constexpr double kGenericWeight = 0.15;
+constexpr double kCommentWeight = 0.15;
 constexpr double kKeywordsWeight = 0.1;
+// A full-ratio similarity at or above this on ANY single field counts as a
+// near-exact hit (typos, missing spaces, …) and qualifies via the floor.
+constexpr double kNearExactFieldRatio = 85.0;
+// A partial-ratio at or above this against the generic/comment description
+// counts as a near-exact description hit: typing a prefix (or near-prefix)
+// of a long description, e.g. "R language and env" for R's comment, shows it.
+constexpr double kNearExactDescPartial = 90.0;
 
 constexpr int kWebInitCount = 8;
 constexpr double kWebCurveMultiplier = 0.5;
@@ -60,6 +68,9 @@ constexpr double kCalcScore = 100.0;
 constexpr double kContainFloor = kFuzzyThreshold + 12.0;
 // Minimum candidate name length for the reverse containment floor below.
 constexpr int kMinReverseNameLen = 3;
+// Quiet period before a filesystem change triggers a rescan (bursts from
+// package installs / file managers collapse into one scan).
+constexpr int kRescanDebounceMs = 400;
 
 constexpr char kWebSearchName[] = "Search Google";
 constexpr char kWebSearchIcon[] = "system-search";
@@ -95,7 +106,27 @@ inline std::string lowerStd(const QString& s) {
     return s.toLower().toStdString();
 }
 
-// Weighted OpenSearch fuzzy score for one candidate.
+// True when the query is nearly identical to one field (full ratio, not
+// partial): catches near-exact description hits like "webbrowser" for the
+// "Web Browser" generic name, which substring floors would miss.
+inline bool nearExactField(const std::string& q, const QString& name,
+                           const QString& genericName, const QString& comment,
+                           const QString& keywords) {
+    return FuzzySearch::getMatch(q, lowerStd(name)) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, lowerStd(genericName)) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, lowerStd(comment)) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, lowerStd(keywords)) >= kNearExactFieldRatio;
+}
+
+// True when the query nearly equals a window of the description fields:
+// typing the start of a long comment/genericName (which full-ratio would
+// drown in length) still surfaces the entry.
+inline bool nearExactDescription(const std::string& q, const QString& genericName,
+                                 const QString& comment) {
+    return FuzzySearch::getPartialMatch(q, lowerStd(genericName)) >= kNearExactDescPartial
+        || FuzzySearch::getPartialMatch(q, lowerStd(comment)) >= kNearExactDescPartial;
+}
+
 // Tuning fix: the name partial_ratio is capped by the name/query length
 // ratio. partial_ratio trivially returns 100 for stub candidates (e.g. the
 // single-letter app "R") whenever the query merely contains that letter,
@@ -171,7 +202,7 @@ void spawnDetached(const QString& program, const QStringList& args) {
     for (const QString& a : args)
         argBytes.append(a.toUtf8());
     std::vector<char*> argv;
-    argv.reserve(argBytes.size() + 2);
+    argv.reserve(static_cast<size_t>(argBytes.size()) + 2);
     argv.push_back(prog.data());
     for (QByteArray& b : argBytes)
         argv.push_back(b.data());
@@ -218,7 +249,9 @@ void spawnShellDetached(const QString& shellCmd) {
     QString sh = QStandardPaths::findExecutable(u"sh"_s);
     if (sh.isEmpty())
         sh = u"/bin/sh"_s;
-    spawnDetached(sh, { u"sh"_s, u"-c"_s, shellCmd });
+    // NB: spawnDetached sets argv[0] from the program path itself, so args
+    // start at "-c" (passing "sh" again would make sh treat it as a script).
+    spawnDetached(sh, { u"-c"_s, shellCmd });
 }
 
 void launchCommand(const QString& cmd, bool terminal, const QString& label) {
@@ -274,6 +307,8 @@ static QStringList appDirs() {
 // (not QObjects, those must be constructed on the main thread).
 struct RawEntry {
     QString name, genericName, comment, icon, exec, keywords;
+    QString categories;
+    QString filePath;
     bool terminal = false;
 };
 
@@ -282,16 +317,21 @@ static QList<RawEntry> scanDesktopFiles() {
     QSet<QString> seen;
 
     for (const QString& dir : appDirs()) {
-        const QDir d(dir);
-        if (!d.exists())
+        const QDir base(dir);
+        if (!base.exists())
             continue;
-        const QStringList files = d.entryList({ u"*.desktop"_s }, QDir::Files, QDir::Name);
-        for (const QString& filename : files) {
-            if (seen.contains(filename))
+        // Recursive: XDG allows .desktop files in subdirectories. Dedup by
+        // relative path so user-local entries keep precedence over system ones.
+        QDirIterator it(dir, QStringList{ u"*.desktop"_s }, QDir::Files,
+                         QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            const QString path = it.filePath();
+            const QString relKey = base.relativeFilePath(path);
+            if (seen.contains(relKey))
                 continue;
-            seen.insert(filename);
+            seen.insert(relKey);
 
-            const QString path = d.filePath(filename);
             QFile f(path);
             if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
                 continue;
@@ -319,6 +359,7 @@ static QList<RawEntry> scanDesktopFiles() {
                 else if (k == u"Icon"_s)        { e.icon        = v; }
                 else if (k == u"Exec"_s)        { e.exec        = v; }
                 else if (k == u"Keywords"_s)    { e.keywords    = v; }
+                else if (k == u"Categories"_s)  { e.categories  = v; }
             }
 
             if (!isApp || noDisplay || hidden || e.exec.isEmpty())
@@ -330,6 +371,7 @@ static QList<RawEntry> scanDesktopFiles() {
             static const QRegularExpression k_fc(u"%[fFuUdDnNvmkic]"_s);
             e.exec.remove(k_fc);
             e.exec = e.exec.simplified();
+            e.filePath = path;
 
             results << e;
         }
@@ -346,6 +388,7 @@ static QList<RawEntry> scanDesktopFiles() {
 
 AppEntry::AppEntry(QString name, QString genericName, QString comment,
                    QString icon, QString exec, QString keywords,
+                   QString categories,
                    bool terminal, QObject* parent)
     : QObject(parent)
     , m_name(std::move(name))
@@ -354,6 +397,7 @@ AppEntry::AppEntry(QString name, QString genericName, QString comment,
     , m_icon(std::move(icon))
     , m_exec(std::move(exec))
     , m_keywords(std::move(keywords))
+    , m_categories(std::move(categories))
     , m_terminal(terminal) {}
 
 QString AppEntry::name()        const { return m_name; }
@@ -362,13 +406,21 @@ QString AppEntry::comment()     const { return m_comment; }
 QString AppEntry::icon()        const { return m_icon; }
 QString AppEntry::exec()        const { return m_exec; }
 QString AppEntry::keywords()    const { return m_keywords; }
+QString AppEntry::categories()  const { return m_categories; }
 bool    AppEntry::terminal()    const { return m_terminal; }
 
 // --- AppScanner --------------------------------------------------------------
 
 AppScanner::AppScanner(QObject* parent)
     : QObject(parent) {
-    scan();
+    m_rescanTimer.setSingleShot(true);
+    m_rescanTimer.setInterval(kRescanDebounceMs);
+    connect(&m_rescanTimer, &QTimer::timeout, this, &AppScanner::onRescanTimeout);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged,
+            this, [this](const QString&) { scheduleRescan(); });
+    connect(&m_watcher, &QFileSystemWatcher::fileChanged,
+            this, [this](const QString&) { scheduleRescan(); });
+    doScan();
 }
 
 bool AppScanner::loaded() const {
@@ -380,19 +432,91 @@ QQmlListProperty<AppEntry> AppScanner::apps() {
 }
 
 void AppScanner::scan() {
+    if (m_scanActive) {
+        // Initial load already in flight: it covers this request. A refresh
+        // requested after load queues a follow-up scan instead.
+        if (m_loaded)
+            m_scanDirty = true;
+        return;
+    }
+    doScan();
+}
+
+void AppScanner::doScan() {
+    // Heavy file I/O runs on a thread-pool worker; only cheap QObject
+    // construction and watch registration happen below on this thread.
+    m_scanActive = true;
+    m_scanDirty = false;
     QtConcurrent::run(scanDesktopFiles).then(this, [this](QList<RawEntry> raw) {
         qDeleteAll(m_apps);
         m_apps.clear();
         m_apps.reserve(raw.size());
-        for (const RawEntry& r : raw)
-            m_apps << new AppEntry(r.name, r.genericName, r.comment, r.icon, r.exec, r.keywords, r.terminal, this);
+        QStringList desktopFiles;
+        desktopFiles.reserve(raw.size());
+        for (const RawEntry& r : raw) {
+            m_apps << new AppEntry(r.name, r.genericName, r.comment, r.icon, r.exec, r.keywords, r.categories, r.terminal, this);
+            desktopFiles << r.filePath;
+        }
+        updateWatches(desktopFiles);
+        m_scanActive = false;
         if (!m_loaded) {
             m_loaded = true;
             emit loadedChanged();
         }
         emit appsChanged();
         emit scanComplete();
+        if (m_scanDirty)
+            scheduleRescan();
     });
+}
+
+void AppScanner::scheduleRescan() {
+    m_scanDirty = true;
+    if (!m_scanActive && !m_rescanTimer.isActive())
+        m_rescanTimer.start();
+}
+
+void AppScanner::onRescanTimeout() {
+    if (m_scanActive) {
+        m_rescanTimer.start();
+        return;
+    }
+    if (!m_scanDirty)
+        return;
+    doScan();
+}
+
+void AppScanner::updateWatches(const QStringList& desktopFiles) {
+    QStringList dirsToWatch;
+    for (const QString& dir : appDirs()) {
+        const QDir d(dir);
+        if (d.exists()) {
+            dirsToWatch << d.absolutePath();
+            QDirIterator it(d.absolutePath(), QDir::Dirs | QDir::NoDotAndDotDot,
+                             QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                it.next();
+                dirsToWatch << it.filePath();
+            }
+        } else {
+            // Directory does not exist yet: watch its parent so creation is
+            // noticed (e.g. a fresh ~/.local/share/applications).
+            const QString parentPath = QFileInfo(dir).absoluteDir().absolutePath();
+            if (QDir(parentPath).exists() && !dirsToWatch.contains(parentPath))
+                dirsToWatch << parentPath;
+        }
+    }
+    dirsToWatch.removeDuplicates();
+
+    const QStringList oldDirs = m_watcher.directories();
+    const QStringList oldFiles = m_watcher.files();
+    if (!oldDirs.isEmpty())
+        m_watcher.removePaths(oldDirs);
+    if (!oldFiles.isEmpty())
+        m_watcher.removePaths(oldFiles);
+    // addPaths may partially fail if entries vanish racily; the next rescan
+    // rebuilds the set, so failures are safe to ignore.
+    m_watcher.addPaths(dirsToWatch + desktopFiles);
 }
 
 void AppScanner::launch(AppEntry* entry) {
@@ -433,12 +557,18 @@ QVariantList AppScanner::search(const QString& query) {
         else if (app->name().length() >= kMinReverseNameLen
                  && q.contains(app->name(), Qt::CaseInsensitive))
             score = qMax(score, kContainFloor);
+        else if (nearExactField(qStd, app->name(), app->genericName(),
+                                app->comment(), app->keywords()))
+            score = qMax(score, kContainFloor);
+        else if (nearExactDescription(qStd, app->genericName(), app->comment()))
+            score = qMax(score, kContainFloor);
         if (score <= kFuzzyThreshold)
             continue;
         QVariantMap m = makeMap(app->name(), app->genericName(), app->comment(), app->icon(),
                                 app->exec(), app->keywords(), app->terminal(), u"app"_s,
                                 QString(), u"app:"_s + app->exec() + u"\n"_s + app->name(),
                                 score);
+        m.insert(u"categories"_s, app->categories());
         acc.append({ m, matchSortKey(app->name(), app->genericName(), app->keywords(), q, score) });
     }
 
@@ -457,6 +587,10 @@ QVariantList AppScanner::search(const QString& query) {
             score = qMax(score, kContainFloor);
         else if (name.length() >= kMinReverseNameLen && q.contains(name, Qt::CaseInsensitive))
             score = qMax(score, kContainFloor);
+        else if (nearExactField(qStd, name, generic, comment, keywords))
+            score = qMax(score, kContainFloor);
+        else if (nearExactDescription(qStd, generic, comment))
+            score = qMax(score, kContainFloor);
         if (score <= kFuzzyThreshold)
             continue;
         QVariantMap m = makeMap(name, generic, comment, QString::fromUtf8(action.icon),
@@ -472,6 +606,7 @@ QVariantList AppScanner::search(const QString& query) {
         QVariantMap m = makeMap(text, QString(), QStringLiteral("Calculated for: \"%1\"").arg(q),
                                 QString::fromUtf8(kCalcIcon), u"Ignored"_s, QString(), false,
                                 u"calc"_s, QString(), u"calc"_s, kCalcScore);
+        m.insert(u"detail"_s, q);
         acc.append({ m, matchSortKey(text, QString(), QString(), q, kCalcScore) });
     }
 
@@ -486,11 +621,13 @@ QVariantList AppScanner::search(const QString& query) {
                                 QString::fromUtf8(kWebSearchUrl)
                                     + QString::fromUtf8(QUrl::toPercentEncoding(q)),
                                 QString(), false, u"web"_s, QString(), u"web"_s, score);
+        m.insert(u"detail"_s, QStringLiteral("Google"));
         acc.append({ m, score });
     }
 
-    std::sort(acc.begin(), acc.end(),
-              [](const Scored& a, const Scored& b) { return a.key > b.key; });
+    // Stable: score ties keep insertion order (apps, ipc actions, calc, web).
+    std::stable_sort(acc.begin(), acc.end(),
+                     [](const Scored& a, const Scored& b) { return a.key > b.key; });
 
     QVariantList out;
     out.reserve(acc.size());
@@ -523,6 +660,13 @@ void AppScanner::activateResult(const QVariantMap& entry) {
     launchCommand(entry.value(u"exec"_s).toString(),
                   entry.value(u"terminal"_s, false).toBool(),
                   entry.value(u"name"_s).toString());
+}
+
+void AppScanner::copyToClipboard(const QString& text) {
+    if (text.isEmpty())
+        return;
+    if (QClipboard* clipboard = QGuiApplication::clipboard())
+        clipboard->setText(text);
 }
 
 } // namespace peakshell::apps

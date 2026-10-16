@@ -6,6 +6,8 @@
 #include <qqmllist.h>
 #include <qstring.h>
 #include <qvariant.h>
+#include <qfilesystemwatcher.h>
+#include <qtimer.h>
 
 namespace peakshell::apps {
 
@@ -21,11 +23,13 @@ class AppEntry : public QObject {
     Q_PROPERTY(QString icon        READ icon        CONSTANT)
     Q_PROPERTY(QString exec        READ exec        CONSTANT)
     Q_PROPERTY(QString keywords    READ keywords    CONSTANT)
+    Q_PROPERTY(QString categories  READ categories  CONSTANT)
     Q_PROPERTY(bool    terminal    READ terminal    CONSTANT)
 
 public:
     explicit AppEntry(QString name, QString genericName, QString comment,
                       QString icon, QString exec, QString keywords,
+                      QString categories,
                       bool terminal, QObject* parent = nullptr);
 
     [[nodiscard]] QString name()        const;
@@ -34,6 +38,7 @@ public:
     [[nodiscard]] QString icon()        const;
     [[nodiscard]] QString exec()        const;
     [[nodiscard]] QString keywords()    const;
+    [[nodiscard]] QString categories()  const;
     [[nodiscard]] bool    terminal()    const;
 
 private:
@@ -43,6 +48,7 @@ private:
     QString m_icon;
     QString m_exec;
     QString m_keywords;
+    QString m_categories;
     bool    m_terminal;
 };
 
@@ -70,8 +76,9 @@ public:
     // smart web-search fallback, ranked exactly like OpenSearch
     // (fuzzy score, then ResultItem::matchScore boost ordering).
     // Returns a list of QVariantMap with keys:
-    //   name, genericName, comment, icon, exec, keywords, terminal(bool),
-    //   kind ("app" | "ipc" | "calc" | "web"), ipcFunction, uid, score.
+    //   name, genericName, comment, icon, exec, keywords, categories,
+    //   terminal(bool), kind ("app" | "ipc" | "calc" | "web"), ipcFunction,
+    //   detail (extra pill text, e.g. calc expression), uid, score.
     // `uid` is a stable per-row identity for ScriptModel objectProp so list
     // reorder animations keep working across keystrokes.
     // Does NOT include "run in terminal" entries.
@@ -82,6 +89,9 @@ public:
     // `peakshell ipc call ii1qe <fn>`; app results launch normally.
     Q_INVOKABLE void activateResult(const QVariantMap& entry);
 
+    // Copies arbitrary text to the clipboard (used for right-click copy).
+    Q_INVOKABLE void copyToClipboard(const QString& text);
+
 signals:
     void appsChanged();
     void loadedChanged();
@@ -90,8 +100,23 @@ signals:
 private:
     void onScanFinished(QList<AppEntry*> entries);
 
+    // Starts an async rescan on a thread-pool worker (never blocks the
+    // calling thread). No-op safe to call while a scan is already running
+    // (queues a follow-up instead).
+    void doScan();
+    void scheduleRescan();
+    void onRescanTimeout();
+    void updateWatches(const QStringList& desktopFiles);
+
     QList<AppEntry*> m_apps;
     bool m_loaded = false;
+
+    // Tracks the .desktop application directories (and the files themselves)
+    // so adds/deletes/edits refresh the internal list automatically.
+    QFileSystemWatcher m_watcher;
+    QTimer m_rescanTimer;
+    bool m_scanActive = false;
+    bool m_scanDirty = false;
 };
 
 } // namespace peakshell::apps

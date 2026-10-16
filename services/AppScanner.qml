@@ -33,6 +33,10 @@ Singleton {
         AppScanner.activateResult(entry);
     }
 
+    function copyToClipboard(text) {
+        AppScanner.copyToClipboard(text);
+    }
+
     // Overridden by LauncherPanel via Connections
     function close() {}
 

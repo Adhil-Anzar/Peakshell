@@ -5,6 +5,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
+import PeakShell
 import "root:/"
 import "root:/components"
 import "root:/services"
@@ -80,7 +81,9 @@ PanelWindow {
         return out;
     }
 
-    readonly property real listHeight: hasResults ? displayCount * Theme.launcherItemHeight + Math.max(0, displayCount - 1) * itemSpacing : 0
+    // Extra height reserved for the selected row's command line.
+    readonly property real commandExtra: 23
+    readonly property real listHeight: hasResults ? displayCount * Theme.launcherItemHeight + Math.max(0, displayCount - 1) * itemSpacing + ((appList.currentIndex >= 0) ? commandExtra : 0) : 0
 
     readonly property real totalHeight: Theme.launcherSearchHeight + (hasResults ? itemSpacing + listHeight : 0)
 
@@ -118,14 +121,60 @@ PanelWindow {
     }
 
     // Dispatches a ranked result map. Calculator results are copied to the
-    // clipboard and keep the launcher open (mirrors OpenSearch); everything
-    // else closes the launcher after activation.
+    // clipboard, echoed back into the search box (mirrors OpenSearch), and
+    // confirmed through the system notification daemon; the launcher stays
+    // open. Everything else closes the launcher after activation.
     function activateItem(entry) {
         if (!entry)
             return;
+        if (entry.kind === "calc") {
+            AppScanner.activateResult(entry);
+            searchInput.text = entry.name;
+            Utils.notify("Copied to clipboard", entry.name, "accessories-calculator");
+            return;
+        }
         AppScanner.activateResult(entry);
-        if (entry.kind !== "calc")
-            close();
+        close();
+    }
+
+    // The exact string that activating this entry would execute.
+    function commandFor(entry) {
+        if (!entry)
+            return "";
+        if (entry.kind === "ipc")
+            return "peakshell ipc call ii1qe " + entry.ipcFunction;
+        if (entry.kind === "calc")
+            return entry.name;
+        return entry.exec || "";
+    }
+
+    // Copies an entry's command and confirms via the system notification daemon.
+    function copyCommand(entry) {
+        var cmd = root.commandFor(entry);
+        if (!cmd)
+            return;
+        AppScanner.copyToClipboard(cmd);
+        Utils.notify("Copied to clipboard", cmd, "edit-copy");
+    }
+
+    function copyCurrent() {
+        var idx = root.selectedIndex;
+        if (idx < 0 || idx >= filteredApps.length)
+            return;
+        root.copyCommand(filteredApps[idx]);
+    }
+
+    // First ";" separated token of a .desktop list field (Keywords/Categories).
+    function _firstListToken(s) {
+        if (!s)
+            return "";
+        var parts = s.split(";");
+        for (var i = 0; i < parts.length; i++) {
+            var t = parts[i].trim();
+            if (t.length > 0)
+                return t;
+        }
+        return "";
     }
 
     function moveSelection(delta) {
@@ -185,7 +234,10 @@ PanelWindow {
                 break;
             case Qt.Key_Return:
             case Qt.Key_Enter:
-                root.launchCurrent();
+                if (event.modifiers & Qt.AltModifier)
+                    root.copyCurrent();
+                else
+                    root.launchCurrent();
                 event.accepted = true;
                 break;
             }
@@ -416,8 +468,72 @@ PanelWindow {
                         readonly property int distance: Math.abs(del.index - root.selectedIndex)
                         readonly property bool isSelected: del.index === root.selectedIndex
 
+                        Connections {
+                            target: appList
+                            function onCurrentIndexChanged() {
+                                appList.forceLayout();
+                            }
+                        }
+
+                        // Pills for the tag row: kind first, then keyword /
+                        // category info (or a sensible fallback) on hover.
+                        readonly property var pillDefs: {
+                            var d = del.modelData;
+                            var pills = [
+                                {
+                                    "label": "App",
+                                    "accent": true
+                                }
+                            ];
+                            if (d.kind === "ipc")
+                                pills[0].label = "Action";
+                            else if (d.kind === "calc")
+                                pills[0].label = "Calc";
+                            else if (d.kind === "web")
+                                pills[0].label = "Web";
+                            else if (d.terminal)
+                                pills[0].label = "CLI";
+                            if (!delMa.containsMouse)
+                                return pills;
+                            if (d.kind === "app") {
+                                var kw = root._firstListToken(d.keywords);
+                                var cat = root._firstListToken(d.categories);
+                                if (kw.length > 0)
+                                    pills.push({
+                                        "label": kw,
+                                        "accent": false
+                                    });
+                                if (cat.length > 0)
+                                    pills.push({
+                                        "label": cat,
+                                        "accent": false
+                                    });
+                                if (kw.length === 0 && cat.length === 0)
+                                    pills.push({
+                                        "label": d.terminal ? "Terminal" : "Application",
+                                        "accent": false
+                                    });
+                            } else if (d.kind === "ipc") {
+                                pills.push({
+                                    "label": d.ipcFunction,
+                                    "accent": false
+                                });
+                            } else if (d.kind === "calc" && d.detail) {
+                                pills.push({
+                                    "label": d.detail,
+                                    "accent": false
+                                });
+                            } else if (d.kind === "web" && d.detail) {
+                                pills.push({
+                                    "label": d.detail,
+                                    "accent": false
+                                });
+                            }
+                            return pills;
+                        }
+
                         width: appList.width
-                        height: Theme.launcherItemHeight
+                        height: Theme.launcherItemHeight + (del.isSelected ? root.commandExtra : 0)
                         transformOrigin: Item.Center
 
                         // Maximum scale is strictly 1.0 (matching the search bar width).
@@ -509,6 +625,146 @@ PanelWindow {
                                         renderType: Text.CurveRendering
                                         antialiasing: true
                                     }
+
+                                    // ── Command line: what will be executed (selectable) ──
+                                    Row {
+                                        width: parent.width
+                                        height: del.isSelected ? 20 : 0
+                                        visible: height > 0
+                                        opacity: del.isSelected ? 1 : 0
+                                        spacing: 6
+                                        clip: true
+
+                                        Behavior on height {
+                                            Anim {
+                                                type: Anim.DefaultSpatial
+                                            }
+                                        }
+                                        Behavior on opacity {
+                                            Anim {
+                                                type: Anim.DefaultEffects
+                                            }
+                                        }
+
+                                        Text {
+                                            id: commandLabel
+                                            height: parent.height
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: "command:"
+                                            color: Theme.mutedFgColor
+                                            font.pointSize: Theme.labelFontSize * 0.85
+                                            font.family: Theme.labelFontFamily
+                                            renderType: Text.CurveRendering
+                                            antialiasing: true
+                                        }
+
+                                        TextInput {
+                                            id: commandField
+                                            width: parent.width - commandLabel.width - parent.spacing
+                                            height: parent.height
+                                            verticalAlignment: TextInput.AlignVCenter
+                                            text: root.commandFor(del.modelData)
+                                            color: Theme.fgColor
+                                            selectionColor: Theme.accent
+                                            selectedTextColor: Theme.fgColor
+                                            font.pointSize: Theme.labelFontSize * 0.85
+                                            font.family: Theme.labelFontFamily
+                                            readOnly: true
+                                            selectByMouse: true
+                                            clip: true
+                                            cursorVisible: activeFocus
+                                            renderType: Text.CurveRendering
+
+                                            Keys.onPressed: event => {
+                                                switch (event.key) {
+                                                case Qt.Key_Escape:
+                                                    searchInput.forceActiveFocus();
+                                                    root.close();
+                                                    event.accepted = true;
+                                                    break;
+                                                case Qt.Key_Up:
+                                                    root.moveSelection(-1);
+                                                    searchInput.forceActiveFocus();
+                                                    event.accepted = true;
+                                                    break;
+                                                case Qt.Key_Down:
+                                                    root.moveSelection(1);
+                                                    searchInput.forceActiveFocus();
+                                                    event.accepted = true;
+                                                    break;
+                                                case Qt.Key_Return:
+                                                case Qt.Key_Enter:
+                                                    if (event.modifiers & Qt.AltModifier)
+                                                        root.copyCurrent();
+                                                    else
+                                                        root.launchCurrent();
+                                                    event.accepted = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ── Tag row: kind pill + keyword/category pills ──
+                                // Selected row only; hovering extends it with
+                                // keyword/category pills (or a sensible fallback).
+                                Row {
+                                    id: tagRow
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.preferredWidth: del.isSelected ? Math.min(tagRow.implicitWidth, appList.width * 0.5) : 0
+                                    spacing: 6
+                                    clip: true
+                                    opacity: del.isSelected ? 1 : 0
+                                    scale: del.isSelected ? 1 : 0.7
+                                    transformOrigin: Item.Right
+                                    visible: Layout.preferredWidth > 1
+
+                                    Behavior on Layout.preferredWidth {
+                                        Anim {
+                                            type: Anim.DefaultSpatial
+                                        }
+                                    }
+                                    Behavior on opacity {
+                                        Anim {
+                                            type: Anim.DefaultEffects
+                                        }
+                                    }
+                                    Behavior on scale {
+                                        Anim {
+                                            type: Anim.DefaultSpatial
+                                        }
+                                    }
+
+                                    Repeater {
+                                        model: del.pillDefs
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            width: Math.min(pillLabel.implicitWidth + 20, 140)
+                                            height: pillLabel.implicitHeight + 10
+                                            radius: height * 0.5
+                                            color: modelData.accent ? Theme.accent : "transparent"
+                                            border.color: modelData.accent ? Theme.accent : Theme.mutedAccent
+                                            border.width: 1
+                                            clip: true
+
+                                            Text {
+                                                id: pillLabel
+                                                width: Math.max(0, Math.min(implicitWidth, parent.width - 20))
+                                                height: implicitHeight
+                                                anchors.centerIn: parent
+                                                verticalAlignment: Text.AlignVCenter
+                                                elide: Text.ElideRight
+                                                text: modelData.label
+                                                color: modelData.accent ? Theme.fgColor : Theme.mutedFgColor
+                                                font.bold: modelData.accent
+                                                font.pointSize: Theme.labelFontSize * 0.85
+                                                font.family: Theme.labelFontFamily
+                                                renderType: Text.CurveRendering
+                                                antialiasing: true
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -518,8 +774,14 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.activateItem(del.modelData);
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton) {
+                                    appList.currentIndex = del.index;
+                                    root.copyCommand(del.modelData);
+                                } else {
+                                    root.activateItem(del.modelData);
+                                }
                             }
                             onEntered: appList.currentIndex = del.index
                             onWheel: wheel => {

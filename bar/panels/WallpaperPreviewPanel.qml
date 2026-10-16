@@ -248,12 +248,13 @@ PanelWindow {
                         implicitWidth: tagTxt.implicitWidth + 14
                         radius: Theme.cornerRadius
                         color: {
-                            const t = WallpaperService.currentWallpaper ? WallpaperService.currentWallpaper.type : "";
+                            const w = WallpaperService.currentWallpaper;
+                            const t = ((w && (w.type || w.tag)) || "").toString().toLowerCase();
                             if (t === "video")
                                 return "#CC8C00BA";
                             if (t === "gradient")
                                 return "#CC3B82F6";
-                            if (t === "color")
+                            if (t === "color" || t === "solid")
                                 return "#CCF59E0B";
                             return Theme.accent;
                         }
@@ -269,7 +270,19 @@ PanelWindow {
                         Text {
                             id: tagTxt
                             anchors.centerIn: parent
-                            text: WallpaperService.currentWallpaper ? (WallpaperService.currentWallpaper.tag || "").toUpperCase() : "IMAGE"
+                            text: {
+                                const w = WallpaperService.currentWallpaper;
+                                if (!w)
+                                    return "IMAGE";
+                                const t = ((w.type || w.tag) || "").toString().toLowerCase();
+                                if (t === "video")
+                                    return "VIDEO";
+                                if (t === "gradient")
+                                    return "GRADIENT";
+                                if (t === "color" || t === "solid")
+                                    return "SOLID";
+                                return "IMAGE";
+                            }
                             font.pointSize: Theme.labelFontSize * 0.8
                             font.family: Theme.labelFontFamily
                             font.bold: true
@@ -538,8 +551,8 @@ PanelWindow {
                                                 return "";
                                             if (modelData.type === "image")
                                                 return modelData.path || "";
-                                            if (modelData.type === "video")
-                                                return modelData.thumbnail || modelData.preview || "";
+                                            // C++ video entries expose no thumbnail/preview:
+                                            // fall through to the video fallback card below.
                                             return "";
                                         }
                                         sourceSize: Qt.size(del.width, del.height)
@@ -604,6 +617,7 @@ PanelWindow {
                                         visible: (modelData ? modelData.type : "") === "color"
                                         color: (modelData && modelData.color) ? modelData.color : "#0A0A0D"
                                     }
+
                                 }
                             }
                         }
