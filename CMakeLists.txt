@@ -38,4 +38,10 @@ foreach(dir bar bar/modules bar/panels components services)
     install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
 endforeach()
 
-install(FILES shell.qml Theme.qml DESTINATION "${INSTALL_QSCONFDIR}")
+# Installed config should not watch files for changes (dev-only feature).
+file(READ shell.qml SHELL_QML)
+string(REPLACE "settings.watchFiles: true" "settings.watchFiles: false" SHELL_QML "${SHELL_QML}")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
+file(WRITE "${CMAKE_BINARY_DIR}/qml/shell.qml" "${SHELL_QML}")
+
+install(FILES "${CMAKE_BINARY_DIR}/qml/shell.qml" Theme.qml DESTINATION "${INSTALL_QSCONFDIR}")

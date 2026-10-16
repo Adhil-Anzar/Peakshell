@@ -1,6 +1,8 @@
 qml_module(peakshell-services
     URI PeakShell.Services
     SOURCES
+        service.cpp
+        serviceref.cpp
         tickingservice.cpp
         systemmonitor.cpp
         networkusage.cpp

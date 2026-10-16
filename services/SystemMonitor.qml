@@ -8,6 +8,11 @@ import PeakShell.Services
 Singleton {
     id: root
 
+    // Keep the native C++ service polling while this wrapper exists.
+    ServiceRef {
+        service: SystemMonitor
+    }
+
     // CPU/GPU metrics come from the native C++ SystemMonitor singleton.
     readonly property int cpuLoad: SystemMonitor.cpuLoad
     readonly property int cpuTemp: SystemMonitor.cpuTemp

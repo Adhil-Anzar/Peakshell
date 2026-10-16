@@ -3,13 +3,10 @@
 namespace peakshell::services {
 
 TickingService::TickingService(QObject* parent)
-    : QObject(parent)
+    : Service(parent)
     , m_timer(new QTimer(this)) {
     m_timer->setSingleShot(false);
     QObject::connect(m_timer, &QTimer::timeout, this, [this] { tick(); });
-    m_timer->start(m_interval);
-    // Run once immediately so the first read doesn't wait for the interval.
-    QTimer::singleShot(0, this, [this] { tick(); });
 }
 
 int TickingService::updateInterval() const {
@@ -20,11 +17,27 @@ void TickingService::setUpdateInterval(int ms) {
     applyInterval(ms);
 }
 
+void TickingService::start() {
+    m_running = true;
+    if (m_interval > 0) {
+        m_timer->start(m_interval);
+    }
+    tick();
+}
+
+void TickingService::stop() {
+    m_running = false;
+    m_timer->stop();
+}
+
 void TickingService::applyInterval(int ms) {
-    if (ms <= 0 || ms == m_interval)
+    if (ms <= 0 || ms == m_interval) {
         return;
+    }
     m_interval = ms;
-    m_timer->start(m_interval);
+    if (m_running) {
+        m_timer->start(m_interval);
+    }
     emit updateIntervalChanged();
 }
 

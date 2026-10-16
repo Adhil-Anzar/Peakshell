@@ -34,6 +34,10 @@ Rectangle {
             lowPowerNotified = false;
         }
     }
+    ServiceRef {
+        service: NetworkUsage
+    }
+
     // Functions
     function togglePanel() {
         panelHost.hideAllPanelExcept("arch");

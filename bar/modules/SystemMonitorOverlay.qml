@@ -15,6 +15,9 @@ Scope {
     function toggle() {
         sysMonitorOverlay.visible = !sysMonitorOverlay.visible;
     }
+    ServiceRef {
+        service: SystemMonitor
+    }
     PanelWindow {
         id: sysMonitorOverlay
         WlrLayershell.layer: WlrLayer.Overlay
