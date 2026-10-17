@@ -21,7 +21,12 @@ peakshell -d
 
 # IPC – same interface as quickshell ipc
 peakshell ipc call ii1qe launcher
+peakshell ipc call ii1qe clipboard
+peakshell ipc call ii1qe powermenu
+peakshell ipc call ii1qe power shutdown
 peakshell ipc call mpris playPause
+peakshell ipc call timer start 25m
+peakshell ipc call timer state
 peakshell ipc show
 peakshell ipc prop <target> <property>
 
@@ -42,25 +47,3 @@ The shell config is installed to `${INSTALL_QSCONFDIR}` (default:
 
 Override at runtime with the `PEAKSHELL_CONFIG` environment variable.
 In development, `peakshell` automatically detects `shell.qml` in the current working directory.
-
-## Plugin modules
-
-| QML URI | Description |
-|---|---|
-| `PeakShell` | Core utilities singleton (`Utils`) |
-| `PeakShell.Apps` | Desktop entry scanner (`AppScanner`, `AppEntry`) |
-| `PeakShell.Services` | System metrics (`SystemMonitor`, `NetworkUsage`, `SessionManager`, `Swaync`) |
-| `PeakShell.Wallpapers` | Wallpaper directory watcher (`WallpaperScanner`, `WallpaperEntry`) |
-
-### What the plugin replaces
-
-| Component | Old (python3/bash Process) | New (C++) |
-|---|---|---|
-| `services/AppScanner.qml` | Python3 desktop entry scanner | `PeakShell.Apps.AppScanner` |
-| `services/SystemMonitor.qml` | Bash `monitorProc` (procfs/sysfs/hwmon) | `PeakShell.Services.SystemMonitor` |
-| `services/WallpaperService.qml` | Python3 scanProc + watchProc + loadStateProc + saveProc | `PeakShell.Wallpapers.WallpaperScanner` |
-| `services/Power.qml` | Shell `execProc` (`hyprshutdown`, `systemctl`) | `PeakShell.Services.SessionManager` |
-| `services/Swaync.qml` | Shell client processes + subscribe stream | `PeakShell.Services.Swaync` |
-| `services/Hypr.qml` | Shell `kill -9` process | `PeakShell.Utils.killProcess` |
-| `bar/modules/Arch.qml` | 11 shell `Process` instances (`netStats`, `lowPower`, etc.) | `PeakShell.Services.NetworkUsage` & `Utils.execute` |
-| `components/VolumeMixer.qml` | Shell `pw-cli` / `awk` pipeline | `PeakShell.Utils.pipewireClientAppName` |

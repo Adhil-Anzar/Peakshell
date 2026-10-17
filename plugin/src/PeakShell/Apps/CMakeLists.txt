@@ -7,6 +7,8 @@ qml_module(peakshell-apps
     SOURCES
         appscanner.cpp
         appscanner.hpp
+        clipboardmanager.cpp
+        clipboardmanager.hpp
         calculator.cpp
         calculator.h
         fuzzy/fuzzysearch.cpp

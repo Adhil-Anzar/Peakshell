@@ -69,49 +69,19 @@ void SessionManager::switchUser() {
 }
 
 void SessionManager::reboot() {
-    auto bus = QDBusConnection::systemBus();
-    if (bus.isConnected()) {
-        callLogindManager(u"Reboot"_s);
-    } else {
-        runFallback(u"systemctl reboot"_s);
-    }
+    runFallback(u"hyprshutdown -t 'Restarting...' --post-cmd 'systemctl reboot' || systemctl reboot"_s);
 }
 
 void SessionManager::sleep() {
-    auto bus = QDBusConnection::systemBus();
-    if (bus.isConnected()) {
-        callLogindManager(u"Suspend"_s);
-    } else {
-        runFallback(u"systemctl suspend"_s);
-    }
+    runFallback(u"systemctl suspend"_s);
 }
 
 void SessionManager::hibernate() {
-    auto bus = QDBusConnection::systemBus();
-    if (bus.isConnected()) {
-        callLogindManager(u"Hibernate"_s);
-    } else {
-        runFallback(u"systemctl hibernate"_s);
-    }
+    runFallback(u"hyprshutdown -t 'Hibernating...' --post-cmd 'systemctl hibernate' || systemctl hibernate"_s);
 }
 
 void SessionManager::shutdown() {
-    auto bus = QDBusConnection::systemBus();
-    if (bus.isConnected()) {
-        callLogindManager(u"PowerOff"_s);
-    } else {
-        runFallback(u"systemctl poweroff"_s);
-    }
-}
-
-void SessionManager::callLogindManager(const QString& method) {
-    auto bus = QDBusConnection::systemBus();
-    if (!bus.isConnected()) {
-        return;
-    }
-    auto msg = QDBusMessage::createMethodCall(k_loginService, k_loginPath, k_loginIface, method);
-    msg.setArguments({ true });
-    bus.asyncCall(msg);
+    runFallback(u"hyprshutdown -t 'Shutting down...' --post-cmd 'systemctl poweroff' || systemctl poweroff"_s);
 }
 
 void SessionManager::callLogindSession(const QString& method) {

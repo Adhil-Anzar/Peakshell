@@ -293,9 +293,7 @@ PanelWindow {
             }
         }
 
-        // ==========================================
-        // CARD 1: Header Row & Window Switcher Tabs
-        // ==========================================
+        // Card 1: header row and window switcher tabs
         Rectangle {
             id: headerCard
             Layout.fillWidth: true
@@ -424,9 +422,7 @@ PanelWindow {
             }
         }
 
-        // ==========================================
-        // CARD 2: Content Area / Live Preview Frame
-        // ==========================================
+        // Card 2: content area and live preview frame
         Rectangle {
             id: contentCard
             Layout.fillWidth: true
@@ -537,17 +533,17 @@ PanelWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 acceptedButtons: Qt.LeftButton
 
-                                 onClicked: mouse => {
-                                     if (!root.currentToplevel)
-                                         return;
-                                     const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier);
-                                     if (isShift) {
-                                         const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid) ? root.currentToplevel.lastIpcObject.pid : 0;
-                                         Hypr.forceKillWindow(pid, root.currentToplevel.address);
-                                     } else {
-                                         Hypr.dispatch("closewindow address:" + root.currentToplevel.address);
-                                     }
-                                 }
+                                onClicked: mouse => {
+                                    if (!root.currentToplevel)
+                                        return;
+                                    const isShift = root.isShiftPressed || (mouse.modifiers & Qt.ShiftModifier);
+                                    if (isShift) {
+                                        const pid = (root.currentToplevel.lastIpcObject && root.currentToplevel.lastIpcObject.pid) ? root.currentToplevel.lastIpcObject.pid : 0;
+                                        Hypr.forceKillWindow(pid, root.currentToplevel.address);
+                                    } else {
+                                        Hypr.dispatch("closewindow address:" + root.currentToplevel.address);
+                                    }
+                                }
                             }
 
                             RowLayout {
@@ -568,6 +564,7 @@ PanelWindow {
                                     color: root.isShiftPressed ? "#FFFFFF" : Theme.fgColor
                                     font.pointSize: Theme.labelFontSize
                                     font.family: Theme.labelFontFamily
+                                    elide: Text.ElideRight
                                     font.bold: root.isShiftPressed
                                 }
                             }

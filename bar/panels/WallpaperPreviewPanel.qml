@@ -12,7 +12,7 @@ PanelWindow {
     id: root
     property var panelHost
 
-    // ── Tab Index Memory & Navigation Rate Limiting ──────────────────────
+    // Tab Index Memory & Navigation Rate Limiting
     property var savedTabIndices: ({})
     property double lastStepTime: 0
     property double lastTabStepTime: 0
@@ -67,7 +67,7 @@ PanelWindow {
         }
     }
 
-    // ── Panel control ────────────────────────────────────────────────────
+    // Panel control
     function open() {
         if (panelHost && panelHost.hideAllPanelExcept)
             panelHost.hideAllPanelExcept("wallpaperPreview");
@@ -131,7 +131,7 @@ PanelWindow {
         autoCloseTimer.restart();
     }
 
-    // ── Dismiss on background click ──────────────────────────────────────
+    // Dismiss on background click
     MouseArea {
         anchors.fill: parent
         onClicked: root.close()
@@ -176,7 +176,7 @@ PanelWindow {
             }
         }
 
-        // ── Centered Card ─────────────────────────────────────────────────
+        // Centered Card
         Rectangle {
             id: card
             anchors.centerIn: parent
@@ -218,7 +218,7 @@ PanelWindow {
                 }
                 spacing: 10
 
-                // ── Header ──────────────────────────────────────────────
+                // Header
                 RowLayout {
                     id: headerRow
                     Layout.fillWidth: true
@@ -305,7 +305,7 @@ PanelWindow {
                     }
                 }
 
-                // ── Tab pills ────────────────────────────────────────────
+                // Tab pills
                 RowLayout {
                     id: tabRow
                     Layout.fillWidth: true
@@ -372,7 +372,7 @@ PanelWindow {
                     }
                 }
 
-                // ── Carousel Container ───────────────────────────────────
+                // Carousel Container
                 Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: card.carouselHeight
@@ -452,7 +452,7 @@ PanelWindow {
                                 }
                             }
 
-                            // ── Delegate ─────────────────────────────────
+                            // Delegate
                             delegate: Item {
                                 id: del
                                 visible: true
@@ -528,7 +528,7 @@ PanelWindow {
                                         CAnim {}
                                     }
 
-                                    // ── Image or Video Thumbnail ──────────────────────────
+                                    // Image or Video Thumbnail
                                     Image {
                                         id: thumbImage
                                         anchors.fill: parent
@@ -562,7 +562,7 @@ PanelWindow {
                                         cache: true
                                     }
 
-                                    // ── Fallback Card (when Video has no valid thumbnail image) ──
+                                    // Fallback Card (when Video has no valid thumbnail image)
                                     Item {
                                         anchors.fill: parent
                                         visible: modelData && modelData.type === "video" && thumbImage.status !== Image.Ready
@@ -594,7 +594,7 @@ PanelWindow {
                                         }
                                     }
 
-                                    // ── Gradient ───────────────────────
+                                    // Gradient
                                     Rectangle {
                                         anchors.fill: parent
                                         visible: (modelData ? modelData.type : "") === "gradient"
@@ -611,7 +611,7 @@ PanelWindow {
                                         }
                                     }
 
-                                    // ── Solid Color ────────────────────
+                                    // Solid Color
                                     Rectangle {
                                         anchors.fill: parent
                                         visible: (modelData ? modelData.type : "") === "color"

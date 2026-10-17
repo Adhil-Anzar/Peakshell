@@ -39,7 +39,7 @@ QString WallpaperScanner::stateFilePath() {
     return qsPath;
 }
 
-// --- WallpaperEntry ----------------------------------------------------------
+// WallpaperEntry
 
 WallpaperEntry::WallpaperEntry(QString name, QString path, QString type, QObject* parent)
     : QObject(parent)
@@ -51,7 +51,7 @@ QString WallpaperEntry::name() const { return m_name; }
 QString WallpaperEntry::path() const { return m_path; }
 QString WallpaperEntry::type() const { return m_type; }
 
-// --- WallpaperScanner --------------------------------------------------------
+// WallpaperScanner
 
 WallpaperScanner::WallpaperScanner(QObject* parent)
     : QObject(parent)

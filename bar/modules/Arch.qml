@@ -224,9 +224,8 @@ Rectangle {
                                 symbol: "systemsettings-alt"
                                 size: 36
                                 onPress: () => {
-                                    console.log("Executing Settings");
-                                    Utils.execute("hyprmod");
                                     root.togglePanel();
+                                    panelHost.openSettings();
                                 }
                             }
                         }
@@ -262,16 +261,21 @@ Rectangle {
                             }
 
                             ToggleButton {
-                                symbol: "airplane-mode"
+                                symbol: "system-search"
                                 isChecked: false
-                                label: "Airplane Mode"
+                                label: "Search"
+                                onPress: () => {
+                                    this.isChecked = false;
+                                    root.togglePanel();
+                                    panelHost.openLauncher();
+                                }
                             }
 
                             ToggleButton {
-                                symbol: Swaync.icon
-                                isChecked: !Swaync.isDndOn
-                                label: Swaync.message
-                                onPress: Swaync.toggleDnd()
+                                symbol: Notifications.barIcon
+                                isChecked: !Notifications.isDndOn
+                                label: Notifications.message
+                                onPress: Notifications.toggleDnd()
                             }
 
                             ToggleButton {
@@ -485,18 +489,12 @@ Rectangle {
                             }
                             RowLayout {
                                 spacing: 14
-                                ClippingRectangle {
-
+                                MediaArt {
                                     height: Theme.thumbnailSize
                                     width: Theme.thumbnailSize
                                     radius: Theme.cornerRadius
-                                    Image {
-                                        width: parent.width
-                                        height: parent.height
-                                        anchors.centerIn: parent
-                                        source: mediaContainer.player ? mediaContainer.player.trackArtUrl : ""
-                                        fillMode: Image.PreserveAspectCrop
-                                    }
+                                    source: mediaContainer.player ? mediaContainer.player.trackArtUrl : ""
+                                    active: dashboard.visible
                                 }
 
                                 Column {

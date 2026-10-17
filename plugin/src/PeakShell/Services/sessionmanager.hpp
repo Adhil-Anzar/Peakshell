@@ -23,7 +23,6 @@ public:
     Q_INVOKABLE void shutdown();
 
 private:
-    void callLogindManager(const QString& method);
     void callLogindSession(const QString& method);
     static void runFallback(const QString& cmd);
 

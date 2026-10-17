@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import "root:/"
 import "root:/components"
 import "root:/services"
+import "root:/bar/panels"
 
 PanelWindow {
     id: root
@@ -50,6 +51,12 @@ PanelWindow {
             closePanel();
         else
             openPanel();
+    }
+
+    function toggleTimer() {
+        timerLoader.active = true;
+        if (timerLoader.item)
+            timerLoader.item.togglePanel();
     }
 
     function jumpToday() {
@@ -419,7 +426,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                // ================= MONTH VIEW (DEFAULT) =================
+                // Month view (default)
                 ColumnLayout {
                     anchors.fill: parent
                     visible: root.currentView === 1
@@ -507,7 +514,7 @@ PanelWindow {
                     }
                 }
 
-                // ================= WEEK VIEW =================
+                // Week view
                 ColumnLayout {
                     anchors.fill: parent
                     visible: root.currentView === 0
@@ -619,7 +626,7 @@ PanelWindow {
                     }
                 }
 
-                // ================= YEAR VIEW =================
+                // Year view
                 GridLayout {
                     anchors.fill: parent
                     visible: root.currentView === 2
@@ -714,13 +721,27 @@ PanelWindow {
                 }
 
                 Text {
-                    text: Time.hourStr + ":" + Time.minuteStr + " " + Time.amPmStr
+                    text: Time.hourStr + ":" + Time.minuteStr + ":" + Time.secondStr + " " + Time.amPmStr
                     color: Theme.fgColor
                     font.pointSize: Theme.labelFontSize
                     font.family: Theme.labelFontFamily
                     font.bold: true
                 }
+
+                ClickButton {
+                    symbol: "alarm-clock-panel"
+                    size: 26
+                    onPress: root.toggleTimer()
+                }
             }
+        }
+    }
+
+    LazyLoader {
+        id: timerLoader
+        loading: true
+        TimerPanel {
+            panelHost: root.panelHost
         }
     }
 }

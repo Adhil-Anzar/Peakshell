@@ -1,96 +1,107 @@
 pragma Singleton
 
 import QtQuick
+import PeakShell
 
 QtObject {
-    // Colors
-    property string panelBg: "transparent"
-    property string bgColor: "#77000000"
-    property string bgColorFilled: "#FF000000"
-    property string hoveredBgColor: "#77444444"
-    property string mutedBgColor: "#AA242424"
-    property string fgColor: "#FFFFFFFF"
-    property string mutedFgColor: "#FFA0A0A0"
-    property string altFgColor: "#FF050505"
-    property string accent: "#FF8C00BA"
-    property string mutedAccent: "#AA797979"
-    property string battery: "#FF21AB5F"
-    property string danger: "#55FF3333"
-    property string dangerPulse: "#FFFF3333"
-    // Sizings
-    property real barHeight: 40
-    property real barHorizontalPad: 20
-    property real barVerticalPad: 10
-    property real cornerRadius: 14
-    property real cornerLargeRadius: 28
-    property int generalThickness: 2
-    property real dropdownOffset: 10
-    property real thumbnailSize: 56
-    // Fonts
-    property int labelFontSize: 11
-    property int iconFontSize: 24
-    property string iconFontFamily: "Jetbrains Mono NL"
-    property string labelFontFamily: "JetBrains Mono NL"
-    // Durations ( ms )
-    property int animationDuration: 350
-    property int spatialDuration: 450
-    property int fastSpatialDuration: 300
-    property int slowSpatialDuration: 600
-    property int effectsDuration: 200
-    property int fastEffectsDuration: 150
-    property int mediaPlayerUpdateDuration: 1000
-    property int networkUpdateInterval: 1000
-    property int hoverDuration: 3000
+    property string panelBg: Settings.panelBg
+    property string bgColor: Settings.bgColor
+    property string bgColorFilled: Settings.bgColorFilled
+    property string hoveredBgColor: Settings.hoveredBgColor
+    property string mutedBgColor: Settings.mutedBgColor
+    property string fgColor: Settings.fgColor
+    property string mutedFgColor: Settings.mutedFgColor
+    property string altFgColor: Settings.altFgColor
+    property string accent: Settings.accent
+    property string mutedAccent: Settings.mutedAccent
+    property string battery: Settings.battery
+    property string danger: Settings.danger
+    property string dangerPulse: Settings.dangerPulse
+    property real barHeight: Settings.barHeight
+    property real barHorizontalPad: Settings.barHorizontalPad
+    property real barVerticalPad: Settings.barVerticalPad
+    property real cornerRadius: Settings.cornerRadius
+    property real cornerLargeRadius: Settings.cornerLargeRadius
+    property int generalThickness: Settings.generalThickness
+    property real dropdownOffset: Settings.dropdownOffset
+    property real thumbnailSize: Settings.thumbnailSize
+    property int labelFontSize: Settings.labelFontSize
+    property int iconFontSize: Settings.iconFontSize
+    property string iconFontFamily: Settings.iconFontFamily
+    property string labelFontFamily: Settings.labelFontFamily
+    property int animationDuration: Settings.animationDuration
+    property int spatialDuration: Settings.spatialDuration
+    property int fastSpatialDuration: Settings.fastSpatialDuration
+    property int slowSpatialDuration: Settings.slowSpatialDuration
+    property int effectsDuration: Settings.effectsDuration
+    property int fastEffectsDuration: Settings.fastEffectsDuration
+    property int mediaPlayerUpdateDuration: Settings.mediaPlayerUpdateDuration
+    property int networkUpdateInterval: Settings.networkUpdateInterval
+    property int hoverDuration: Settings.hoverDuration
 
-    // Fluid Animation Bezier Curves (Material 3 Expressive, matching Caelestia)
     readonly property var curveDefaultSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
     readonly property var curveFastSpatial: [0.42, 1.67, 0.21, 0.9, 1, 1]
     readonly property var curveSlowSpatial: [0.39, 1.29, 0.35, 0.98, 1, 1]
     readonly property var curveDefaultEffects: [0.34, 0.8, 0.34, 1, 1, 1]
     readonly property var curveFastEffects: [0.31, 0.94, 0.34, 1, 1, 1]
 
-    // Arch Dashboard
-    property real dashboardWidth: 500
-    property real dashboardHeight: 750
-    // Sound Panel
-    property real soundPanelWidth: 400
-    property real soundItemMaxCount: 10
-    property real soundItemSize: 100
-    // Wifi Panel
-    property real wifiPanelWidth: 400
-    property real wifiItemMaxCount: 14 // Maximum height for the panel
-    property real wifiItemSize: 60 // Basically Height for the item
-    // Bluetooth Panel
-    property real bluetoothPanelWidth: 400
-    property real bluetoothItemMaxCount: 14 // Maximum height for the panel
-    property real bluetoothItemSize: 60 // Basically Height for the item
+    property real dashboardWidth: Settings.dashboardWidth
+    property real dashboardHeight: Settings.dashboardHeight
+    property real soundPanelWidth: Settings.soundPanelWidth
+    property real soundItemMaxCount: Settings.soundItemMaxCount
+    property real soundItemSize: Settings.soundItemSize
+    property real wifiPanelWidth: Settings.wifiPanelWidth
+    property real wifiItemMaxCount: Settings.wifiItemMaxCount
+    property real wifiItemSize: Settings.wifiItemSize
+    property real bluetoothPanelWidth: Settings.bluetoothPanelWidth
+    property real bluetoothItemMaxCount: Settings.bluetoothItemMaxCount
+    property real bluetoothItemSize: Settings.bluetoothItemSize
 
-    // Workspace Panel & Preview
-    property real workspacePanelWidth: 400
-    property real workspacePanelHeight: 100
-    //property real workspacePreviewWidth: 648
-    //property real workspacePreviewHeight: 432
-    property real workspacePreviewWidth: 1000
-    property real workspacePreviewHeight: 650
-    property string urgentPulseColor: "#CC8800FF"
+    property real mediaPanelWidth: Settings.mediaPanelWidth
 
-    // Clock & Calendar Panel
-    property real clockPanelWidth: 450
-    property real clockPanelHeight: 460
+    property real workspacePanelWidth: Settings.workspacePanelWidth
+    property real workspacePanelHeight: Settings.workspacePanelHeight
+    property real workspacePreviewWidth: Settings.workspacePreviewWidth
+    property real workspacePreviewHeight: Settings.workspacePreviewHeight
+    property string urgentPulseColor: Settings.urgentPulseColor
 
-    // Tray Menu Panel
-    property real trayMenuWidth: 260
-    property real trayMenuItemHeight: 34
+    property real clockPanelWidth: Settings.clockPanelWidth
+    property real clockPanelHeight: Settings.clockPanelHeight
+    property real timerPanelWidth: Settings.timerPanelWidth
 
-    // Launcher
-    property real launcherWidth: 600
-    property real launcherPadding: 8
-    property real launcherSearchHeight: 52
-    property real launcherItemHeight: 56
-    property real launcherIconSize: 28
-    property int  launcherSearchFontSize: 15  // larger font for search input
-    property int  launcherMaxItems: 5
+    property real trayMenuWidth: Settings.trayMenuWidth
+    property real trayMenuItemHeight: Settings.trayMenuItemHeight
 
-    // Power
-    property int lowPowerThreshold: 20
+    property real launcherWidth: Settings.launcherWidth
+    property real launcherPadding: Settings.launcherPadding
+    property real launcherSearchHeight: Settings.launcherSearchHeight
+    property real launcherItemHeight: Settings.launcherItemHeight
+    property real launcherIconSize: Settings.launcherIconSize
+    property int launcherSearchFontSize: Settings.launcherSearchFontSize
+    property int launcherMaxItems: Settings.launcherMaxItems
+
+    property real clipboardWidth: Settings.clipboardWidth
+    property real clipboardItemHeight: Settings.clipboardItemHeight
+    property int clipboardMaxItems: Settings.clipboardMaxItems
+    property int clipboardMaxVisibleItems: Settings.clipboardMaxVisibleItems
+    property bool clipboardFuzzy: Settings.clipboardFuzzy
+
+    property real notificationPanelWidth: Settings.notificationPanelWidth
+    property real notificationItemMaxCount: Settings.notificationItemMaxCount
+    property real notificationPopupWidth: Settings.notificationPopupWidth
+    property int notificationPopupTimeout: Settings.notificationPopupTimeout
+    property int notificationMaxPopups: Settings.notificationMaxPopups
+    property real notificationIconSize: Settings.notificationIconSize
+
+    property int lowPowerThreshold: Settings.lowPowerThreshold
+
+    // Bar module visibility
+    property bool moduleMediaPlayer: Settings.moduleMediaPlayer
+    property bool moduleNotifications: Settings.moduleNotifications
+    property bool moduleSound: Settings.moduleSound
+    property bool moduleWifi: Settings.moduleWifi
+    property bool moduleBluetooth: Settings.moduleBluetooth
+    property bool moduleDateTime: Settings.moduleDateTime
+    property bool moduleWorkspaces: Settings.moduleWorkspaces
+    property bool moduleSysTray: Settings.moduleSysTray
 }

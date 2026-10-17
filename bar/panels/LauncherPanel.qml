@@ -22,7 +22,7 @@ PanelWindow {
         type: Anim.DefaultEffects
     }
 
-    readonly property int maxVisibleItems: 5
+    readonly property int maxVisibleItems: Theme.launcherMaxItems
     readonly property int itemSpacing: 6
 
     property var filteredApps: []
@@ -55,6 +55,20 @@ PanelWindow {
 
     // Currently active/selected index (defaults to first item when results are shown)
     readonly property int selectedIndex: (appList.currentIndex >= 0) ? appList.currentIndex : (hasResults ? 0 : -1)
+
+    // Rotating friendly help shown in the search field, re-picked on each open.
+    property string placeholderText: ""
+    property int _placeholderIndex: -1
+    readonly property var placeholderPool: {
+        var pool = ["Type to explore apps, actions and answers", "Hold Alt to preview a result's details", "Alt+Enter copies the highlighted command", "Enter opens the highlighted result", "Right-click a result to copy its command", "Arrow keys to move · Enter to open", "What are we looking for?"];
+        if (Settings.launcherCalc)
+            pool.splice(3, 0, "Try a calculation: 12*8 works");
+        if (Settings.launcherWebSearch)
+            pool.splice(4, 0, "Type anything to search the web");
+        if (Settings.launcherFuzzy)
+            pool.splice(5, 0, "Fuzzy search: typos are welcome");
+        return pool;
+    }
 
     // Debounce timer: only recalculates at the end of each text change
     Timer {
@@ -150,6 +164,20 @@ PanelWindow {
 
     readonly property real totalHeight: Theme.launcherSearchHeight + (hasResults ? itemSpacing + listHeight : 0)
 
+    // Picks a fresh help line, never repeating the previous one.
+    function pickPlaceholder() {
+        var pool = root.placeholderPool;
+        if (pool.length === 0) {
+            root.placeholderText = "";
+            return;
+        }
+        var i = Math.floor(Math.random() * pool.length);
+        if (pool.length > 1 && i === root._placeholderIndex)
+            i = (i + 1) % pool.length;
+        root._placeholderIndex = i;
+        root.placeholderText = pool[i];
+    }
+
     function open() {
         if (panelHost && panelHost.hideAllPanelExcept)
             panelHost.hideAllPanelExcept("launcher");
@@ -157,6 +185,7 @@ PanelWindow {
         if (panelHost && panelHost.toggledPanels)
             panelHost.toggledPanels["launcher"] = root;
         searchInput.text = "";
+        pickPlaceholder();
         _prevRows = ({});
         filteredApps = [];
         appList.currentIndex = -1;
@@ -444,11 +473,12 @@ PanelWindow {
 
                         Text {
                             anchors.fill: parent
-                            text: "Type to explore…"
+                            text: root.placeholderText
                             color: Theme.mutedFgColor
                             font.pointSize: Theme.launcherSearchFontSize
                             font.family: Theme.labelFontFamily
                             verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
                             visible: searchInput.text.length === 0
                             renderType: Text.CurveRendering
                             antialiasing: true
@@ -591,6 +621,18 @@ PanelWindow {
                             if (d.kind === "web")
                                 return "Web";
                             return d.terminal ? "CLI" : "App";
+                        }
+                        // The timer action shows the live countdown in place of
+                        // its description while a timer is active.
+                        readonly property bool isTimerRow: {
+                            root.rowRevision;
+                            var d = del.liveRow();
+                            return d.kind === "ipc" && d.ipcFunction === "timer";
+                        }
+                        readonly property string timerText: {
+                            if (!del.isTimerRow || !TimerService.running)
+                                return "";
+                            return TimerService.formatted + " remaining";
                         }
                         readonly property bool kindStepsAside: {
                             root.rowRevision;
@@ -737,8 +779,8 @@ PanelWindow {
 
                                     Text {
                                         width: parent.width
-                                        text: del.field("comment") || del.field("genericName") || ""
-                                        color: Theme.mutedFgColor
+                                        text: del.timerText.length > 0 ? del.timerText : (del.field("comment") || del.field("genericName") || "")
+                                        color: del.timerText.length > 0 ? Theme.accent : Theme.mutedFgColor
                                         font.pointSize: Theme.labelFontSize * 0.9
                                         font.family: Theme.labelFontFamily
                                         elide: Text.ElideRight
@@ -947,6 +989,7 @@ PanelWindow {
     }
 
     Component.onCompleted: {
+        pickPlaceholder();
         if (!AppScanner.loaded)
             AppScanner.scan();
     }

@@ -1,7 +1,7 @@
 singleton INetwork 1.0 INetwork.qml
 singleton BluetoothResolve 1.0 BluetoothResolve.qml
 singleton PipewireResolve 1.0 PipewireResolve.qml
-singleton Swaync 1.0 Swaync.qml
+singleton Notifications 1.0 Notifications.qml
 singleton MprisController 1.0 MprisController.qml
 singleton Time 1.0 Time.qml
 singleton Hypr 1.0 Hypr.qml
@@ -9,4 +9,6 @@ singleton SystemMonitor 1.0 SystemMonitor.qml
 singleton Power 1.0 Power.qml
 singleton WallpaperService 1.0 WallpaperService.qml
 singleton AppScanner 1.0 AppScanner.qml
+singleton Clipboard 1.0 Clipboard.qml
+singleton TimerService 1.0 TimerService.qml
 

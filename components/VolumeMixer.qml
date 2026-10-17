@@ -159,6 +159,9 @@ Rectangle {
                 // NOTE: must stay a TextField, not a Text. The org.kde.desktop
                 // style calls text-edit APIs (positionToRectangle) on the
                 // content item; a plain Text throws a TypeError on every open.
+                // The TextField grabs clicks for cursor positioning even when
+                // read-only, so the overlay below reclaims them to toggle the
+                // popup instead.
                 contentItem: TextField {
                     id: currentTextObject
                     anchors.centerIn: parent
@@ -191,14 +194,7 @@ Rectangle {
                             duration: Theme.animationDuration
                         }
                     }
-                    color: comboBoxMouseArea.containsMouse ? Theme.hoveredBgColor : "transparent"
-                    MouseArea {
-                        id: comboBoxMouseArea
-                        enabled: parent.enabled
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                    }
+                    color: clickOverlay.containsMouse ? Theme.hoveredBgColor : "transparent"
                 }
 
                 delegate: ItemDelegate {
@@ -246,6 +242,19 @@ Rectangle {
                         color: Theme.mutedBgColor
                         border.color: Theme.mutedAccent
                         border.width: Theme.generalThickness
+                    }
+                }
+
+                MouseArea {
+                    id: clickOverlay
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (comboBox.popup.visible)
+                            comboBox.popup.close();
+                        else
+                            comboBox.popup.open();
                     }
                 }
             }

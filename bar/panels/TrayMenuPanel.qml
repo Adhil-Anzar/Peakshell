@@ -81,7 +81,7 @@ PanelWindow {
         id: menuContainer
         readonly property real maxOffset: root.width > 0 ? (root.width - Theme.trayMenuWidth - Theme.barHorizontalPad) : root.barOffset
         x: Math.max(Theme.barHorizontalPad, Math.min(root.barOffset, maxOffset))
-        y: Theme.barHeight + Theme.dropdownOffset
+        y: 0
         width: Theme.trayMenuWidth
         height: stackView.implicitHeight
 

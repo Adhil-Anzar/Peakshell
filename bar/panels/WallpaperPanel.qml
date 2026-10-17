@@ -32,7 +32,7 @@ PanelWindow {
             id: wpWrapper
             property var wp: null
 
-            // ── Dynamic Loader (Only instantiates the active type) ───────────
+            // Dynamic Loader (Only instantiates the active type)
             Loader {
                 id: contentLoader
                 anchors.fill: parent
@@ -57,7 +57,7 @@ PanelWindow {
                 }
             }
 
-            // ── Static Image Wallpaper ───────────────────────────────────────────
+            // Static Image Wallpaper
             Component {
                 id: imageComp
                 Image {
@@ -71,7 +71,7 @@ PanelWindow {
                     cache: true
                 }
             }
-            // ── Video Wallpaper ──────────────────────────────────────────────────
+            // Video Wallpaper
             Component {
                 id: videoComp
                 Item {
@@ -98,7 +98,7 @@ PanelWindow {
                 }
             }
 
-            // ── Gradient Wallpaper ───────────────────────────────────────────────
+            // Gradient Wallpaper
             Component {
                 id: gradientComp
                 Rectangle {
@@ -117,7 +117,7 @@ PanelWindow {
                 }
             }
 
-            // ── Pattern Wallpaper ────────────────────────────────────────────────
+            // Pattern Wallpaper
             Component {
                 id: patternComp
                 Canvas {
@@ -177,7 +177,7 @@ PanelWindow {
                 }
             }
 
-            // ── Solid Color Wallpaper ────────────────────────────────────────────
+            // Solid Color Wallpaper
             Component {
                 id: colorComp
                 Rectangle {
@@ -251,7 +251,7 @@ PanelWindow {
         }
     }
 
-    // ── Video Audio Controls (bottom-right visible when video active) ────
+    // Video Audio Controls (bottom-right visible when video active)
     Rectangle {
         id: audioControl
         anchors.right: parent.right

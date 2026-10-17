@@ -88,7 +88,7 @@ public:
 
     // Executes one entry produced by search(). Calculator results are copied
     // to the clipboard; web results open the browser; ipc results invoke
-    // `peakshell ipc call ii1qe <fn>`; app results launch normally.
+    // `peakshell ipc call ii1qe <fn> [args...]`; app results launch normally.
     Q_INVOKABLE void activateResult(const QVariantMap& entry);
 
     // Copies arbitrary text to the clipboard (used for right-click copy).

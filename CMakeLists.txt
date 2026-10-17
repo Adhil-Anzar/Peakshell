@@ -34,7 +34,7 @@ add_subdirectory(cli)
 add_subdirectory(plugin)
 
 # Install QML shell files
-foreach(dir bar bar/modules bar/panels components services)
+foreach(dir bar bar/modules bar/panels components services settings)
     install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
 endforeach()
 

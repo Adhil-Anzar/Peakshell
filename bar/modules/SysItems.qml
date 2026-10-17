@@ -10,6 +10,9 @@ Rectangle {
     clip: true
     required property var panelHost
 
+    // Hide the whole pill when every system chip has been disabled.
+    visible: Theme.moduleNotifications || Theme.moduleSound || Theme.moduleWifi || Theme.moduleBluetooth
+
     function registerPanel(name, panel, visible) {
         if (visible)
             panelHost.toggledPanels[name] = panel;
@@ -41,6 +44,14 @@ Rectangle {
         bluetoothChip.keepExpanded();
         registerPanel("bluetooth", panel, panel.visible);
     }
+    function toggleNotificationPanel() {
+        notifLoader.active = true;
+        const panel = notifLoader.item;
+        panelHost.hideAllPanelExcept("notifications");
+        panel.visible = !panel.visible;
+        notifChip.keepExpanded();
+        registerPanel("notifications", panel, panel.visible);
+    }
     function openSoundPanel() {
         soundLoader.active = true;
         const panel = soundLoader.item;
@@ -71,17 +82,17 @@ Rectangle {
         spacing: 5
 
         BarChip {
+            id: notifChip
+            visible: Theme.moduleNotifications
             extraButtons: Qt.RightButton
-            iconName: Swaync.icon
-            label: Swaync.nullableMessage
-            onRightClicked: Swaync.toggleDnd()
-            onLeftClicked: {
-                panelHost.hideAllPanelExcept("notifications");
-                Swaync.togglePanel();
-            }
+            iconName: Notifications.barIcon
+            label: Notifications.nullableMessage
+            onRightClicked: Notifications.toggleDnd()
+            onLeftClicked: root.toggleNotificationPanel()
         }
         BarChip {
             id: soundChip
+            visible: Theme.moduleSound
             extraButtons: Qt.RightButton
             iconName: PipewireResolve.outputIcon
             label: PipewireResolve.status
@@ -89,12 +100,14 @@ Rectangle {
         }
         BarChip {
             id: wifiChip
+            visible: Theme.moduleWifi
             iconName: INetwork.networkStrengthIcon
             label: INetwork.connectionMessage
             onLeftClicked: root.toggleWifiPanel()
         }
         BarChip {
             id: bluetoothChip
+            visible: Theme.moduleBluetooth
             iconName: BluetoothResolve.icon
             label: BluetoothResolve.status
             onLeftClicked: root.toggleBluetoothPanel()
@@ -121,6 +134,14 @@ Rectangle {
         id: bluetoothLoader
         loading: true
         BluetoothPanel {
+            panelHost: root.panelHost
+            barOffset: container.getSpacingDistance()
+        }
+    }
+    LazyLoader {
+        id: notifLoader
+        loading: true
+        NotificationPanel {
             panelHost: root.panelHost
             barOffset: container.getSpacingDistance()
         }

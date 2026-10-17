@@ -2,9 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import "root:/"
 import "root:/components"
 import "root:/bar/panels"
+import "root:/services"
 
 Rectangle {
     id: root
@@ -14,6 +16,11 @@ Rectangle {
     function togglePanel() {
         calendarLoader.active = true;
         calendarLoader.item.togglePanel();
+    }
+
+    function toggleTimerPanel() {
+        calendarLoader.active = true;
+        calendarLoader.item.toggleTimer();
     }
 
     Behavior on width {
@@ -34,7 +41,7 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: {
             hoverDebounce.isDelaying = true
             hoverDebounce.restart()
@@ -45,7 +52,12 @@ Rectangle {
             hoverDebounce.isDelaying = true
             hoverDebounce.restart()
         }
-        onClicked: root.togglePanel()
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton)
+                root.toggleTimerPanel();
+            else
+                root.togglePanel();
+        }
     }
 
     Timer {
@@ -79,6 +91,34 @@ Rectangle {
         id: container
         anchors.centerIn: parent
         spacing: 5
+
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 5
+            opacity: TimerService.running ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                Anim { type: Anim.DefaultEffects }
+            }
+
+            IconImage {
+                anchors.verticalCenter: parent.verticalCenter
+                implicitSize: Theme.iconFontSize
+                source: Quickshell.iconPath("alarm-clock-panel")
+                smooth: true
+                mipmap: true
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: TimerService.compact
+                color: Theme.accent
+                font.pointSize: Theme.labelFontSize
+                font.family: Theme.labelFontFamily
+                font.bold: true
+            }
+        }
 
         Text {
             anchors.verticalCenter: parent.verticalCenter

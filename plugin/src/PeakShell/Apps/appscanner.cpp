@@ -1,6 +1,7 @@
 #include "appscanner.hpp"
 #include "calculator.h"
 #include "fuzzy/fuzzysearch.h"
+#include "../settings.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -32,7 +33,7 @@ using Qt::StringLiterals::operator""_s;
 
 Q_LOGGING_CATEGORY(lcApps, "peakshell.apps", QtInfoMsg)
 
-// --- OpenSearch parity search ------------------------------------------------
+// OpenSearch parity search
 // Scoring mirrors OpenSearch SearchFilters exactly:
 //   score = partial_ratio(name) * 0.7 + ratio(generic) * 0.1
 //         + ratio(comment) * 0.1 + ratio(keywords) * 0.1
@@ -76,34 +77,48 @@ constexpr int kRescanDebounceMs = 400;
 constexpr double kFreqBoostPerLaunch = 15.0;
 constexpr int kFreqCap = 20;
 
-constexpr char kWebSearchName[] = "Search Google";
 constexpr char kWebSearchIcon[] = "system-search";
-constexpr char kWebSearchUrl[] = "https://www.google.com/search?q=";
 constexpr char kCalcIcon[] = "accessories-calculator";
 
+// Groups let the launcher settings show/hide whole families of actions.
+enum class ActionGroup { Panel, Power, Wallpaper };
+
 struct IpcAction {
-    const char* function; // peakshell ipc call ii1qe <function>
+    const char* function; // peakshell ipc call ii1qe <function> [args...]
     const char* name;
     const char* genericName;
     const char* comment;
     const char* keywords;
     const char* icon;
+    ActionGroup group = ActionGroup::Panel;
 };
 
-// All toggleable `ii1qe` IPC targets from Bar.qml.
+// `ii1qe` IPC targets from Bar.qml: the toggleable panels plus the direct
+// power actions (`power <kind>`). A function string may carry arguments, which
+// are forwarded as separate `peakshell ipc call` arguments.
 constexpr IpcAction kIpcActions[] = {
     { "sound", "Sound", "Audio", "Toggle sound panel", "sound volume audio mixer speaker", "audio-volume-high" },
     { "overlay", "System Overlay", "Monitor", "Toggle system monitor overlay", "overlay system monitor stats cpu mem", "utilities-system-monitor" },
-    { "nextWallpaper", "Next Wallpaper", "Wallpaper", "Switch to the next wallpaper", "wallpaper background next switch", "go-next" },
+    { "nextWallpaper", "Next Wallpaper", "Wallpaper", "Switch to the next wallpaper", "wallpaper background next switch", "go-next", ActionGroup::Wallpaper },
     { "launcher", "Launcher", "Search", "Toggle the app launcher", "launcher search apps", "system-search" },
+    { "clipboard", "Clipboard", "History", "Toggle the clipboard history", "clipboard history paste copy", "edit-paste" },
     { "calendar", "Calendar", "Clock", "Toggle calendar panel", "calendar clock date time", "x-office-calendar" },
+    { "timer", "View Timer", "Timer", "View the timer and countdown", "timer countdown alarm clock stopwatch pomodoro", "alarm-clock-panel" },
     { "bluetooth", "Bluetooth", "Devices", "Toggle bluetooth panel", "bluetooth bt devices", "bluetooth" },
-    { "showWallpaper", "Show Wallpaper", "Wallpaper", "Show the wallpaper preview", "wallpaper background show preview", "preferences-desktop-wallpaper" },
+    { "showWallpaper", "Show Wallpaper", "Wallpaper", "Show the wallpaper preview", "wallpaper background show preview", "preferences-desktop-wallpaper", ActionGroup::Wallpaper },
     { "wifi", "Wi-Fi", "Network", "Toggle wifi panel", "wifi wi-fi network wireless internet", "network-wireless" },
     { "arch", "Arch Dashboard", "Menu", "Toggle Arch dashboard", "arch dashboard menu logo", "start-here" },
-    { "shutdown", "Power Menu", "Session", "Toggle power menu", "shutdown power reboot logout suspend poweroff", "system-shutdown" },
+    { "powermenu", "Power Menu", "Session", "Toggle the power menu", "power menu session dialog", "system-shutdown", ActionGroup::Power },
+    // Direct power actions (matched on Power.powerActions ids/icons).
+    { "power logout", "Logout", "Session", "Log out of the current session", "logout log out sign out end session", "system-log-out", ActionGroup::Power },
+    { "power switch", "Switch User", "Session", "Switch to another user", "switch user change account login", "system-switch-user", ActionGroup::Power },
+    { "power reboot", "Reboot", "Power", "Restart the computer", "reboot restart reset power cycle", "system-reboot", ActionGroup::Power },
+    { "power sleep", "Sleep", "Power", "Suspend the computer", "sleep suspend standby sleep to ram", "system-suspend", ActionGroup::Power },
+    { "power hibernate", "Hibernate", "Power", "Hibernate the computer", "hibernate suspend to disk save to disk", "system-suspend-hibernate", ActionGroup::Power },
+    { "power shutdown", "Shutdown", "Power", "Power off the computer", "shutdown poweroff power off halt turn off", "system-shutdown", ActionGroup::Power },
     { "workspace", "Workspaces", "Overview", "Toggle workspaces panel", "workspace workspaces overview desktops", "view-grid" },
-    { "previousWallpaper", "Previous Wallpaper", "Wallpaper", "Switch to the previous wallpaper", "wallpaper background previous back", "go-previous" },
+    { "previousWallpaper", "Previous Wallpaper", "Wallpaper", "Switch to the previous wallpaper", "wallpaper background previous back", "go-previous", ActionGroup::Wallpaper },
+    { "settings", "Settings", "Preferences", "Open PeakShell settings", "settings preferences config options", "preferences-system" },
 };
 
 inline std::string lowerStd(const QString& s) {
@@ -291,9 +306,14 @@ void launchCommand(const QString& cmd, bool terminal, const QString& label) {
 void invokeIpc(const QString& function) {
     if (function.isEmpty())
         return;
+    // The function string may carry arguments (e.g. "power shutdown"); each
+    // whitespace-separated token is forwarded as one `ipc call` argument.
+    const QStringList fnArgs = function.split(u' ', Qt::SkipEmptyParts);
+    if (fnArgs.isEmpty())
+        return;
     // peakshell(1) forwards `ipc call ...` to quickshell; fall back to
     // quickshell directly when the wrapper is not on PATH (dev sessions).
-    const QStringList args{ u"ipc"_s, u"call"_s, u"ii1qe"_s, function };
+    const QStringList args = QStringList{ u"ipc"_s, u"call"_s, u"ii1qe"_s } + fnArgs;
     if (!QStandardPaths::findExecutable(u"peakshell"_s).isEmpty()) {
         spawnDetached(u"peakshell"_s, args);
         return;
@@ -398,7 +418,7 @@ static QList<RawEntry> scanDesktopFiles() {
     return results;
 }
 
-// --- AppEntry ----------------------------------------------------------------
+// AppEntry
 
 AppEntry::AppEntry(QString name, QString genericName, QString comment,
                    QString icon, QString exec, QString keywords,
@@ -423,7 +443,7 @@ QString AppEntry::keywords()    const { return m_keywords; }
 QString AppEntry::categories()  const { return m_categories; }
 bool    AppEntry::terminal()    const { return m_terminal; }
 
-// --- AppScanner --------------------------------------------------------------
+// AppScanner
 
 AppScanner::AppScanner(QObject* parent)
     : QObject(parent)
@@ -590,30 +610,37 @@ QVariantList AppScanner::search(const QString& query) {
     };
     QVector<Scored> acc;
     acc.reserve(m_apps.size() + 16);
+    const bool fuzzyOn = peakshell::Settings::fuzzyEnabled();
+    const bool webOn = peakshell::Settings::webSearchEnabled();
+    const bool calcOn = peakshell::Settings::calcEnabled();
+    const bool powerActionsOn = peakshell::Settings::powerActionsEnabled();
+    const bool wallpaperActionsOn = peakshell::Settings::wallpaperActionsEnabled();
 
-    // 1. Fuzzy-matched applications (OpenSearch weights + threshold).
-    // Tuning allowance: direct textual evidence in either direction (a field
-    // containing the query, or the query containing the candidate name)
-    // qualifies via the containment floor, so short exact queries like
-    // "wifi" still recall "Wi-Fi". OpenSearch matchScore boosts below still
-    // decide the final order.
     for (const AppEntry* app : std::as_const(m_apps)) {
         double score = fuzzyScore(qStd, app->name(), app->genericName(),
                                   app->comment(), app->keywords());
+        bool evidence = false;
         if (app->name().contains(q, Qt::CaseInsensitive)
             || app->genericName().contains(q, Qt::CaseInsensitive)
             || app->comment().contains(q, Qt::CaseInsensitive)
-            || app->keywords().contains(q, Qt::CaseInsensitive))
+            || app->keywords().contains(q, Qt::CaseInsensitive)) {
             score = qMax(score, kContainFloor);
-        else if (app->name().length() >= kMinReverseNameLen
-                 && q.contains(app->name(), Qt::CaseInsensitive))
+            evidence = true;
+        } else if (app->name().length() >= kMinReverseNameLen
+                 && q.contains(app->name(), Qt::CaseInsensitive)) {
             score = qMax(score, kContainFloor);
-        else if (nearExactField(qStd, app->name(), app->genericName(),
-                                app->comment(), app->keywords()))
+            evidence = true;
+        } else if (nearExactField(qStd, app->name(), app->genericName(),
+                                app->comment(), app->keywords())) {
             score = qMax(score, kContainFloor);
-        else if (nearExactDescription(qStd, app->genericName(), app->comment()))
+            evidence = true;
+        } else if (nearExactDescription(qStd, app->genericName(), app->comment())) {
             score = qMax(score, kContainFloor);
+            evidence = true;
+        }
         if (score <= kFuzzyThreshold)
+            continue;
+        if (!fuzzyOn && !evidence)
             continue;
         QVariantMap m = makeMap(app->name(), app->genericName(), app->comment(), app->icon(),
                                 app->exec(), app->keywords(), app->terminal(), u"app"_s,
@@ -629,23 +656,36 @@ QVariantList AppScanner::search(const QString& query) {
     // 2. Toggleable ii1qe IPC actions, fuzzy-matched the same way
     // (plus the same containment floors as apps).
     for (const IpcAction& action : kIpcActions) {
+        // Launcher settings can hide whole action families.
+        if (action.group == ActionGroup::Power && !powerActionsOn)
+            continue;
+        if (action.group == ActionGroup::Wallpaper && !wallpaperActionsOn)
+            continue;
         const QString name = QString::fromUtf8(action.name);
         const QString generic = QString::fromUtf8(action.genericName);
         const QString comment = QString::fromUtf8(action.comment);
         const QString keywords = QString::fromUtf8(action.keywords);
         const QString function = QString::fromUtf8(action.function);
         double score = fuzzyScore(qStd, name, generic, comment, keywords);
+        bool evidence = false;
         if (name.contains(q, Qt::CaseInsensitive) || generic.contains(q, Qt::CaseInsensitive)
             || comment.contains(q, Qt::CaseInsensitive)
-            || keywords.contains(q, Qt::CaseInsensitive))
+            || keywords.contains(q, Qt::CaseInsensitive)) {
             score = qMax(score, kContainFloor);
-        else if (name.length() >= kMinReverseNameLen && q.contains(name, Qt::CaseInsensitive))
+            evidence = true;
+        } else if (name.length() >= kMinReverseNameLen && q.contains(name, Qt::CaseInsensitive)) {
             score = qMax(score, kContainFloor);
-        else if (nearExactField(qStd, name, generic, comment, keywords))
+            evidence = true;
+        } else if (nearExactField(qStd, name, generic, comment, keywords)) {
             score = qMax(score, kContainFloor);
-        else if (nearExactDescription(qStd, generic, comment))
+            evidence = true;
+        } else if (nearExactDescription(qStd, generic, comment)) {
             score = qMax(score, kContainFloor);
+            evidence = true;
+        }
         if (score <= kFuzzyThreshold)
+            continue;
+        if (!fuzzyOn && !evidence)
             continue;
         QVariantMap m = makeMap(name, generic, comment, QString::fromUtf8(action.icon),
                                 function, keywords, false, u"ipc"_s,
@@ -653,9 +693,8 @@ QVariantList AppScanner::search(const QString& query) {
         acc.append({ m, matchSortKey(name, generic, keywords, q, score) });
     }
 
-    // 3. Exprtk calculator (OpenSearch SearchFilters::calculate parity).
     double calcValue = 0.0;
-    if (tryEvaluateExpression(q, calcValue)) {
+    if (calcOn && tryEvaluateExpression(q, calcValue)) {
         const QString text = QString::number(calcValue);
         QVariantMap m = makeMap(text, QString(), QStringLiteral("Calculated for: \"%1\"").arg(q),
                                 QString::fromUtf8(kCalcIcon), u"Ignored"_s, QString(), false,
@@ -664,18 +703,16 @@ QVariantList AppScanner::search(const QString& query) {
         acc.append({ m, matchSortKey(text, QString(), QString(), q, kCalcScore) });
     }
 
-    // 4. Smart web-search fallback: always present for non-empty queries, but
-    // scored so short queries still prefer real apps while long non-app text
-    // surfaces the browser entry near the top.
-    {
+    if (webOn) {
+        const QString engineName = peakshell::Settings::activeSearchName();
+        const QString engineUrl = peakshell::Settings::activeSearchUrl();
         const double score = webFallbackScore(q.length());
-        QVariantMap m = makeMap(QString::fromUtf8(kWebSearchName), QString(),
-                                QStringLiteral("Search Google for \"%1\"").arg(q),
+        QVariantMap m = makeMap(QStringLiteral("Search %1").arg(engineName), QString(),
+                                QStringLiteral("Search %1 for \"%2\"").arg(engineName, q),
                                 QString::fromUtf8(kWebSearchIcon),
-                                QString::fromUtf8(kWebSearchUrl)
-                                    + QString::fromUtf8(QUrl::toPercentEncoding(q)),
+                                engineUrl + QString::fromUtf8(QUrl::toPercentEncoding(q)),
                                 QString(), false, u"web"_s, QString(), u"web"_s, score);
-        m.insert(u"detail"_s, QStringLiteral("Google"));
+        m.insert(u"detail"_s, engineName);
         acc.append({ m, score });
     }
 

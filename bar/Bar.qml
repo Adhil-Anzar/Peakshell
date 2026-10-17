@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell.Wayland
 import Quickshell.Io
 import "root:/"
+import "root:/services"
 import "modules"
 import "root:/bar/panels"
 
@@ -24,6 +25,14 @@ Scope {
                 if (toggledPanels[k] && k !== exception)
                     toggledPanels[k].visible = false;
             }
+        }
+        function openSettings() {
+            settingsLoader.active = true;
+            settingsLoader.item.toggle();
+        }
+        function openLauncher() {
+            launcherLoader.active = true;
+            launcherLoader.item.toggle();
         }
 
         implicitHeight: Theme.barHeight + Theme.barVerticalPad
@@ -55,12 +64,28 @@ Scope {
             function bluetooth() {
                 sys.toggleBluetoothPanel();
             }
-            function shutdown() {
+            function notifications() {
+                sys.toggleNotificationPanel();
+            }
+            function media() {
+                media.togglePanel();
+            }
+            function powermenu() {
                 shutdownLoader.active = true;
                 shutdownLoader.item.togglePanel();
             }
+            // Directly run one of the power actions (logout, switch, reboot,
+            // sleep, hibernate, shutdown) without opening the power menu.
+            function power(action: string) {
+                if (action === "sleep" || action === "logout")
+                    lockScreen.lock();
+                Power.execute(action);
+            }
             function calendar() {
                 clock.togglePanel();
+            }
+            function timer() {
+                clock.toggleTimerPanel();
             }
             function workspace() {
                 workspaces.togglePanel();
@@ -81,9 +106,23 @@ Scope {
                 launcherLoader.active = true;
                 launcherLoader.item.toggle();
             }
+            function clipboard() {
+                clipboardLoader.active = true;
+                clipboardLoader.item.toggle();
+            }
             function overlay() {
                 sysOverlayLoader.active = true;
                 sysOverlayLoader.item.toggle();
+            }
+            function settings() {
+                bar.openSettings();
+            }
+        }
+        LazyLoader {
+            id: settingsLoader
+            loading: true
+            SettingsPanel {
+                panelHost: bar
             }
         }
         LazyLoader {
@@ -108,9 +147,23 @@ Scope {
             }
         }
         LazyLoader {
+            id: clipboardLoader
+            loading: true
+            ClipboardPanel {
+                panelHost: bar
+            }
+        }
+        LazyLoader {
             id: sysOverlayLoader
             loading: true
             SystemMonitorOverlay {
+                screen: root.screen
+            }
+        }
+        LazyLoader {
+            id: notifPopupLoader
+            loading: true
+            NotificationPopup {
                 screen: root.screen
             }
         }
@@ -133,6 +186,11 @@ Scope {
                         id: sys
                         panelHost: bar
                     }
+                    MediaPlayer {
+                        id: media
+                        panelHost: bar
+                        visible: Theme.moduleMediaPlayer
+                    }
                     Tray {
                         panelHost: bar
                     }
@@ -149,6 +207,7 @@ Scope {
                     Workspaces {
                         id: workspaces
                         panelHost: bar
+                        visible: Theme.moduleWorkspaces
                     }
                 }
             }
@@ -167,6 +226,7 @@ Scope {
                     Clock {
                         id: clock
                         panelHost: bar
+                        visible: Theme.moduleDateTime
                     }
                 }
             }

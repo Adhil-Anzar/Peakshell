@@ -9,7 +9,7 @@ import "../panels"
 Rectangle {
     id: root
     required property var panelHost
-    visible: SystemTray.items.values.length !== 0
+    visible: Theme.moduleSysTray && SystemTray.items.values.length !== 0
     width: container.width + Theme.cornerRadius
     Behavior on width {
         Anim { type: Anim.DefaultSpatial }

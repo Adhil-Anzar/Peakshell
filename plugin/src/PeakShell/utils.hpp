@@ -30,7 +30,7 @@ public:
     Q_INVOKABLE static bool execute(const QStringList& command);
     Q_INVOKABLE static bool execute(const QString& program, const QStringList& args = {});
 
-    // Send a desktop notification via notify-send.
+    // Send a desktop notification as PeakShell over the session bus.
     Q_INVOKABLE static void notify(const QString& title, const QString& message, const QString& icon = {});
 
     // Resolve PipeWire client id to application name.

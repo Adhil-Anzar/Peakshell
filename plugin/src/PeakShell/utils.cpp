@@ -1,10 +1,13 @@
 #include "utils.hpp"
 
 #include <csignal>
+#include <qdbusconnection.h>
+#include <qdbusmessage.h>
 #include <qdir.h>
 #include <qhash.h>
 #include <qprocess.h>
 #include <qregularexpression.h>
+#include <qvariant.h>
 
 #ifndef PEAKSHELL_VERSION
 #define PEAKSHELL_VERSION "dev"
@@ -59,12 +62,24 @@ bool Utils::execute(const QString& program, const QStringList& args) {
 }
 
 void Utils::notify(const QString& title, const QString& message, const QString& icon) {
-    QStringList args;
-    args << title << message;
-    if (!icon.isEmpty()) {
-        args << u"-i"_s << icon;
-    }
-    QProcess::startDetached(u"notify-send"_s, args);
+    // Post straight to the notification server as PeakShell instead of spawning
+    // notify-send, so the shell is credited as the caller rather than the tool.
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        u"org.freedesktop.Notifications"_s,
+        u"/org/freedesktop/Notifications"_s,
+        u"org.freedesktop.Notifications"_s,
+        u"Notify"_s);
+
+    call << u"PeakShell"_s   // app_name
+         << 0u               // replaces_id
+         << icon             // app_icon
+         << title            // summary
+         << message          // body
+         << QStringList{}    // actions
+         << QVariantMap{}    // hints
+         << -1;              // expire_timeout (server default)
+
+    QDBusConnection::sessionBus().send(call);
 }
 
 QString Utils::pipewireClientAppName(int clientId) {
