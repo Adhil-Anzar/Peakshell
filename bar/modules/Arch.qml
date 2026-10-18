@@ -656,6 +656,8 @@ Rectangle {
                         spacing: 8
                         // Battery
                         Rectangle {
+                            // Battery readout and power-mode picker: laptop only.
+                            visible: Platform.isLaptop
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.alignment: Qt.AlignCenter
@@ -693,7 +695,7 @@ Rectangle {
                                         source: Quickshell.iconPath(getIcon())
 
                                         function getIcon() {
-                                            const percentage = Math.round(UPower.displayDevice.percentage * 100);
+                                            const percentage = Math.round(root.batteryPercent * 100);
                                             const p = Math.max(0, Math.min(100, percentage));
 
                                             const step = Math.floor(p / 10) * 10;
@@ -710,7 +712,7 @@ Rectangle {
                                     }
                                     Text {
                                         Layout.alignment: Qt.AlignVCenter
-                                        text: Math.round(UPower.displayDevice.percentage * 100) + "%"
+                                        text: Math.round(root.batteryPercent * 100) + "%"
                                         color: Theme.fgColor
                                         font.pointSize: Theme.labelFontSize
                                         font.family: Theme.labelFontFamily
@@ -723,7 +725,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     from: 0
                                     to: 1
-                                    value: visible ? UPower.displayDevice.percentage : 0
+                                    value: visible ? root.batteryPercent : 0
                                     Behavior on value {
                                         Anim {
                                             type: Anim.SlowSpatial

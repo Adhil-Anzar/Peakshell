@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import PeakShell
+import "root:/services"
 import "../../widgets"
 
 ColumnLayout {
@@ -22,6 +23,8 @@ ColumnLayout {
     }
     Section {
         title: "Power"
+        // Low battery warning cannot fire without a battery.
+        visible: Platform.isLaptop
         Row { label: "Low battery warning"; hint: "Percent triggering the warning"; NumField { width: parent.width; value: Settings.lowPowerThreshold; from: 1; to: 50; step: 1; isInt: true; onEdited: v => Settings.lowPowerThreshold = v } }
     }
 }
