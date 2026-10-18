@@ -3,6 +3,7 @@
 #include "../settings.hpp"
 
 #include <algorithm>
+#include <initializer_list>
 #include <utility>
 #include <qbuffer.h>
 #include <qclipboard.h>
@@ -166,6 +167,18 @@ ClipboardManager::ClipboardManager(QObject* parent)
     m_wtypePath = QStandardPaths::findExecutable(u"wtype"_s);
     refresh();
     startPoller();
+}
+
+ClipboardManager::~ClipboardManager() {
+    // wl-paste --watch and the poller outlive individual captures; stop them so
+    // the process is not torn down while they run (PR_SET_PDEATHSIG only covers
+    // a hard kill of the shell).
+    for (QProcess* process : { m_poll, m_watch }) {
+        if (process == nullptr || process->state() == QProcess::NotRunning)
+            continue;
+        process->kill();
+        process->waitForFinished(200);
+    }
 }
 
 void ClipboardManager::startPoller() {

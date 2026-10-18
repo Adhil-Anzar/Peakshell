@@ -25,6 +25,7 @@ class ClipboardManager : public QObject {
 
 public:
     explicit ClipboardManager(QObject* parent = nullptr);
+    ~ClipboardManager() override;
 
     [[nodiscard]] int count() const;
 
