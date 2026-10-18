@@ -33,6 +33,9 @@ RowLayout {
         id: slot
         Layout.preferredWidth: 260
         Layout.alignment: Qt.AlignVCenter
-        implicitHeight: childrenRect.height
+        // childrenRect folds the control's laid-out geometry back into the
+        // layout and loops (Qt logs "Binding loop detected for implicitHeight").
+        // The control's own implicit height does not depend on this item.
+        implicitHeight: slot.children.length > 0 ? slot.children[0].implicitHeight : 0
     }
 }
