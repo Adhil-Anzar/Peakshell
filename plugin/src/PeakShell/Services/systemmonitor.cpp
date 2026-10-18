@@ -1,15 +1,24 @@
 #include "systemmonitor.hpp"
 
+#include <qbytearray.h>
 #include <qdir.h>
 #include <qfile.h>
 #include <qprocess.h>
 #include <qregularexpression.h>
+#include <qtimer.h>
 
 namespace peakshell::services {
 
 using Qt::StringLiterals::operator""_s;
 
 SystemMonitor::SystemMonitor(QObject *parent) : TickingService(parent) {}
+
+SystemMonitor::~SystemMonitor() {
+  if (m_probe && m_probe->state() != QProcess::NotRunning) {
+    m_probe->kill();
+    m_probe->waitForFinished(200);
+  }
+}
 
 int SystemMonitor::cpuLoad() const { return m_cpuLoad; }
 int SystemMonitor::cpuTemp() const { return m_cpuTemp; }
@@ -20,9 +29,9 @@ int SystemMonitor::memUsage() const { return m_memUsage; }
 void SystemMonitor::tick() {
   refreshCpuLoad();
   refreshCpuTemp();
-  refreshGpuLoad();
-  refreshGpuTemp();
+  refreshGpuSysfs();
   refreshMemory();
+  maybeStartGpuProbe();
 }
 
 void SystemMonitor::refreshCpuLoad() {
@@ -82,8 +91,10 @@ void SystemMonitor::refreshCpuTemp() {
   }
 }
 
-void SystemMonitor::refreshGpuLoad() {
-  int load = 0;
+void SystemMonitor::refreshGpuSysfs() {
+  int load = -1;
+  int temp = -1;
+
   const QDir drmDir(u"/sys/class/drm"_s);
   const QStringList cards = drmDir.entryList({u"card*"_s}, QDir::Dirs);
   for (const QString &card : cards) {
@@ -91,74 +102,140 @@ void SystemMonitor::refreshGpuLoad() {
     if (f.open(QIODevice::ReadOnly)) {
       const int val = f.readAll().trimmed().toInt();
       f.close();
+      m_sysfsLoadKnown = true;
       if (val > load)
         load = val;
     }
-  }
 
-  // Fallback for NVIDIA or cards without sysfs busy percent: query nvidia-smi
-  if (load == 0) {
-    QProcess process;
-    process.start(u"nvidia-smi"_s, {u"--query-gpu=utilization.gpu"_s,
-                                    u"--format=csv,noheader,nounits"_s});
-    if (process.waitForFinished(500)) {
-      const QString output =
-          QString::fromLocal8Bit(process.readAllStandardOutput()).trimmed();
-      bool ok = false;
-      const int val = output.toInt(&ok);
-      if (ok && val > load) {
-        load = val;
-      }
-    }
-  }
-
-  if (load != m_gpuLoad) {
-    m_gpuLoad = load;
-    emit gpuLoadChanged();
-  }
-}
-
-void SystemMonitor::refreshGpuTemp() {
-  int t = 0;
-  const QDir drmDir(u"/sys/class/drm"_s);
-  const QStringList cards = drmDir.entryList({u"card*"_s}, QDir::Dirs);
-  for (const QString &card : cards) {
     const QDir hwDir(drmDir.filePath(card + u"/device/hwmon"_s));
     const QStringList hwmons = hwDir.entryList({u"hwmon*"_s}, QDir::Dirs);
     for (const QString &hwmon : hwmons) {
-      QFile f(hwDir.filePath(hwmon + u"/temp1_input"_s));
-      if (!f.open(QIODevice::ReadOnly))
+      QFile t(hwDir.filePath(hwmon + u"/temp1_input"_s));
+      if (!t.open(QIODevice::ReadOnly))
         continue;
-      const int deg = f.readAll().trimmed().toInt() / 1000;
-      f.close();
-      if (deg > t)
-        t = deg;
+      const int deg = t.readAll().trimmed().toInt() / 1000;
+      t.close();
+      m_sysfsTempKnown = true;
+      if (deg > temp)
+        temp = deg;
     }
   }
 
-  if (t == 0) {
-    t = readHwmonTemp({u"amdgpu"_s, u"nvidia"_s, u"nouveau"_s});
-  }
-
-  if (t == 0) {
-    QProcess process;
-    process.start(u"nvidia-smi"_s, {u"--query-gpu=temperature.gpu"_s,
-                                    u"--format=csv,noheader,nounits"_s});
-    if (process.waitForFinished(500)) {
-      const QString output =
-          QString::fromLocal8Bit(process.readAllStandardOutput()).trimmed();
-      bool ok = false;
-      const int val = output.toInt(&ok);
-      if (ok && val > t) {
-        t = val;
-      }
+  if (temp <= 0) {
+    const int hwmonTemp = readHwmonTemp({u"amdgpu"_s, u"nvidia"_s, u"nouveau"_s});
+    if (hwmonTemp > 0) {
+      m_sysfsTempKnown = true;
+      temp = hwmonTemp;
     }
   }
 
-  if (t != m_gpuTemp) {
-    m_gpuTemp = t;
-    emit gpuTempChanged();
+  if (load >= 0)
+    setGpuLoad(load);
+  if (temp > 0)
+    setGpuTemp(temp);
+}
+
+// Starts the single long-lived nvidia-smi probe when this machine has an NVIDIA
+// GPU and sysfs has not already reported both metrics. Called once per tick but
+// is a no-op after the probe is running (or once it has been ruled out).
+void SystemMonitor::maybeStartGpuProbe() {
+  if (m_probe || !m_probeWanted)
+    return;
+  if (m_sysfsLoadKnown && m_sysfsTempKnown) {
+    m_probeWanted = false;
+    return;
   }
+  if (!QFile::exists(u"/dev/nvidia0"_s)) {
+    m_probeWanted = false;
+    return;
+  }
+  startGpuProbe();
+}
+
+void SystemMonitor::startGpuProbe() {
+  m_probe = new QProcess(this);
+  m_probe->setProgram(u"nvidia-smi"_s);
+  m_probe->setArguments({u"--query-gpu=utilization.gpu,temperature.gpu"_s,
+                         u"--format=csv,noheader,nounits"_s,
+                         u"--loop-ms=1000"_s});
+  connect(m_probe, &QProcess::readyReadStandardOutput, this,
+          &SystemMonitor::readGpuProbe);
+  connect(m_probe, &QProcess::finished, this,
+          &SystemMonitor::onGpuProbeFinished);
+  connect(m_probe, &QProcess::errorOccurred, this,
+          [this](QProcess::ProcessError error) {
+            if (error == QProcess::FailedToStart)
+              m_probeWanted = false;
+          });
+  m_probe->start();
+}
+
+// Parses "<load>, <temp>" lines as they arrive. Never blocks.
+void SystemMonitor::readGpuProbe() {
+  m_probeBuffer += m_probe->readAllStandardOutput();
+
+  for (;;) {
+    const qsizetype newline = m_probeBuffer.indexOf('\n');
+    if (newline < 0)
+      break;
+    const QByteArray line = m_probeBuffer.left(newline).trimmed();
+    m_probeBuffer.remove(0, newline + 1);
+    if (line.isEmpty())
+      continue;
+
+    const QList<QByteArray> fields = line.split(',');
+    if (fields.isEmpty())
+      continue;
+
+    bool ok = false;
+    const int load = fields.first().trimmed().toInt(&ok);
+    if (ok && !m_sysfsLoadKnown)
+      setGpuLoad(load);
+
+    if (fields.size() > 1) {
+      const int temp = fields.at(1).trimmed().toInt(&ok);
+      if (ok && !m_sysfsTempKnown)
+        setGpuTemp(temp);
+    }
+
+    // A parsed line means the probe is healthy; allow future restarts.
+    m_probeFailures = 0;
+  }
+}
+
+void SystemMonitor::onGpuProbeFinished(int exitCode, QProcess::ExitStatus status) {
+  Q_UNUSED(exitCode)
+  Q_UNUSED(status)
+  m_probeBuffer.clear();
+  if (m_probe) {
+    m_probe->deleteLater();
+    m_probe = nullptr;
+  }
+  if (!m_probeWanted)
+    return;
+  // nvidia-smi normally loops until killed; if it keeps exiting, stop respawning.
+  if (++m_probeFailures > 5) {
+    m_probeWanted = false;
+    return;
+  }
+  QTimer::singleShot(5000, this, [this] {
+    if (m_probeWanted && !m_probe)
+      startGpuProbe();
+  });
+}
+
+void SystemMonitor::setGpuLoad(int load) {
+  if (load == m_gpuLoad)
+    return;
+  m_gpuLoad = load;
+  emit gpuLoadChanged();
+}
+
+void SystemMonitor::setGpuTemp(int temp) {
+  if (temp == m_gpuTemp)
+    return;
+  m_gpuTemp = temp;
+  emit gpuTempChanged();
 }
 
 void SystemMonitor::refreshMemory() {
