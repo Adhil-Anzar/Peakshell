@@ -1,5 +1,6 @@
 #pragma once
 
+#include <qbytearray.h>
 #include <qimage.h>
 #include <qlist.h>
 #include <qobject.h>
@@ -76,6 +77,11 @@ private:
     static QString summarize(const QString& text);
 
     void startPoller();
+    void startWatcher();
+    void onClipboardEvent();
+    void onWatcherFinished(int exitCode, QProcess::ExitStatus status);
+    void usePollTimer();
+    void finishPoll();
     void schedulePoll();
     void pollTick();
     void onPollFinished(int exitCode, QProcess::ExitStatus status);
@@ -96,6 +102,11 @@ private:
     QProcess* m_poll = nullptr;
     QTimer m_pollTimer;
     QTimer m_pollTimeout;
+    // Long-lived `wl-paste --watch` used to turn clipboard changes into events.
+    QProcess* m_watch = nullptr;
+    bool m_watchMode = false;
+    int m_watchFailures = 0;
+    bool m_pendingEvent = false;
     QString m_wlPastePath;
     QString m_wtypePath;
     QString m_pendingTextMime;
@@ -105,6 +116,10 @@ private:
     bool m_wlPasteAvailable = false;
     bool m_readingImage = false;
     bool m_readingFile = false;
+    // Raw payload of the last image captured off the clipboard. wl-paste returns
+    // identical bytes for an unchanged clipboard, so this lets the poller skip
+    // the expensive decode/re-encode while nothing has actually changed.
+    QByteArray m_lastImagePayload;
 };
 
 } // namespace peakshell::apps

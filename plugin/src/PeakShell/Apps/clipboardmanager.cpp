@@ -25,6 +25,11 @@
 #include <quuid.h>
 #include <qbytearray.h>
 
+#ifdef Q_OS_LINUX
+#include <csignal>
+#include <sys/prctl.h>
+#endif
+
 namespace peakshell::apps {
 
 using Qt::StringLiterals::operator""_s;
@@ -177,22 +182,111 @@ void ClipboardManager::startPoller() {
     m_pollTimeout.setSingleShot(true);
     m_pollTimeout.setInterval(3000);
     connect(&m_pollTimeout, &QTimer::timeout, this, [this] {
-        if (m_poll && m_poll->state() != QProcess::NotRunning)
+        if (m_poll && m_poll->state() != QProcess::NotRunning) {
+            qCWarning(lcClip) << "clipboard: timed out reading the selection; dropping this capture";
             m_poll->kill();
-        m_pollState = PollState::Idle;
-        schedulePoll();
+        }
+        finishPoll();
     });
-    m_pollTimer.start();
+    startWatcher();
+}
+
+// Watches the selection instead of probing it once a second: wl-paste runs the
+// helper on every change and the helper prints one line per event, so reading
+// the payload (the expensive half) only happens when something really changed.
+void ClipboardManager::startWatcher() {
+    if (m_watch)
+        return;
+    m_watch = new QProcess(this);
+    m_watch->setProgram(m_wlPastePath);
+    // Consumes stdin, so a large payload is never written into a dead pipe.
+    m_watch->setArguments({u"--watch"_s, u"wc"_s, u"-c"_s});
+#ifdef Q_OS_LINUX
+    // The watcher idles between changes, so it never notices a closed pipe and
+    // would survive the shell being killed (Qt destructors do not run then).
+    m_watch->setChildProcessModifier([] { ::prctl(PR_SET_PDEATHSIG, SIGKILL); });
+#endif
+    connect(m_watch, &QProcess::readyReadStandardOutput, this,
+            &ClipboardManager::onClipboardEvent);
+    connect(m_watch, &QProcess::finished, this, &ClipboardManager::onWatcherFinished);
+    connect(m_watch, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            qCWarning(lcClip) << "clipboard: failed to start" << m_wlPastePath;
+            usePollTimer();
+        }
+    });
+    m_watchMode = true;
+    m_watch->start();
+    // --watch only reports changes, so grab whatever is already on the clipboard.
+    if (m_pollState == PollState::Idle)
+        pollTick();
+}
+
+void ClipboardManager::onClipboardEvent() {
+    // Always drain: an unread process keeps signalling without pausing.
+    if (m_watch)
+        m_watch->readAllStandardOutput();
+    m_watchFailures = 0;
+    m_pendingEvent = true;
+    if (m_pollState == PollState::Idle)
+        pollTick();
+}
+
+void ClipboardManager::onWatcherFinished(int exitCode, QProcess::ExitStatus status) {
+    Q_UNUSED(exitCode)
+    Q_UNUSED(status)
+    if (m_watch) {
+        m_watch->deleteLater();
+        m_watch = nullptr;
+    }
+    if (!m_watchMode)
+        return;
+    if (++m_watchFailures > 3) {
+        qCWarning(lcClip) << "clipboard: wl-paste --watch keeps exiting; falling back to polling";
+        usePollTimer();
+        return;
+    }
+    QTimer::singleShot(1000, this, [this] {
+        if (m_watchMode)
+            startWatcher();
+    });
+}
+
+// Fallback for wl-clipboard builds without a working --watch.
+void ClipboardManager::usePollTimer() {
+    m_watchMode = false;
+    if (m_watch) {
+        m_watch->deleteLater();
+        m_watch = nullptr;
+    }
+    if (m_wlPasteAvailable && !m_pollTimer.isActive())
+        m_pollTimer.start();
+}
+
+// Ends the current poll and either picks up a change that arrived mid-poll or
+// goes back to waiting (the 1s timer in fallback mode).
+void ClipboardManager::finishPoll() {
+    m_pollState = PollState::Idle;
+    if (m_pendingEvent) {
+        m_pendingEvent = false;
+        pollTick();
+        return;
+    }
+    schedulePoll();
 }
 
 void ClipboardManager::schedulePoll() {
-    if (m_wlPasteAvailable && !m_pollTimer.isActive())
+    // While watching, the next poll is triggered by a selection change instead.
+    if (!m_wlPasteAvailable || m_watchMode)
+        return;
+    if (!m_pollTimer.isActive())
         m_pollTimer.start();
 }
 
 void ClipboardManager::pollTick() {
     if (!m_wlPasteAvailable || m_pollState != PollState::Idle)
         return;
+    m_pendingEvent = false;
     m_pollState = PollState::Listing;
     m_pendingTextMime.clear();
     m_pendingImageMime.clear();
@@ -205,8 +299,7 @@ void ClipboardManager::onPollFinished(int exitCode, QProcess::ExitStatus status)
     m_pollTimeout.stop();
     const QByteArray data = m_poll->readAllStandardOutput();
     if (status != QProcess::NormalExit || exitCode != 0) {
-        m_pollState = PollState::Idle;
-        schedulePoll();
+        finishPoll();
         return;
     }
 
@@ -248,8 +341,7 @@ void ClipboardManager::onPollFinished(int exitCode, QProcess::ExitStatus status)
             m_poll->start(m_wlPastePath, QStringList{ u"--type"_s, m_pendingImageMime });
             return;
         }
-        m_pollState = PollState::Idle;
-        schedulePoll();
+        finishPoll();
         return;
     }
 
@@ -261,8 +353,7 @@ void ClipboardManager::onPollFinished(int exitCode, QProcess::ExitStatus status)
             m_pendingTextMime.clear();
             m_pendingImageMime.clear();
             m_pendingFileMime.clear();
-            m_pollState = PollState::Idle;
-            schedulePoll();
+            finishPoll();
             return;
         }
         // The uri-list held only remote links; fall back to the text payload.
@@ -275,15 +366,22 @@ void ClipboardManager::onPollFinished(int exitCode, QProcess::ExitStatus status)
         m_pendingTextMime.clear();
         m_pendingImageMime.clear();
         m_pendingFileMime.clear();
-        m_pollState = PollState::Idle;
-        schedulePoll();
+        finishPoll();
         return;
     }
 
     if (m_readingImage) {
-        QImage image;
-        if (image.loadFromData(data))
-            addImage(image);
+        // Decoding the payload and re-encoding it to PNG is expensive (tens to
+        // hundreds of ms for a screenshot) and happened once per poll. wl-paste
+        // hands back identical bytes while the clipboard is unchanged, so skip
+        // the work unless the payload actually differs.
+        if (data != m_lastImagePayload) {
+            QImage image;
+            if (image.loadFromData(data)) {
+                m_lastImagePayload = data;
+                addImage(image);
+            }
+        }
     } else {
         addText(QString::fromUtf8(data));
     }
@@ -291,8 +389,7 @@ void ClipboardManager::onPollFinished(int exitCode, QProcess::ExitStatus status)
     m_pendingTextMime.clear();
     m_pendingImageMime.clear();
     m_pendingFileMime.clear();
-    m_pollState = PollState::Idle;
-    schedulePoll();
+    finishPoll();
 }
 
 int ClipboardManager::count() const {
@@ -347,6 +444,8 @@ void ClipboardManager::onClipboardChanged() {
 }
 
 void ClipboardManager::addText(const QString& text) {
+    // The live clipboard is no longer the image we may have cached.
+    m_lastImagePayload.clear();
     if (text.isEmpty())
         return;
     const QString fingerprint = textFingerprint(text);
@@ -419,6 +518,8 @@ void ClipboardManager::addImage(const QImage& image) {
 }
 
 void ClipboardManager::addFiles(const QStringList& paths) {
+    // The live clipboard is no longer the image we may have cached.
+    m_lastImagePayload.clear();
     if (paths.isEmpty())
         return;
     const QString fingerprint = u"f:"_s + paths.join(u'\n');
@@ -720,6 +821,8 @@ void ClipboardManager::clearLiveClipboard(const QString& fingerprint) {
     // Guard against a poll that already read the old payload before we wiped
     // the clipboard: the next matching capture is dropped and the guard reset.
     m_clearGuard = fingerprint;
+    // A recopied image must be re-evaluated even if its bytes match the cache.
+    m_lastImagePayload.clear();
     if (QClipboard* clipboard = QGuiApplication::clipboard())
         clipboard->clear();
 }
