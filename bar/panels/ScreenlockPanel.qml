@@ -16,9 +16,26 @@ Scope {
     property string authError: ""
     property bool authenticating: false
     property string pendingPassword: ""
+
+    // Emitted from the outer scope so the lock surface can react to events
+    // triggered by PamContext. Ids declared inside WlSessionLockSurface are
+    // not visible here.
+    signal shakeRequested()
+    signal unlockingRequested()
+
     function lock() {
         sessionLock.locked = true;
     }
+
+    function failAuthentication(message) {
+        if (pam.active)
+            pam.abort();
+        authenticating = false;
+        pendingPassword = "";
+        authError = message;
+        shakeRequested();
+    }
+
     IpcHandler {
         target: "lock"
         function lock() {
@@ -30,31 +47,47 @@ Scope {
         config: "login"
 
         onCompleted: result => {
+            authTimeout.stop();
             lockScope.authenticating = false;
+            lockScope.pendingPassword = "";
             if (result === PamResult.Success) {
                 lockScope.authError = "";
-                // Release the password field before the lock surface hides so
-                // the Wayland text-input protocol disables against a mapped,
-                // focused surface instead of logging disableSurface warnings.
-                pwdInput.focus = false;
+                // Clear focus while the surface is still mapped, then unlock.
+                lockScope.unlockingRequested();
                 sessionLock.locked = false;
             } else {
-                lockScope.authError = pam.message !== "" ? pam.message : "Authentication failed.";
-                shakeAnim.start();
+                if (lockScope.authError === "")
+                    lockScope.authError = "Authentication failed.";
+                lockScope.shakeRequested();
             }
         }
 
         onResponseRequiredChanged: {
-            if (responseRequired && lockScope.pendingPassword !== "") {
+            if (!responseRequired)
+                return;
+            if (lockScope.pendingPassword !== "") {
                 respond(lockScope.pendingPassword);
                 lockScope.pendingPassword = "";
+            } else {
+                // Never leave PAM waiting for a response we cannot provide.
+                lockScope.failAuthentication("Authentication failed.");
             }
         }
 
         onError: err => {
-            lockScope.authenticating = false;
+            // onCompleted(Error) is emitted right after this and handles the
+            // state reset, so only set the more specific message here.
             lockScope.authError = "PAM session error.";
-            shakeAnim.start();
+        }
+    }
+
+    Timer {
+        id: authTimeout
+        interval: 15000
+        repeat: false
+        onTriggered: {
+            if (lockScope.authenticating)
+                lockScope.failAuthentication("Authentication timed out.");
         }
     }
 
@@ -68,7 +101,11 @@ Scope {
         if (pam.active) {
             pam.abort();
         }
-        pam.start();
+        if (!pam.start()) {
+            failAuthentication("Unable to start authentication.");
+            return;
+        }
+        authTimeout.restart();
     }
 
     WlSessionLock {
@@ -80,6 +117,20 @@ Scope {
             onVisibleChanged: {
                 if (visible) {
                     pwdInput.forceActiveFocus();
+                }
+            }
+
+            Connections {
+                target: lockScope
+
+                function onShakeRequested() {
+                    shakeAnim.restart();
+                }
+
+                function onUnlockingRequested() {
+                    // Drop text-input focus while the surface is still mapped
+                    // so the Wayland text-input protocol disables cleanly.
+                    pwdInput.focus = false;
                 }
             }
 
