@@ -31,6 +31,8 @@ ColumnLayout {
         Row { label: "Bluetooth panel width"; NumField { width: parent.width; value: Settings.bluetoothPanelWidth; from: 200; to: 800; step: 1; onEdited: v => Settings.bluetoothPanelWidth = v } }
         Row { label: "Bluetooth items shown"; NumField { width: parent.width; value: Settings.bluetoothItemMaxCount; from: 1; to: 30; step: 1; onEdited: v => Settings.bluetoothItemMaxCount = v } }
         Row { label: "Bluetooth item size"; NumField { width: parent.width; value: Settings.bluetoothItemSize; from: 20; to: 200; step: 1; onEdited: v => Settings.bluetoothItemSize = v } }
+        Row { label: "Brightness panel width"; NumField { width: parent.width; value: Settings.brightnessPanelWidth; from: 200; to: 800; step: 1; onEdited: v => Settings.brightnessPanelWidth = v } }
+        Row { label: "Brightness item height"; NumField { width: parent.width; value: Settings.brightnessItemSize; from: 40; to: 200; step: 1; onEdited: v => Settings.brightnessItemSize = v } }
         Row { label: "Media panel width"; NumField { width: parent.width; value: Settings.mediaPanelWidth; from: 240; to: 800; step: 1; onEdited: v => Settings.mediaPanelWidth = v } }
         Row { label: "Workspace panel width"; NumField { width: parent.width; value: Settings.workspacePanelWidth; from: 200; to: 800; step: 1; onEdited: v => Settings.workspacePanelWidth = v } }
         Row { label: "Workspace panel height"; NumField { width: parent.width; value: Settings.workspacePanelHeight; from: 40; to: 300; step: 1; onEdited: v => Settings.workspacePanelHeight = v } }

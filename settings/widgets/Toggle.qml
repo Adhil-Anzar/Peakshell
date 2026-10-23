@@ -1,5 +1,6 @@
 import QtQuick
 import PeakShell
+import "root:/"
 
 Rectangle {
     property bool checked: false
@@ -7,7 +8,8 @@ Rectangle {
     implicitWidth: 46
     implicitHeight: 26
     radius: 13
-    color: checked ? Settings.accent : Settings.mutedBgColor
+    opacity: enabled ? 1 : 0.45
+    color: checked ? Theme.accent : Settings.mutedBgColor
     Behavior on color {
         ColorAnimation { duration: 150 }
     }

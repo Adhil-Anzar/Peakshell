@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import PeakShell
 import PeakShell.Wallpapers
 
 Singleton {
@@ -79,6 +80,55 @@ Singleton {
     property var currentWallpaper: (currentTabItems && currentTabItems.length > 0 && currentTabIndex >= 0 && currentTabIndex < currentTabItems.length)
         ? currentTabItems[currentTabIndex]
         : (gradients.length > 0 ? gradients[0] : null)
+
+    readonly property bool canCycleAccent: Settings.accentFromWallpaper
+        && Settings.accentCycleEnabled
+        && currentWallpaper !== null
+        && (currentWallpaper.type === "video"
+            || (currentWallpaper.type === "gradient"
+                && currentWallpaper.colors
+                && currentWallpaper.colors.length > 1))
+
+    property int accentStep: 0
+
+    onCurrentWallpaperChanged: {
+        root.accentStep = 0;
+        root.updateAccent();
+    }
+
+    Timer {
+        id: accentCycleTimer
+        interval: Math.max(1, Settings.accentCycleInterval) * 1000
+        running: root.canCycleAccent
+        repeat: true
+        onTriggered: {
+            root.accentStep += 1;
+            root.updateAccent();
+        }
+    }
+
+    function updateAccent() {
+        if (!Settings.accentFromWallpaper)
+            return;
+
+        const wp = currentWallpaper;
+        if (!wp)
+            return;
+
+        const swatches = wp.colors ? wp.colors : (wp.color ? [wp.color] : []);
+        const cycle = root.canCycleAccent;
+        const frameTime = cycle && wp.type === "video"
+            ? root.accentStep * Math.max(1, Settings.accentCycleInterval)
+            : 0;
+        WallpaperAccent.update(
+            wp.path ? wp.path.toString() : "",
+            wp.type || "",
+            swatches,
+            cycle,
+            root.accentStep,
+            frameTime
+        );
+    }
 
     onCurrentTabItemsChanged: {
         if (currentTabItems && currentTabItems.length > 0) {
@@ -201,6 +251,41 @@ Singleton {
         if (!currentWallpaper && currentTabItems && currentTabItems.length > 0) {
             currentTabIndex = 0;
             currentWallpaper = currentTabItems[0];
+        }
+        root.updateAccent();
+    }
+
+    Connections {
+        target: WallpaperAccent
+
+        function onColorChanged() {
+            if (Settings.accentFromWallpaper && WallpaperAccent.color.length > 0)
+                Settings.accent = WallpaperAccent.color;
+        }
+    }
+
+    Connections {
+        target: Settings
+
+        function onAccentFromWallpaperChanged() {
+            root.accentStep = 0;
+            root.updateAccent();
+        }
+
+        function onAccentChanged() {
+            if (Settings.accentFromWallpaper && WallpaperAccent.color.length > 0
+                    && Settings.accent !== WallpaperAccent.color)
+                Settings.accent = WallpaperAccent.color;
+        }
+
+        function onAccentCycleEnabledChanged() {
+            root.accentStep = 0;
+            root.updateAccent();
+        }
+
+        function onAccentCycleIntervalChanged() {
+            root.accentStep = 0;
+            root.updateAccent();
         }
     }
 

@@ -32,7 +32,7 @@ PanelWindow {
     property string placeholderText: ""
     property int _placeholderIndex: -1
     readonly property var placeholderPool: {
-        var pool = ["Enter copies and pastes it · Shift+Enter just copies", "Ctrl+Space to preview an item", "Hold Alt to reveal the shortcuts", "Hold Alt to see exact timestamps", "Delete removes an item from history", "Ctrl+Delete clears the whole history", "Escape closes the panel", "Text, images and files all wait here", "Copy anything and it lands right here", "What are we copying next?", "Your recent copies, one search away"];
+        var pool = ["Enter copies and pastes it · Shift+Enter just copies", "Ctrl+Space toggles the preview", "Hold Alt to reveal the shortcuts", "Hold Alt to see exact timestamps", "Delete removes an item from history", "Ctrl+Delete clears the whole history", "Escape closes the panel", "Text, images and files all wait here", "Copy anything and it lands right here", "What are we copying next?", "Your recent copies, one search away"];
         if (Settings.clipboardFuzzy)
             pool.splice(3, 0, "Type to search: fuzzy, so typos are welcome");
         return pool;
@@ -42,6 +42,111 @@ PanelWindow {
     readonly property int displayCount: Math.min(visibleCount, maxVisibleItems)
     readonly property int selectedIndex: (clipList.currentIndex >= 0) ? clipList.currentIndex : (visibleCount > 0 ? 0 : -1)
     readonly property var previewEntry: (selectedIndex >= 0 && selectedIndex < results.length) ? results[selectedIndex] : null
+    readonly property int previewMaxChars: 12000
+    readonly property int previewMaxLines: 200
+    property var previewLines: []
+    property var filePreview: ({})
+    readonly property string previewMode: {
+        if (!previewEntry)
+            return "";
+        if (previewEntry.kind === "image")
+            return "image";
+        if (previewEntry.kind === "text")
+            return "text";
+        if (previewEntry.kind === "file")
+            return filePreview.kind || "";
+        return "unsupported";
+    }
+    readonly property string previewImageSource: previewMode === "image"
+        ? (previewEntry.kind === "image" ? (previewEntry.imageSource || "") : (filePreview.imageSource || ""))
+        : ""
+
+    onShowPreviewChanged: {
+        if (showPreview)
+            previewDebounce.restart();
+        else {
+            previewDebounce.stop();
+            previewLines = [];
+            filePreview = ({});
+        }
+    }
+
+    onPreviewEntryChanged: {
+        previewLines = [];
+        filePreview = ({});
+        if (showPreview)
+            previewDebounce.restart();
+    }
+
+    function highlightTextLines(rawText, mimeType, sourceTruncated, note, fileName) {
+        let text = rawText.substring(0, previewMaxChars);
+        let truncated = sourceTruncated || text.length < rawText.length;
+
+        const lines = text.split("\n");
+        if (lines.length > previewMaxLines) {
+            text = lines.slice(0, previewMaxLines).join("\n");
+            truncated = true;
+        }
+
+        const highlighted = fileName
+            ? Clipboard.highlightFileLines(text, fileName, mimeType || "", Theme.syntaxPalette)
+            : Clipboard.highlightLines(text, mimeType || "", Theme.syntaxPalette);
+        const result = [];
+        for (let i = 0; i < highlighted.length; ++i)
+            result.push(highlighted[i]);
+        if (result.length === 0)
+            result.push("<span style=\"font-style:italic\">Empty file</span>");
+        if (truncated)
+            result.push("<span style=\"font-style:italic\">"
+                + (note || "Preview limited for performance. The full item is still copied.")
+                + "</span>");
+        return result;
+    }
+
+    function refreshPreview() {
+        if (!showPreview || !previewEntry) {
+            previewLines = [];
+            filePreview = ({});
+            return;
+        }
+
+        if (previewEntry.kind === "file") {
+            const paths = previewEntry.paths || [];
+            if (paths.length !== 1) {
+                filePreview = ({ kind: "unsupported" });
+                previewLines = [];
+                return;
+            }
+
+            const info = Clipboard.previewFile(paths[0]);
+            filePreview = info;
+            if (info.kind !== "text") {
+                previewLines = [];
+                return;
+            }
+
+            previewLines = highlightTextLines(info.text || "", info.mime || "",
+                info.truncated === true, "Preview limited for performance.", paths[0]);
+            return;
+        }
+
+        filePreview = ({});
+        if (previewEntry.kind === "image") {
+            previewLines = [];
+            return;
+        }
+
+        previewLines = highlightTextLines(previewEntry.text || "", previewEntry.mime || "", false);
+    }
+
+    // PageUp/PageDown move by most of a viewport, leaving a little context.
+    function scrollPreview(direction) {
+        if (!showPreview || previewMode !== "text")
+            return;
+        const maxY = Math.max(0, previewList.contentHeight - previewList.height);
+        const step = Math.max(24, previewList.height * 0.8);
+        previewList.contentY = Math.max(0, Math.min(maxY, previewList.contentY + direction * step));
+    }
 
     readonly property real listHeight: visibleCount > 0 ? displayCount * Theme.clipboardItemHeight + Math.max(0, displayCount - 1) * itemSpacing : 0
     // Reserve room for the empty-state message so it is actually visible.
@@ -59,6 +164,23 @@ PanelWindow {
         interval: 60
         repeat: false
         onTriggered: root.updateFilter()
+    }
+
+    // Highlighting is deferred until the preview is actually open, and large
+    // items are trimmed before they reach the rich-text layout.
+    Timer {
+        id: previewDebounce
+        interval: 40
+        repeat: false
+        onTriggered: root.refreshPreview()
+    }
+
+    Connections {
+        target: Theme
+        function onAccentChanged() {
+            if (root.showPreview)
+                previewDebounce.restart();
+        }
     }
 
     // Keeps the relative timestamps fresh while the panel is open.
@@ -103,19 +225,13 @@ PanelWindow {
     function previewTitle(entry) {
         if (!entry)
             return "";
-        if (entry.kind === "image")
+        if (root.previewMode === "image")
             return "Image preview";
+        if (root.previewMode === "text")
+            return entry.kind === "file" ? "Text file preview" : "Text preview";
         if (entry.kind === "file")
             return "File preview";
         return "Text preview";
-    }
-
-    function previewBody(entry) {
-        if (!entry)
-            return "";
-        if (entry.kind === "file" && entry.paths)
-            return entry.paths.join("\n");
-        return entry.text || "";
     }
 
     function updateFilter() {
@@ -247,15 +363,15 @@ PanelWindow {
                 event.accepted = true;
                 return;
             }
-            if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
-                root.previewActive = true;
-                event.accepted = true;
-                return;
-            }
             switch (event.key) {
             case Qt.Key_Escape:
-                root.close();
-                event.accepted = true;
+                if (root.previewActive) {
+                    root.previewActive = false;
+                    event.accepted = true;
+                } else {
+                    root.close();
+                    event.accepted = true;
+                }
                 break;
             case Qt.Key_Up:
                 root.moveSelection(-1);
@@ -283,11 +399,6 @@ PanelWindow {
         Keys.onReleased: event => {
             if (event.key === Qt.Key_Alt) {
                 root.altHeld = false;
-                event.accepted = true;
-                return;
-            }
-            if (event.key === Qt.Key_Space) {
-                root.previewActive = false;
                 event.accepted = true;
             }
         }
@@ -380,7 +491,11 @@ PanelWindow {
                                     root.altHeld = true;
                                     event.accepted = true;
                                 } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
-                                    root.previewActive = true;
+                                    root.previewActive = !root.previewActive;
+                                    event.accepted = true;
+                                } else if (root.showPreview
+                                           && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                    root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
                                     event.accepted = true;
                                 } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                                     root.copyCurrent((event.modifiers & Qt.ShiftModifier) === 0);
@@ -399,9 +514,6 @@ PanelWindow {
                             Keys.onReleased: event => {
                                 if (event.key === Qt.Key_Alt) {
                                     root.altHeld = false;
-                                    event.accepted = true;
-                                } else if (event.key === Qt.Key_Space) {
-                                    root.previewActive = false;
                                     event.accepted = true;
                                 }
                             }
@@ -449,6 +561,7 @@ PanelWindow {
                 anchors.right: parent.right
                 height: Math.max(0, panel.height - searchBar.height - root.itemSpacing)
                 clip: true
+                enabled: !root.showPreview
                 opacity: root.visible && !root.showPreview ? 1 : 0
                 Behavior on opacity {
                     EffectsAnim {}
@@ -593,7 +706,7 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onEntered: clipList.currentIndex = del.index
+                            onEntered: if (!root.showPreview) clipList.currentIndex = del.index
                             onClicked: mouse => {
                                 if (mouse.button === Qt.RightButton)
                                     root.removeCurrent();
@@ -668,30 +781,45 @@ PanelWindow {
                     Image {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        visible: root.previewEntry !== null && root.previewEntry.kind === "image"
-                        source: root.previewEntry ? (root.previewEntry.imageSource || "") : ""
+                        visible: root.previewMode === "image"
+                        source: root.previewImageSource
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         smooth: true
                         mipmap: true
                     }
 
-                    Flickable {
+                    // One delegate per line keeps rich-text layout bounded to
+                    // the lines currently visible in the viewport.
+                    ListView {
+                        id: previewList
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        visible: root.previewEntry !== null && root.previewEntry.kind !== "image"
+                        visible: root.previewMode === "text"
                         clip: true
-                        contentWidth: width
-                        contentHeight: previewText.implicitHeight
+                        model: root.previewLines
                         boundsBehavior: Flickable.StopAtBounds
-                        ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded
+                        cacheBuffer: 200
+                        spacing: 0
+                        focus: false
+                        activeFocusOnTab: false
+                        ScrollBar.vertical: RoundedScrollBar {}
+
+                        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
+                                root.previewActive = !root.previewActive;
+                                event.accepted = true;
+                            } else if (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown) {
+                                root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
+                                event.accepted = true;
+                            }
                         }
 
-                        Text {
-                            id: previewText
-                            width: parent.width
-                            text: root.previewBody(root.previewEntry)
+                        delegate: Text {
+                            width: ListView.view.width
+                            height: implicitHeight
+                            text: modelData.length > 0 ? modelData : "\u200b"
+                            textFormat: Text.RichText
                             color: Theme.fgColor
                             font.pointSize: Theme.labelFontSize
                             font.family: Theme.labelFontFamily
@@ -699,6 +827,20 @@ PanelWindow {
                             renderType: Text.CurveRendering
                             antialiasing: true
                         }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: root.previewMode === "unsupported"
+                        text: "Unsupported preview :("
+                        color: Theme.mutedFgColor
+                        font.pointSize: Theme.labelFontSize
+                        font.family: Theme.labelFontFamily
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        renderType: Text.CurveRendering
+                        antialiasing: true
                     }
                 }
             }
@@ -723,7 +865,7 @@ PanelWindow {
                 Text {
                     id: hintText
                     anchors.centerIn: parent
-                    text: root.previewActive ? "Release Ctrl+Space to close preview · ↑↓ browse" : "Enter copy & paste · Shift+Enter copy · Ctrl+Space preview · Alt exact time · Del remove · Ctrl+Del clear · Esc close"
+                    text: root.previewActive ? "Ctrl+Space closes preview · ↑↓ browse · Esc closes preview" : "Enter copy & paste · Shift+Enter copy · Ctrl+Space toggle preview · Alt exact time · Del remove · Ctrl+Del clear · Esc close"
                     color: Theme.mutedFgColor
                     font.pointSize: Theme.labelFontSize * 0.85
                     font.family: Theme.labelFontFamily

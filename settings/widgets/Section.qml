@@ -58,11 +58,13 @@ Rectangle {
         }
         Text {
             Layout.fillWidth: true
+            Layout.preferredWidth: 0
             visible: hint.length > 0
             text: hint
             color: Settings.mutedFgColor
             font.pointSize: Math.max(8, Settings.labelFontSize - 1)
             font.family: Settings.labelFontFamily
+            wrapMode: Text.WordWrap
         }
         ColumnLayout {
             id: body

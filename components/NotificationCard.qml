@@ -45,6 +45,28 @@ Rectangle {
         return parts.join("\n");
     }
 
+    readonly property var visibleActions: {
+        var source = root.actions || [];
+        var out = [];
+        for (var i = 0; i < source.length; ++i) {
+            var action = source[i];
+            if (action && String(action.text || "").trim().length > 0)
+                out.push(action);
+        }
+        return out;
+    }
+    readonly property bool hasSingleAction: visibleActions.length === 1
+
+    function invokeAction(action) {
+        if (!action)
+            return;
+        Notifications.invokeAction(root.entryKey, action.identifier);
+    }
+
+    function copyNotification() {
+        copyButton.copy();
+    }
+
     implicitWidth: Theme.notificationPopupWidth
     implicitHeight: mainCol.implicitHeight + 24
     radius: Theme.cornerLargeRadius
@@ -83,9 +105,19 @@ Rectangle {
         id: notifMouse
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton
-        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: root.cardClicked()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        cursorShape: (root.clickable || root.visibleActions.length > 0) ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton) {
+                root.copyNotification();
+                return;
+            }
+            if (root.hasSingleAction) {
+                root.invokeAction(root.visibleActions[0]);
+                return;
+            }
+            root.cardClicked();
+        }
     }
 
     ColumnLayout {
@@ -164,13 +196,17 @@ Rectangle {
 
         Row {
             Layout.fillWidth: true
+            visible: Theme.notificationShowCopyButton || root.visibleActions.length > 0
             spacing: 6
             CopyButton {
+                id: copyButton
+                visible: Theme.notificationShowCopyButton
                 copyText: root.plainText()
             }
             Repeater {
-                model: root.actions
+                model: root.visibleActions
                 delegate: Rectangle {
+                    id: actionDelegate
                     required property var modelData
                     height: actionLabel.implicitHeight + 12
                     width: Math.min(actionLabel.implicitWidth + 20, 160)
@@ -184,13 +220,13 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Notifications.invokeAction(root.entryKey, parent.modelData.identifier)
+                        onClicked: root.invokeAction(actionDelegate.modelData)
                     }
                     Text {
                         id: actionLabel
                         anchors.centerIn: parent
                         width: parent.width - 20
-                        text: parent.modelData.text
+                        text: actionDelegate.modelData.text
                         color: Theme.fgColor
                         font.pointSize: Theme.labelFontSize * 0.9
                         font.family: Theme.labelFontFamily

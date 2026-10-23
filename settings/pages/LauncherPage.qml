@@ -5,6 +5,10 @@ import "../widgets"
 
 ColumnLayout {
     spacing: 12
+
+    readonly property string folderTerm: Settings.launcherFolderTerm === "folder" ? "folder" : "directory"
+    readonly property string folderTermPlural: folderTerm + "s"
+
     Section {
         title: "Features"
         resetLabel: "Reset launcher"
@@ -28,7 +32,7 @@ ColumnLayout {
             }
         }
         Row {
-            label: "Fuzzy search"
+            label: "Fuzzy app search"
             hint: "Off means only literal substring matches are shown"
             Toggle {
                 x: parent.width - width
@@ -52,6 +56,88 @@ ColumnLayout {
                 x: parent.width - width
                 checked: Settings.launcherWallpaperActions
                 onToggled: v => Settings.launcherWallpaperActions = v
+            }
+        }
+    }
+    Section {
+        title: "Scoped search"
+        hint: Settings.launcherScopeKey.length > 0
+            ? "Type " + Settings.launcherScopeKey + "files, " + Settings.launcherScopeKey + folderTerm
+              + ", " + Settings.launcherScopeKey + "app, " + Settings.launcherScopeKey + "action, "
+              + Settings.launcherScopeKey + "calc or " + Settings.launcherScopeKey + "web. "
+              + "Press Tab to complete it into a tag."
+            : "Scoped search is disabled. Set a prefix (for example /) to enable it."
+        Row {
+            label: "Scope prefix"
+            hint: "Starts a scoped search; Tab completes it into a tag. Clear to disable."
+            StrField {
+                width: parent.width
+                text: Settings.launcherScopeKey
+                placeholderText: "/"
+                onCommitted: v => Settings.launcherScopeKey = v.trim()
+            }
+        }
+    }
+    Section {
+        title: "Files & " + folderTermPlural
+        hint: "Recent files first, then the system index (Baloo when available). Files and "
+              + folderTermPlural + " are searched in the background."
+        Row {
+            label: "Terminology"
+            hint: "Call these items " + folderTermPlural + " throughout the launcher and settings."
+            ChoiceBox {
+                width: parent.width
+                model: ["Directory", "Folder"]
+                currentIndex: Settings.launcherFolderTerm === "folder" ? 1 : 0
+                onChosen: v => Settings.launcherFolderTerm = v.toLowerCase()
+            }
+        }
+        Row {
+            label: "Search files"
+            hint: "Show matching files in the launcher"
+            Toggle {
+                x: parent.width - width
+                checked: Settings.launcherFileSearch
+                onToggled: v => Settings.launcherFileSearch = v
+            }
+        }
+        Row {
+            label: "Fuzzy file search"
+            hint: "Allow approximate file-name matches (typos, missing separators)"
+            visible: Settings.launcherFileSearch
+            Toggle {
+                x: parent.width - width
+                checked: Settings.launcherFileFuzzy
+                onToggled: v => Settings.launcherFileFuzzy = v
+            }
+        }
+        Row {
+            label: "Search " + folderTermPlural
+            hint: "Show matching " + folderTermPlural + " in the launcher"
+            Toggle {
+                x: parent.width - width
+                checked: Settings.launcherFolderSearch
+                onToggled: v => Settings.launcherFolderSearch = v
+            }
+        }
+        Row {
+            label: "Fuzzy " + folderTerm + " search"
+            hint: "Allow approximate " + folderTerm + "-name matches (typos, missing separators)"
+            visible: Settings.launcherFolderSearch
+            Toggle {
+                x: parent.width - width
+                checked: Settings.launcherFolderFuzzy
+                onToggled: v => Settings.launcherFolderFuzzy = v
+            }
+        }
+        Row {
+            label: "Search entire filesystem"
+            hint: "Recursively scan hidden config paths and all local files and "
+                  + folderTermPlural + " in addition to the index. Slow; off by default."
+            Toggle {
+                x: parent.width - width
+                checked: Settings.launcherFullFilesystemSearch
+                onToggled: v => Settings.launcherFullFilesystemSearch = v
             }
         }
     }

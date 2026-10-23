@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import PeakShell
+import "root:/"
 
 TextField {
     property bool commitOnType: false
@@ -13,7 +14,7 @@ TextField {
     selectByMouse: true
     background: Rectangle {
         color: "transparent"
-        border.color: parent.activeFocus ? Settings.accent : Settings.mutedAccent
+        border.color: parent.activeFocus ? Theme.accent : Settings.mutedAccent
         border.width: 1
         radius: 8
     }

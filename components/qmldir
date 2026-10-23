@@ -3,9 +3,12 @@ CAnim 1.0 CAnim.qml
 AnimatedOverlay 1.0 AnimatedOverlay.qml
 BarBlock 1.0 BarBlock.qml
 BarChip 1.0 BarChip.qml
+BrightnessSlider 1.0 BrightnessSlider.qml
 ClickButton 1.0 ClickButton.qml
 LabelButton 1.0 LabelButton.qml
 CopyButton 1.0 CopyButton.qml
+FilePreviewCard 1.0 FilePreviewCard.qml
+RoundedScrollBar 1.0 RoundedScrollBar.qml
 NotificationCard 1.0 NotificationCard.qml
 MediaArt 1.0 MediaArt.qml
 ToggleButton 1.0 ToggleButton.qml

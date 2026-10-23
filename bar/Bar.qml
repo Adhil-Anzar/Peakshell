@@ -64,6 +64,12 @@ Scope {
             function bluetooth() {
                 sys.toggleBluetoothPanel();
             }
+            function brightness() {
+                sys.toggleBrightnessPanel();
+            }
+            function toggleScreen() {
+                Brightness.toggleScreen();
+            }
             function notifications() {
                 sys.toggleNotificationPanel();
             }

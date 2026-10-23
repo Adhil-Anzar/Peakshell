@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import PeakShell
+import "root:/"
 
 RowLayout {
     id: root
@@ -12,6 +13,7 @@ RowLayout {
     property bool isInt: false
     signal edited(real v)
     spacing: 8
+    opacity: enabled ? 1 : 0.45
 
     function fmt(v) {
         if (root.isInt)
@@ -51,7 +53,7 @@ RowLayout {
                 width: parent.width * slider.visualPosition
                 height: parent.height
                 radius: 3
-                color: Settings.accent
+                color: Theme.accent
             }
         }
         handle: Rectangle {
@@ -60,7 +62,7 @@ RowLayout {
             implicitWidth: 14
             implicitHeight: 14
             radius: 7
-            color: Settings.accent
+            color: Theme.accent
             border.color: Settings.fgColor
             border.width: 1
         }
@@ -88,7 +90,7 @@ RowLayout {
         }
         background: Rectangle {
             color: "transparent"
-            border.color: field.activeFocus ? Settings.accent : Settings.mutedAccent
+            border.color: field.activeFocus ? Theme.accent : Settings.mutedAccent
             border.width: 1
             radius: 8
         }

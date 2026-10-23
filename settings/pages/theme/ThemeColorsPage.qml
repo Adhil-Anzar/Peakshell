@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import PeakShell
+import "root:/"
 import "../../widgets"
 
 ColumnLayout {
@@ -17,7 +18,40 @@ ColumnLayout {
         Row { label: "Foreground"; hint: "Primary text and icons"; ColorField { width: parent.width; value: Settings.fgColor; onEdited: v => { if (isColor(v)) Settings.fgColor = v } } }
         Row { label: "Muted foreground"; hint: "Secondary text"; ColorField { width: parent.width; value: Settings.mutedFgColor; onEdited: v => { if (isColor(v)) Settings.mutedFgColor = v } } }
         Row { label: "Alt foreground"; hint: "Text on accent surfaces"; ColorField { width: parent.width; value: Settings.altFgColor; onEdited: v => { if (isColor(v)) Settings.altFgColor = v } } }
-        Row { label: "Accent"; hint: "Selection, sliders and borders"; ColorField { width: parent.width; value: Settings.accent; onEdited: v => { if (isColor(v)) Settings.accent = v } } }
+        Row {
+            label: "Accent from wallpaper"
+            hint: "Use a matching accent color extracted from the current wallpaper"
+            Toggle {
+                x: parent.width - width
+                checked: Settings.accentFromWallpaper
+                onToggled: v => Settings.accentFromWallpaper = v
+            }
+        }
+        Row {
+            label: "Cycle accent colors"
+            hint: "Hop through gradient stops or video frames"
+            Toggle {
+                x: parent.width - width
+                enabled: Settings.accentFromWallpaper
+                checked: Settings.accentCycleEnabled
+                onToggled: v => Settings.accentCycleEnabled = v
+            }
+        }
+        Row {
+            label: "Accent interval"
+            hint: "Seconds between accent changes"
+            NumField {
+                width: parent.width
+                value: Settings.accentCycleInterval
+                from: 1
+                to: 60
+                step: 1
+                isInt: true
+                enabled: Settings.accentFromWallpaper && Settings.accentCycleEnabled
+                onEdited: v => Settings.accentCycleInterval = v
+            }
+        }
+        Row { label: "Accent"; hint: Settings.accentFromWallpaper ? "Derived automatically from the current wallpaper" : "Selection, sliders and borders"; ColorField { width: parent.width; value: Settings.accent; swatchColor: Theme.accent; enabled: !Settings.accentFromWallpaper; onEdited: v => { if (isColor(v)) Settings.accent = v } } }
         Row { label: "Muted accent"; hint: "Card borders"; ColorField { width: parent.width; value: Settings.mutedAccent; onEdited: v => { if (isColor(v)) Settings.mutedAccent = v } } }
         Row { label: "Battery"; hint: "Battery level bar"; ColorField { width: parent.width; value: Settings.battery; onEdited: v => { if (isColor(v)) Settings.battery = v } } }
         Row { label: "Danger"; hint: "Idle warning background"; ColorField { width: parent.width; value: Settings.danger; onEdited: v => { if (isColor(v)) Settings.danger = v } } }

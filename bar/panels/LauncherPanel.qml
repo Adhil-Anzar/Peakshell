@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import PeakShell
+import PeakShell.Apps
 import "root:/"
 import "root:/components"
 import "root:/services"
@@ -26,6 +27,16 @@ PanelWindow {
     readonly property int itemSpacing: 6
 
     property var filteredApps: []
+    // Query whose async file-search results are allowed to update the list.
+    property string _activeQuery: ""
+    // App/action/calc/web results for the active query. File/folder results
+    // are appended to these as they arrive from the async service.
+    property var _baseResults: []
+    // Skip duplicate searches (settings/scope signals can fire several times)
+    // and avoid showing "No results" during the file-search delay.
+    property string _lastSearchKey: ""
+    property bool _fileSearchPending: false
+    property bool _suppressTextSearch: false
     // Previous result window (key -> {obj, idx}) used to keep row identity
     // across searches so the ListView can slide rows instead of rebuilding
     // them. Only rows inside the visible window are tracked: sliding a row in
@@ -40,9 +51,44 @@ PanelWindow {
     // these rows from here instead of from modelData.
     property var _live: ({})
 
-    // Identity key for per-query rows ("" for everything else).
+    // Scoped-search state parsed from the search field ("" = no scope).
+    property string _scope: ""
+    // A scope committed with Tab is shown as a chip instead of keeping the
+    // raw prefix in the text field. The canonical value stays internal.
+    property string activeScope: ""
+    property string _tabText: ""
+    property string _tabToken: ""
+    property string _tabQuery: ""
+    property int _tabIndex: -1
+    readonly property string folderTerm: Settings.launcherFolderTerm === "folder" ? "folder" : "directory"
+    readonly property string folderTermPlural: folderTerm + "s"
+    // Ctrl+Space preview. Only file rows can be previewed.
+    property bool previewActive: false
+    readonly property var previewEntry: {
+        root.rowRevision;
+        var idx = root.selectedIndex;
+        if (idx < 0 || idx >= root.filteredApps.length)
+            return null;
+        var entry = root._latest(root.filteredApps[idx]);
+        return (entry && entry.kind === "file") ? entry : null;
+    }
+    readonly property bool showPreview: previewActive && previewEntry !== null
+    readonly property real previewHeight: {
+        var screenH = root.screen ? root.screen.height : 900;
+        return Math.min(560, Math.max(240, screenH * 0.6));
+    }
+
+    // Alt on an empty field reveals the scoped-search cheatsheet.
+    readonly property bool showScopeHint: altHeld && root.activeScope === "" && searchInput.text.trim().length === 0 && Settings.launcherScopeKey.length > 0
+    readonly property real scopeHintHeight: scopeHintText.implicitHeight + 14
+
+    // Identity key for per-query rows ("" for everything else). Web/calc and
+    // file/folder rows are updated in place across partial -> final updates,
+    // so delegates read their latest fields through _live instead of modelData.
     function _queryRowKey(r) {
-        if (r && (r.kind === "web" || r.kind === "calc") && r.uid !== undefined && r.uid !== "")
+        if (!r || r.uid === undefined || r.uid === "")
+            return "";
+        if (r.kind === "web" || r.kind === "calc" || r.kind === "file" || r.kind === "folder")
             return r.kind + ":" + r.uid;
         return "";
     }
@@ -51,7 +97,23 @@ PanelWindow {
     property bool altHeld: false
     readonly property int visibleCount: filteredApps.length
     readonly property int displayCount: Math.min(visibleCount, maxVisibleItems)
-    readonly property bool hasResults: visibleCount > 0 && searchInput.text.trim().length > 0
+    readonly property bool queryActive: root.activeScope !== "" || searchInput.text.trim().length > 0
+    readonly property bool hasResults: visibleCount > 0 && queryActive
+    // The empty-state row needs its own height: without it the results area is
+    // clipped to zero and "No results" never becomes visible.
+    readonly property bool showEmptyMessage: queryActive && visibleCount === 0
+        && !showPreview && AppScanner.loaded
+    readonly property string emptyText: {
+        if (root._fileSearchPending || FileSearch.searching) {
+            var parsed = root._effectiveParsed();
+            if (parsed.scope === "files")
+                return "Searching files…";
+            if (parsed.scope === "folders")
+                return "Searching " + root.folderTermPlural + "…";
+            return "Searching…";
+        }
+        return root._noResultsText();
+    }
 
     // Currently active/selected index (defaults to first item when results are shown)
     readonly property int selectedIndex: (appList.currentIndex >= 0) ? appList.currentIndex : (hasResults ? 0 : -1)
@@ -67,10 +129,239 @@ PanelWindow {
             pool.splice(4, 0, "Type anything to search the web");
         if (Settings.launcherFuzzy)
             pool.splice(5, 0, "Fuzzy search: typos are welcome");
+        if (Settings.launcherFileSearch || Settings.launcherFolderSearch) {
+            pool.push("Files and " + root.folderTermPlural + " are searched too");
+            pool.push("Ctrl+Space previews the selected file");
+        }
+        if (Settings.launcherScopeKey.length > 0)
+            pool.push("Type " + Settings.launcherScopeKey + "files or " + Settings.launcherScopeKey + root.folderTermPlural + " for recents");
         return pool;
     }
 
-    // Debounce timer: only recalculates at the end of each text change
+    readonly property var _scopeAliases: ({
+        "files": "files",
+        "file": "files",
+        "directories": "folders",
+        "directory": "folders",
+        "folders": "folders",
+        "folder": "folders",
+        "apps": "apps",
+        "app": "apps",
+        "actions": "actions",
+        "action": "actions",
+        "ipc": "actions",
+        "calc": "calc",
+        "calculator": "calc",
+        "math": "calc",
+        "web": "web",
+        "search": "web"
+    })
+
+    // Splits "<prefix><scope> <query>" into a scope and the effective query.
+    // Unknown prefixes are left alone so a literal "/foo" search still works.
+    function _parseScope(text) {
+        var t = text.trim();
+        var prefix = Settings.launcherScopeKey;
+        if (prefix.length === 0 || !t.startsWith(prefix))
+            return { scope: "", query: t, token: "" };
+
+        var rest = t.slice(prefix.length);
+        var split = -1;
+        for (var i = 0; i < rest.length; i++) {
+            var c = rest.charAt(i);
+            if (c === " " || c === "\t") {
+                split = i;
+                break;
+            }
+        }
+        var token = (split < 0 ? rest : rest.slice(0, split)).toLowerCase();
+        var scope = root._scopeAliases[token] || "";
+        if (scope === "")
+            return { scope: "", query: t, token: "" };
+        return {
+            scope: scope,
+            query: split < 0 ? "" : rest.slice(split + 1).trim(),
+            token: token
+        };
+    }
+
+    // The scope for the current search. A chip is authoritative; otherwise the
+    // typed prefix is parsed as before.
+    function _effectiveParsed() {
+        if (root.activeScope !== "")
+            return { scope: root.activeScope, query: searchInput.text.trim(), token: "" };
+        return root._parseScope(searchInput.text);
+    }
+
+    // Aliases whose spelling starts with token, deduplicated by canonical scope.
+    function _scopeMatches(token) {
+        token = (token || "").toLowerCase();
+        if (token.length === 0)
+            return [];
+        var out = [];
+        var seen = ({});
+        for (var alias in root._scopeAliases) {
+            if (alias.indexOf(token) !== 0)
+                continue;
+            var scope = root._scopeAliases[alias];
+            if (seen[scope])
+                continue;
+            seen[scope] = true;
+            out.push({ scope: scope, alias: alias });
+        }
+        return out;
+    }
+
+    function _scopeChipLabel(scope) {
+        if (scope === "files")
+            return "files";
+        if (scope === "folders")
+            return root.folderTermPlural;
+        if (scope === "apps")
+            return "apps";
+        if (scope === "actions")
+            return "actions";
+        if (scope === "calc")
+            return "calc";
+        if (scope === "web")
+            return "web";
+        return scope;
+    }
+
+    // Tab completes a typed scope into a permanent chip. Repeated Tab (while
+    // the query text is unchanged) cycles through ambiguous aliases such as
+    // /f -> files -> folders -> files.
+    function completeScopeTab() {
+        var prefix = Settings.launcherScopeKey;
+        if (prefix.length === 0)
+            return false;
+
+        if (root.activeScope !== "" && searchInput.text.trim() === root._tabQuery) {
+            var candidates = root._scopeMatches(root._tabToken);
+            if (candidates.length <= 1)
+                return false;
+            root._tabIndex = (root._tabIndex + 1) % candidates.length;
+            root.activeScope = candidates[root._tabIndex].scope;
+            root._cancelSearches();
+            root.updateFilter();
+            return true;
+        }
+
+        var text = searchInput.text;
+        var trimmed = text.trim();
+        if (!trimmed.startsWith(prefix))
+            return false;
+
+        var rest = trimmed.slice(prefix.length);
+        var split = -1;
+        for (var i = 0; i < rest.length; i++) {
+            var c = rest.charAt(i);
+            if (c === " " || c === "\t") {
+                split = i;
+                break;
+            }
+        }
+        var token = (split < 0 ? rest : rest.slice(0, split)).toLowerCase();
+        if (token.length === 0)
+            return false;
+
+        var matches = root._scopeMatches(token);
+        if (matches.length === 0)
+            return false;
+
+        root._tabText = text;
+        root._tabToken = token;
+        root._tabQuery = split < 0 ? "" : rest.slice(split + 1).trim();
+        root._tabIndex = 0;
+        root.activeScope = matches[0].scope;
+        root._setSearchText(root._tabQuery);
+        root._cancelSearches();
+        root.updateFilter();
+        return true;
+    }
+
+    // Typing " " after a complete scope token (for example "/files") commits
+    // it into the chip immediately, exactly like Tab. Ambiguous prefixes stay
+    // literal so Tab can still cycle them.
+    function commitScopeFromText() {
+        var prefix = Settings.launcherScopeKey;
+        if (prefix.length === 0 || root.activeScope !== "")
+            return false;
+
+        var text = searchInput.text;
+        var trimmed = text.trim();
+        if (!trimmed.startsWith(prefix))
+            return false;
+
+        var rest = trimmed.slice(prefix.length);
+        if (rest.length === 0 || rest.indexOf(" ") >= 0 || rest.indexOf("\t") >= 0)
+            return false;
+
+        var token = rest.toLowerCase();
+        var matches = root._scopeMatches(token);
+        if (matches.length === 0)
+            return false;
+
+        var exact = false;
+        for (var i = 0; i < matches.length; i++) {
+            if (matches[i].alias === token) {
+                exact = true;
+                break;
+            }
+        }
+        if (!exact && matches.length !== 1)
+            return false;
+
+        root._tabText = text;
+        root._tabToken = token;
+        root._tabQuery = "";
+        root._tabIndex = 0;
+        root.activeScope = matches[0].scope;
+        root._setSearchText("", 0);
+        root._cancelSearches();
+        root.updateFilter();
+        return true;
+    }
+
+    function clearScope() {
+        root.activeScope = "";
+        root._tabText = "";
+        root._tabToken = "";
+        root._tabQuery = "";
+        root._tabIndex = -1;
+        root._cancelSearches();
+        root.updateFilter();
+        searchInput.forceActiveFocus();
+    }
+
+    function _noResultsText() {
+        var parsed = root._effectiveParsed();
+        if (parsed.scope === "files")
+            return parsed.query.length > 0 ? "No files for \"" + parsed.query + "\"" : "No recent files";
+        if (parsed.scope === "folders")
+            return parsed.query.length > 0
+                ? "No " + root.folderTermPlural + " for \"" + parsed.query + "\""
+                : "No recent " + root.folderTermPlural;
+        if (parsed.scope !== "" && parsed.query.length === 0) {
+            if (root.activeScope !== "")
+                return "Type to search " + root._scopeChipLabel(parsed.scope);
+            return "Type a search after " + Settings.launcherScopeKey + parsed.token;
+        }
+        var noun = "results";
+        if (parsed.scope === "apps")
+            noun = "apps";
+        else if (parsed.scope === "actions")
+            noun = "actions";
+        else if (parsed.scope === "calc")
+            noun = "calculations";
+        else if (parsed.scope === "web")
+            noun = "web results";
+        return "No " + noun + " for \"" + parsed.query + "\"";
+    }
+
+    // App search is cheap enough to run at the end of a short keystroke
+    // debounce. Filesystem search gets its own longer delay so intermediate
+    // queries never start an index or directory walk.
     Timer {
         id: searchDebounce
         interval: 60
@@ -78,27 +369,187 @@ PanelWindow {
         onTriggered: root.updateFilter()
     }
 
-    function updateFilter() {
-        var q = searchInput.text.trim();
-        if (!q) {
+    Timer {
+        id: fileSearchDebounce
+        interval: 180
+        repeat: false
+        onTriggered: root._startFileSearch(root._scope, root._activeQuery)
+    }
+
+    // Programmatic text changes (scope chips, open/close) must not schedule a
+    // second search through the text-change handler.
+    function _setSearchText(text, cursor) {
+        root._suppressTextSearch = true;
+        searchInput.text = text;
+        searchInput.cursorPosition = cursor === undefined ? text.length : cursor;
+        root._suppressTextSearch = false;
+    }
+
+    function _searchKey(scope, q) {
+        return JSON.stringify([
+            scope, q,
+            Settings.launcherFuzzy,
+            Settings.launcherWebSearch,
+            Settings.launcherCalc,
+            Settings.launcherPowerActions,
+            Settings.launcherWallpaperActions,
+            Settings.launcherFileSearch,
+            Settings.launcherFolderSearch,
+            Settings.launcherFileFuzzy,
+            Settings.launcherFolderFuzzy,
+            Settings.launcherFullFilesystemSearch
+        ]);
+    }
+
+    function _cancelSearches() {
+        searchDebounce.stop();
+        fileSearchDebounce.stop();
+        root._fileSearchPending = false;
+        FileSearch.cancel();
+    }
+
+    function _startFileSearch(scope, q) {
+        fileSearchDebounce.stop();
+        root._fileSearchPending = false;
+        if (scope === "files" || scope === "folders") {
+            FileSearch.searchScoped(q, scope);
+        } else if (scope === ""
+                   && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
+            FileSearch.search(q);
+        } else {
+            FileSearch.cancel();
+        }
+    }
+
+    function _scheduleFileSearch(scope, q) {
+        fileSearchDebounce.stop();
+        root._fileSearchPending = false;
+        if (scope === "files" || scope === "folders") {
+            // The app debounce already waited for the user to stop typing.
+            root._startFileSearch(scope, q);
+        } else if (scope === ""
+                   // One-letter global queries are too broad: keep the fast
+                   // app/action results and let /files handle file lookup.
+                   && q.length >= 2
+                   && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
+            FileSearch.cancel();
+            root._fileSearchPending = true;
+            fileSearchDebounce.restart();
+        } else {
+            FileSearch.cancel();
+        }
+    }
+
+    function updateFilter(force) {
+        var parsed = root._effectiveParsed();
+        var scope = parsed.scope;
+        var q = parsed.query;
+        root._scope = scope;
+        root.previewActive = false;
+
+        if (!q && scope === "") {
+            root._cancelSearches();
+            root._activeQuery = "";
+            root._baseResults = [];
             root._prevRows = ({});
             root.filteredApps = [];
+            root._lastSearchKey = "";
             appList.currentIndex = -1;
             appList.forceLayout();
             return;
         }
 
-        // Ranked OpenSearch-style search (C++): fuzzy apps + ii1qe toggle
-        // actions + exprtk calculator + smart web-search fallback.
-        var results = AppScanner.search(q);
+        root._activeQuery = q;
+        var key = root._searchKey(scope, q);
+        if (!force && key === root._lastSearchKey)
+            return;
+        root._lastSearchKey = key;
+
+        // Scope-aware C++ search: only the requested result family is scored
+        // and built. Empty scoped queries show the "type to search" hint
+        // instead of running an empty scan.
+        if (scope === "files" || scope === "folders" || q.length === 0)
+            root._baseResults = [];
+        else
+            root._baseResults = AppScanner.searchScoped(q, scope);
+        root._applyResults(root._baseResults, true);
+
+        root._scheduleFileSearch(scope, q);
+    }
+
+    // Applies a result list while keeping row identities stable across the
+    // partial (recent) and final (indexed) updates.
+    function _applyResults(results, resetSelection) {
         results = root._stableize(results);
+        var oldIndex = appList.currentIndex;
         root.filteredApps = results;
         root.rowRevision++;
-        appList.currentIndex = results.length > 0 ? 0 : -1;
+        if (resetSelection || oldIndex < 0)
+            appList.currentIndex = results.length > 0 ? 0 : -1;
+        else
+            appList.currentIndex = Math.max(0, Math.min(oldIndex, results.length - 1));
         appList.forceLayout();
-        if (results.length > 0) {
+        if (resetSelection && results.length > 0)
             appList.positionViewAtBeginning();
+        // The selected row may have changed family (or disappeared) after an
+        // async merge; a file preview cannot stay open on a non-file row.
+        if (root.previewActive && root.previewEntry === null)
+            root.previewActive = false;
+    }
+
+    // Base (apps/actions/calc/web) results stay in front; file/folder rows
+    // are inserted before the web fallback, deduplicated by stable uid.
+    function _mergeFileResults(base, files) {
+        if (!files)
+            files = [];
+        var out = [];
+        var web = [];
+        var seen = ({});
+        // File/folder rows belong only to global search or their explicit
+        // scopes. Global search honours the ambient toggles even if a stale
+        // async result set arrives. /files and /folder bypass the toggles
+        // because those are direct requests.
+        function allowed(row) {
+            if (row.kind !== "file" && row.kind !== "folder")
+                return true;
+            if (root._scope === "files")
+                return row.kind === "file";
+            if (root._scope === "folders")
+                return row.kind === "folder";
+            if (root._scope === "")
+                return row.kind === "file"
+                    ? Settings.launcherFileSearch
+                    : Settings.launcherFolderSearch;
+            return false;
         }
+        for (var i = 0; i < base.length; i++) {
+            var row = base[i];
+            if (!allowed(row))
+                continue;
+            var uid = row.uid;
+            if (uid !== undefined && uid !== "")
+                seen[uid] = true;
+            if (row.kind === "web")
+                web.push(row);
+            else
+                out.push(row);
+        }
+        for (var j = 0; j < files.length; j++) {
+            var f = files[j];
+            if (!allowed(f))
+                continue;
+            var fuid = f.uid;
+            if (fuid !== undefined && fuid !== "" && seen[fuid])
+                continue;
+            if (fuid !== undefined && fuid !== "")
+                seen[fuid] = true;
+            out.push(f);
+        }
+        // The web result is a last-resort fallback. A matching file/folder is
+        // more specific than a generic search URL, so it must not sit below it.
+        for (var w = 0; w < web.length; w++)
+            out.push(web[w]);
+        return out;
     }
 
     // Keep object identity only for app/ipc rows that sit inside the visible
@@ -118,6 +569,8 @@ PanelWindow {
                 key = "app:" + r.exec + "\n" + r.name;
             else if (r.kind === "ipc")
                 key = "ipc:" + r.ipcFunction;
+            else if (r.kind === "file" || r.kind === "folder")
+                key = r.kind + ":" + r.exec;
             else
                 key = root._queryRowKey(r);
             var uidKey = (r.uid !== undefined && r.uid !== "") ? "uid:" + r.uid : "";
@@ -161,8 +614,11 @@ PanelWindow {
     // Extra height reserved for the selected row's command line.
     readonly property real commandExtra: 23
     readonly property real listHeight: hasResults ? displayCount * Theme.launcherItemHeight + Math.max(0, displayCount - 1) * itemSpacing + ((appList.currentIndex >= 0) ? commandExtra : 0) : 0
+    readonly property real emptyHeight: Math.max(48, Theme.launcherItemHeight)
+    readonly property real bodyHeight: showPreview ? previewHeight : (hasResults ? listHeight : (showEmptyMessage ? emptyHeight : 0))
+    readonly property real extraHeight: showScopeHint && bodyHeight <= 0 ? scopeHintHeight : bodyHeight
 
-    readonly property real totalHeight: Theme.launcherSearchHeight + (hasResults ? itemSpacing + listHeight : 0)
+    readonly property real totalHeight: Theme.launcherSearchHeight + (extraHeight > 0 ? itemSpacing + extraHeight : 0)
 
     // Picks a fresh help line, never repeating the previous one.
     function pickPlaceholder() {
@@ -184,10 +640,21 @@ PanelWindow {
         visible = true;
         if (panelHost && panelHost.toggledPanels)
             panelHost.toggledPanels["launcher"] = root;
-        searchInput.text = "";
+        root._cancelSearches();
+        root._setSearchText("");
         pickPlaceholder();
         _prevRows = ({});
         filteredApps = [];
+        _activeQuery = "";
+        _baseResults = [];
+        _lastSearchKey = "";
+        _scope = "";
+        activeScope = "";
+        _tabText = "";
+        _tabToken = "";
+        _tabQuery = "";
+        _tabIndex = -1;
+        previewActive = false;
         appList.currentIndex = -1;
         searchInput.forceActiveFocus();
     }
@@ -202,9 +669,19 @@ PanelWindow {
         visible = false;
         if (panelHost && panelHost.toggledPanels)
             panelHost.toggledPanels["launcher"] = false;
-        searchDebounce.stop();
-        searchInput.text = "";
+        root._cancelSearches();
+        root._setSearchText("");
+        _activeQuery = "";
+        _baseResults = [];
+        _lastSearchKey = "";
         filteredApps = [];
+        _scope = "";
+        activeScope = "";
+        _tabText = "";
+        _tabToken = "";
+        _tabQuery = "";
+        _tabIndex = -1;
+        previewActive = false;
         appList.currentIndex = -1;
         altHeld = false;
     }
@@ -217,6 +694,35 @@ PanelWindow {
     function _latest(entry) {
         var k = root._queryRowKey(entry);
         return (k && root._live[k]) ? root._live[k] : entry;
+    }
+
+    // Ctrl+Space preview is file-only; on anything else it simply closes.
+    function togglePreview() {
+        if (!root.previewEntry) {
+            root.previewActive = false;
+            return;
+        }
+        root.previewActive = !root.previewActive;
+        // If the preview was opened from the command field, move keyboard
+        // ownership back to the search input so Ctrl+Space/Escape/Page keys
+        // keep working while the preview is visible (and after it closes).
+        searchInput.forceActiveFocus();
+    }
+
+    onShowPreviewChanged: {
+        if (root.visible)
+            searchInput.forceActiveFocus();
+    }
+
+    // PageUp/PageDown scroll the open preview by most of a viewport.
+    function scrollPreview(direction) {
+        if (root.showPreview)
+            previewCard.scrollPage(direction);
+    }
+
+    onSelectedIndexChanged: {
+        if (root.previewActive && root.previewEntry === null)
+            root.previewActive = false;
     }
 
     function launchCurrent() {
@@ -316,7 +822,80 @@ PanelWindow {
         function onScanComplete() {
             // App data may have changed; drop stabilized identities once.
             root._prevRows = ({});
-            root.updateFilter();
+            root.updateFilter(true);
+        }
+    }
+
+    Connections {
+        target: FileSearch
+        function onRecentResultsReady(query, results) {
+            if (!root.visible || query !== root._activeQuery)
+                return;
+            root._applyResults(root._mergeFileResults(root._baseResults, results), false);
+        }
+        function onSearchFinished(query, results) {
+            if (!root.visible || query !== root._activeQuery)
+                return;
+            root._applyResults(root._mergeFileResults(root._baseResults, results), false);
+        }
+    }
+
+    Connections {
+        target: Settings
+        function onLauncherFuzzyChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherWebSearchChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherCalcChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherPowerActionsChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherWallpaperActionsChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFileSearchChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFolderSearchChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFileFuzzyChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFolderFuzzyChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFullFilesystemSearchChanged() {
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherScopeKeyChanged() {
+            if (Settings.launcherScopeKey.length === 0) {
+                root.activeScope = "";
+                root._tabText = "";
+                root._tabToken = "";
+                root._tabQuery = "";
+                root._tabIndex = -1;
+            }
+            if (root.visible)
+                root.updateFilter();
+        }
+        function onLauncherFolderTermChanged() {
+            if (root.visible)
+                root.updateFilter();
         }
     }
 
@@ -350,8 +929,13 @@ PanelWindow {
             }
             switch (event.key) {
             case Qt.Key_Escape:
-                root.close();
-                event.accepted = true;
+                if (root.previewActive) {
+                    root.previewActive = false;
+                    event.accepted = true;
+                } else {
+                    root.close();
+                    event.accepted = true;
+                }
                 break;
             case Qt.Key_Up:
                 root.moveSelection(-1);
@@ -465,15 +1049,52 @@ PanelWindow {
                             selectByMouse: true
                             antialiasing: true
 
-                            // Debounce filtering to the end of keystrokes for high performance
+                            // Cancel any in-flight filesystem work immediately;
+                            // the app debounce below waits for the user to stop.
                             onTextChanged: {
+                                if (root._suppressTextSearch)
+                                    return;
+                                // Publish the new query immediately so a
+                                // queued result from the previous query can
+                                // never merge into it during the debounce.
+                                var parsed = root._effectiveParsed();
+                                root._scope = parsed.scope;
+                                root._activeQuery = parsed.query;
+                                root._lastSearchKey = "";
+                                root._fileSearchPending = false;
+                                fileSearchDebounce.stop();
+                                FileSearch.cancel();
                                 searchDebounce.restart();
+                            }
+
+                            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_Tab) {
+                                    root.completeScopeTab();
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Space
+                                           && !(event.modifiers & Qt.ControlModifier)
+                                           && root.commitScopeFromText()) {
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Backspace && searchInput.text.length === 0
+                                           && root.activeScope !== "") {
+                                    root.clearScope();
+                                    event.accepted = true;
+                                } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
+                                    root.togglePreview();
+                                    event.accepted = true;
+                                } else if (root.showPreview
+                                           && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                    root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
+                                    event.accepted = true;
+                                }
                             }
                         }
 
                         Text {
                             anchors.fill: parent
-                            text: root.placeholderText
+                            text: root.activeScope !== ""
+                                ? "Search " + root._scopeChipLabel(root.activeScope) + "…"
+                                : root.placeholderText
                             color: Theme.mutedFgColor
                             font.pointSize: Theme.launcherSearchFontSize
                             font.family: Theme.labelFontFamily
@@ -485,24 +1106,189 @@ PanelWindow {
                         }
                     }
 
-                    ClickButton {
-                        id: clearBtn
-                        visible: opacity > 0
-                        opacity: (searchInput.text.length > 0 && (searchBarHover.hovered || clearBtn.isHovered)) ? 1.0 : 0.0
-                        symbol: "edit-clear"
-                        size: Theme.iconFontSize
-                        bgColor: "transparent"
-                        cornerRadius: Theme.cornerRadius
-                        iconColor: clearBtn.isHovered ? Theme.fgColor : Theme.mutedFgColor
-                        onPress: {
-                            searchInput.text = "";
-                            searchInput.forceActiveFocus();
-                        }
+                    // Scope committed with Tab. The raw prefix leaves the
+                    // text field and the active scope becomes a removable chip.
+                    Rectangle {
+                        id: scopeChip
+                        visible: root.activeScope !== ""
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitWidth: scopeChipRow.implicitWidth + 18
+                        implicitHeight: 26
+                        radius: implicitHeight / 2
+                        color: Theme.mutedBgColor
+                        border.color: Theme.mutedAccent
+                        border.width: 1
+                        clip: true
 
-                        Behavior on opacity {
-                            EffectsAnim {}
+                        Row {
+                            id: scopeChipRow
+                            anchors.centerIn: parent
+                            spacing: 6
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root._scopeChipLabel(root.activeScope)
+                                color: Theme.fgColor
+                                font.pointSize: Theme.labelFontSize * 0.8
+                                font.family: Theme.labelFontFamily
+                                renderType: Text.CurveRendering
+                                antialiasing: true
+                            }
+
+                            Item {
+                                width: 14
+                                height: 14
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: scopeChipClose.containsMouse ? Theme.hoveredBgColor : "transparent"
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "×"
+                                    color: Theme.mutedFgColor
+                                    font.pointSize: Theme.labelFontSize * 0.9
+                                    font.family: Theme.labelFontFamily
+                                    renderType: Text.CurveRendering
+                                    antialiasing: true
+                                }
+
+                                MouseArea {
+                                    id: scopeChipClose
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.clearScope()
+                                }
+                            }
                         }
                     }
+
+                    Item {
+                        id: searchAction
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitWidth: Theme.iconFontSize
+                        implicitHeight: Theme.iconFontSize
+
+                        // Loading spinner shares the clear button's slot. It
+                        // yields to the clear button as soon as the bar is
+                        // hovered, so the action is never unreachable.
+                        Canvas {
+                            id: searchSpinner
+                            anchors.centerIn: parent
+                            width: Theme.iconFontSize
+                            height: Theme.iconFontSize
+                            visible: root.visible && FileSearch.searching && !searchBarHover.hovered
+                            opacity: visible ? 1 : 0
+                            onPaint: {
+                                var ctx = getContext("2d");
+                                ctx.clearRect(0, 0, width, height);
+                                ctx.strokeStyle = Theme.mutedFgColor;
+                                ctx.lineWidth = Math.max(1.5, width * 0.12);
+                                ctx.lineCap = "round";
+                                ctx.beginPath();
+                                var start = -Math.PI / 2;
+                                ctx.arc(width / 2, height / 2, width / 2 - ctx.lineWidth, start, start + Math.PI * 1.4);
+                                ctx.stroke();
+                            }
+                            RotationAnimation on rotation {
+                                running: searchSpinner.visible
+                                loops: Animation.Infinite
+                                from: 0
+                                to: 360
+                                duration: 850
+                            }
+                            Behavior on opacity {
+                                EffectsAnim {}
+                            }
+                        }
+
+                        ClickButton {
+                            id: clearBtn
+                            visible: opacity > 0
+                            opacity: ((searchInput.text.length > 0 || root.activeScope !== "") && (searchBarHover.hovered || clearBtn.isHovered)) ? 1.0 : 0.0
+                            symbol: "edit-clear"
+                            size: Theme.iconFontSize
+                            bgColor: "transparent"
+                            cornerRadius: Theme.cornerRadius
+                            iconColor: clearBtn.isHovered ? Theme.fgColor : Theme.mutedFgColor
+                            onPress: {
+                                searchInput.text = "";
+                                root.clearScope();
+                            }
+
+                            Behavior on opacity {
+                                EffectsAnim {}
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Scoped-search cheatsheet, revealed with Alt on an empty field.
+            Rectangle {
+                id: scopeHint
+                anchors.top: searchBar.bottom
+                anchors.topMargin: root.itemSpacing
+                anchors.left: parent.left
+                anchors.right: parent.right
+                implicitHeight: root.scopeHintHeight
+                radius: Math.min(Theme.cornerLargeRadius, implicitHeight / 2)
+                color: Theme.bgColor
+                border.color: Theme.mutedAccent
+                border.width: 1
+                opacity: root.showScopeHint ? 1 : 0
+                visible: root.showScopeHint
+
+                Behavior on opacity {
+                    EffectsAnim {}
+                }
+
+                Text {
+                    id: scopeHintText
+                    anchors.centerIn: parent
+                    width: parent.width - 28
+                    text: {
+                        var p = Settings.launcherScopeKey;
+                        if (p.length === 0)
+                            return "";
+                        return p + "files recent files · " + p + root.folderTerm + " recent " + root.folderTermPlural + " · "
+                            + p + "app apps · " + p + "action actions · "
+                            + p + "calc calculator · " + p + "web web"
+                            + "    Ctrl+Space previews files";
+                    }
+                    color: Theme.mutedFgColor
+                    font.pointSize: Theme.labelFontSize * 0.85
+                    font.family: Theme.labelFontFamily
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    renderType: Text.CurveRendering
+                    antialiasing: true
+                }
+            }
+
+            // Ctrl+Space file preview. FilePreviewCard handles images, text
+            // highlighting and unsupported files, mirroring the clipboard.
+            FilePreviewCard {
+                id: previewCard
+                anchors.top: searchBar.bottom
+                anchors.topMargin: root.itemSpacing
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: root.previewHeight
+                visible: root.showPreview
+                opacity: visible ? 1 : 0
+                z: 50
+                filePath: (root.showPreview && root.previewEntry) ? root.previewEntry.exec : ""
+                fileName: (root.showPreview && root.previewEntry) ? root.previewEntry.name : ""
+                fileIcon: (root.showPreview && root.previewEntry) ? root.previewEntry.icon : "text-x-generic"
+                onToggleRequested: root.togglePreview()
+
+                Behavior on opacity {
+                    EffectsAnim {}
                 }
             }
 
@@ -517,7 +1303,7 @@ PanelWindow {
                 height: Math.max(0, launcher.height - searchBar.height - root.itemSpacing)
                 clip: true
 
-                opacity: root.hasResults ? 1 : 0
+                opacity: ((root.hasResults || root.showEmptyMessage) && !root.showPreview) ? 1 : 0
                 Behavior on opacity {
                     EffectsAnim {}
                 }
@@ -620,6 +1406,10 @@ PanelWindow {
                                 return "Calc";
                             if (d.kind === "web")
                                 return "Web";
+                            if (d.kind === "file")
+                                return "File";
+                            if (d.kind === "folder")
+                                return root.folderTerm.charAt(0).toUpperCase() + root.folderTerm.slice(1);
                             return d.terminal ? "CLI" : "App";
                         }
                         // The timer action shows the live countdown in place of
@@ -660,6 +1450,11 @@ PanelWindow {
                                 pills.push(d.ipcFunction);
                             } else if ((d.kind === "calc" || d.kind === "web") && d.detail) {
                                 pills.push(d.detail);
+                            } else if (d.kind === "file" || d.kind === "folder") {
+                                if (d.detail)
+                                    pills.push(d.detail);
+                                if (d.keywords)
+                                    pills.push(d.keywords);
                             }
                             return pills;
                         }
@@ -831,6 +1626,17 @@ PanelWindow {
                                             renderType: Text.CurveRendering
 
                                             Keys.onPressed: event => {
+                                                if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
+                                                    root.togglePreview();
+                                                    event.accepted = true;
+                                                    return;
+                                                }
+                                                if (root.showPreview
+                                                    && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                                    root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
+                                                    event.accepted = true;
+                                                    return;
+                                                }
                                                 switch (event.key) {
                                                 case Qt.Key_Escape:
                                                     searchInput.forceActiveFocus();
@@ -974,9 +1780,9 @@ PanelWindow {
                     }
 
                     Text {
-                        visible: root.filteredApps.length === 0 && AppScanner.loaded && searchInput.text.trim().length > 0
+                        visible: root.showEmptyMessage
                         anchors.centerIn: parent
-                        text: "No results for \"" + searchInput.text.trim() + "\""
+                        text: root.emptyText
                         color: Theme.mutedFgColor
                         font.pointSize: Theme.labelFontSize
                         font.family: Theme.labelFontFamily

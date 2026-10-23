@@ -443,6 +443,30 @@ PanelWindow {
 
                             interactive: false
 
+                            // PathView can reset its own currentIndex while the
+                            // model is populated on startup, which breaks the
+                            // declarative binding. Re-apply the service index
+                            // after the model has settled and whenever it changes.
+                            function syncCurrentIndex() {
+                                const idx = WallpaperService.currentTabIndex;
+                                if (idx >= 0 && idx < count && currentIndex !== idx)
+                                    currentIndex = idx;
+                            }
+
+                            Component.onCompleted: Qt.callLater(syncCurrentIndex)
+                            onCountChanged: Qt.callLater(syncCurrentIndex)
+
+                            Connections {
+                                target: WallpaperService
+
+                                function onCurrentTabIndexChanged() {
+                                    Qt.callLater(pathView.syncCurrentIndex);
+                                }
+                                function onCurrentTabItemsChanged() {
+                                    Qt.callLater(pathView.syncCurrentIndex);
+                                }
+                            }
+
                             path: Path {
                                 startX: -136
                                 startY: pathView.height / 2

@@ -25,6 +25,9 @@ class Settings : public QObject {
     Q_PROPERTY(QString mutedFgColor READ mutedFgColor WRITE setMutedFgColor NOTIFY mutedFgColorChanged)
     Q_PROPERTY(QString altFgColor READ altFgColor WRITE setAltFgColor NOTIFY altFgColorChanged)
     Q_PROPERTY(QString accent READ accent WRITE setAccent NOTIFY accentChanged)
+    Q_PROPERTY(bool accentFromWallpaper READ accentFromWallpaper WRITE setAccentFromWallpaper NOTIFY accentFromWallpaperChanged)
+    Q_PROPERTY(bool accentCycleEnabled READ accentCycleEnabled WRITE setAccentCycleEnabled NOTIFY accentCycleEnabledChanged)
+    Q_PROPERTY(int accentCycleInterval READ accentCycleInterval WRITE setAccentCycleInterval NOTIFY accentCycleIntervalChanged)
     Q_PROPERTY(QString mutedAccent READ mutedAccent WRITE setMutedAccent NOTIFY mutedAccentChanged)
     Q_PROPERTY(QString battery READ battery WRITE setBattery NOTIFY batteryChanged)
     Q_PROPERTY(QString danger READ danger WRITE setDanger NOTIFY dangerChanged)
@@ -52,6 +55,8 @@ class Settings : public QObject {
     Q_PROPERTY(double bluetoothPanelWidth READ bluetoothPanelWidth WRITE setBluetoothPanelWidth NOTIFY bluetoothPanelWidthChanged)
     Q_PROPERTY(double bluetoothItemMaxCount READ bluetoothItemMaxCount WRITE setBluetoothItemMaxCount NOTIFY bluetoothItemMaxCountChanged)
     Q_PROPERTY(double bluetoothItemSize READ bluetoothItemSize WRITE setBluetoothItemSize NOTIFY bluetoothItemSizeChanged)
+    Q_PROPERTY(double brightnessPanelWidth READ brightnessPanelWidth WRITE setBrightnessPanelWidth NOTIFY brightnessPanelWidthChanged)
+    Q_PROPERTY(double brightnessItemSize READ brightnessItemSize WRITE setBrightnessItemSize NOTIFY brightnessItemSizeChanged)
     Q_PROPERTY(double mediaPanelWidth READ mediaPanelWidth WRITE setMediaPanelWidth NOTIFY mediaPanelWidthChanged)
     Q_PROPERTY(double workspacePanelWidth READ workspacePanelWidth WRITE setWorkspacePanelWidth NOTIFY workspacePanelWidthChanged)
     Q_PROPERTY(double workspacePanelHeight READ workspacePanelHeight WRITE setWorkspacePanelHeight NOTIFY workspacePanelHeightChanged)
@@ -98,18 +103,28 @@ class Settings : public QObject {
     Q_PROPERTY(bool launcherFuzzy READ launcherFuzzy WRITE setLauncherFuzzy NOTIFY launcherFuzzyChanged)
     Q_PROPERTY(bool launcherPowerActions READ launcherPowerActions WRITE setLauncherPowerActions NOTIFY launcherPowerActionsChanged)
     Q_PROPERTY(bool launcherWallpaperActions READ launcherWallpaperActions WRITE setLauncherWallpaperActions NOTIFY launcherWallpaperActionsChanged)
+    Q_PROPERTY(bool launcherFileSearch READ launcherFileSearch WRITE setLauncherFileSearch NOTIFY launcherFileSearchChanged)
+    Q_PROPERTY(bool launcherFolderSearch READ launcherFolderSearch WRITE setLauncherFolderSearch NOTIFY launcherFolderSearchChanged)
+    Q_PROPERTY(bool launcherFileFuzzy READ launcherFileFuzzy WRITE setLauncherFileFuzzy NOTIFY launcherFileFuzzyChanged)
+    Q_PROPERTY(bool launcherFolderFuzzy READ launcherFolderFuzzy WRITE setLauncherFolderFuzzy NOTIFY launcherFolderFuzzyChanged)
+    Q_PROPERTY(bool launcherFullFilesystemSearch READ launcherFullFilesystemSearch WRITE setLauncherFullFilesystemSearch NOTIFY launcherFullFilesystemSearchChanged)
+    Q_PROPERTY(QString launcherScopeKey READ launcherScopeKey WRITE setLauncherScopeKey NOTIFY launcherScopeKeyChanged)
+    Q_PROPERTY(QString launcherFolderTerm READ launcherFolderTerm WRITE setLauncherFolderTerm NOTIFY launcherFolderTermChanged)
     Q_PROPERTY(bool clipboardFuzzy READ clipboardFuzzy WRITE setClipboardFuzzy NOTIFY clipboardFuzzyChanged)
     Q_PROPERTY(QString searchEngine READ searchEngine WRITE setSearchEngine NOTIFY searchEngineChanged)
     Q_PROPERTY(QString customSearchUrl READ customSearchUrl WRITE setCustomSearchUrl NOTIFY customSearchUrlChanged)
     Q_PROPERTY(QString searchUrl READ searchUrl NOTIFY searchUrlChanged)
     Q_PROPERTY(QString searchEngineLabel READ searchEngineLabel NOTIFY searchEngineLabelChanged)
     Q_PROPERTY(QString notificationPosition READ notificationPosition WRITE setNotificationPosition NOTIFY notificationPositionChanged)
+    Q_PROPERTY(bool notificationShowCopyButton READ notificationShowCopyButton WRITE setNotificationShowCopyButton NOTIFY notificationShowCopyButtonChanged)
 
     Q_PROPERTY(bool moduleMediaPlayer READ moduleMediaPlayer WRITE setModuleMediaPlayer NOTIFY moduleMediaPlayerChanged)
     Q_PROPERTY(bool moduleNotifications READ moduleNotifications WRITE setModuleNotifications NOTIFY moduleNotificationsChanged)
     Q_PROPERTY(bool moduleSound READ moduleSound WRITE setModuleSound NOTIFY moduleSoundChanged)
     Q_PROPERTY(bool moduleWifi READ moduleWifi WRITE setModuleWifi NOTIFY moduleWifiChanged)
     Q_PROPERTY(bool moduleBluetooth READ moduleBluetooth WRITE setModuleBluetooth NOTIFY moduleBluetoothChanged)
+    Q_PROPERTY(bool moduleBrightness READ moduleBrightness WRITE setModuleBrightness NOTIFY moduleBrightnessChanged)
+    Q_PROPERTY(bool brightnessScreenOffAtMin READ brightnessScreenOffAtMin WRITE setBrightnessScreenOffAtMin NOTIFY brightnessScreenOffAtMinChanged)
     Q_PROPERTY(bool moduleDateTime READ moduleDateTime WRITE setModuleDateTime NOTIFY moduleDateTimeChanged)
     Q_PROPERTY(bool moduleWorkspaces READ moduleWorkspaces WRITE setModuleWorkspaces NOTIFY moduleWorkspacesChanged)
     Q_PROPERTY(bool moduleSysTray READ moduleSysTray WRITE setModuleSysTray NOTIFY moduleSysTrayChanged)
@@ -126,6 +141,9 @@ public:
     QString mutedFgColor() const;
     QString altFgColor() const;
     QString accent() const;
+    bool accentFromWallpaper() const;
+    bool accentCycleEnabled() const;
+    int accentCycleInterval() const;
     QString mutedAccent() const;
     QString battery() const;
     QString danger() const;
@@ -142,6 +160,9 @@ public:
     void setMutedFgColor(const QString& v);
     void setAltFgColor(const QString& v);
     void setAccent(const QString& v);
+    void setAccentFromWallpaper(bool v);
+    void setAccentCycleEnabled(bool v);
+    void setAccentCycleInterval(int v);
     void setMutedAccent(const QString& v);
     void setBattery(const QString& v);
     void setDanger(const QString& v);
@@ -169,6 +190,8 @@ public:
     double bluetoothPanelWidth() const;
     double bluetoothItemMaxCount() const;
     double bluetoothItemSize() const;
+    double brightnessPanelWidth() const;
+    double brightnessItemSize() const;
     double mediaPanelWidth() const;
     double workspacePanelWidth() const;
     double workspacePanelHeight() const;
@@ -209,6 +232,8 @@ public:
     void setBluetoothPanelWidth(double v);
     void setBluetoothItemMaxCount(double v);
     void setBluetoothItemSize(double v);
+    void setBrightnessPanelWidth(double v);
+    void setBrightnessItemSize(double v);
     void setMediaPanelWidth(double v);
     void setWorkspacePanelWidth(double v);
     void setWorkspacePanelHeight(double v);
@@ -273,27 +298,45 @@ public:
     bool launcherFuzzy() const;
     bool launcherPowerActions() const;
     bool launcherWallpaperActions() const;
+    bool launcherFileSearch() const;
+    bool launcherFolderSearch() const;
+    bool launcherFileFuzzy() const;
+    bool launcherFolderFuzzy() const;
+    bool launcherFullFilesystemSearch() const;
+    QString launcherScopeKey() const;
+    QString launcherFolderTerm() const;
     bool clipboardFuzzy() const;
     QString searchEngine() const;
     QString customSearchUrl() const;
     QString searchUrl() const;
     QString searchEngineLabel() const;
     QString notificationPosition() const;
+    bool notificationShowCopyButton() const;
     void setLauncherWebSearch(bool v);
     void setLauncherCalc(bool v);
     void setLauncherFuzzy(bool v);
     void setLauncherPowerActions(bool v);
     void setLauncherWallpaperActions(bool v);
+    void setLauncherFileSearch(bool v);
+    void setLauncherFolderSearch(bool v);
+    void setLauncherFileFuzzy(bool v);
+    void setLauncherFolderFuzzy(bool v);
+    void setLauncherFullFilesystemSearch(bool v);
+    void setLauncherScopeKey(const QString& v);
+    void setLauncherFolderTerm(const QString& v);
     void setClipboardFuzzy(bool v);
     void setSearchEngine(const QString& v);
     void setCustomSearchUrl(const QString& v);
     void setNotificationPosition(const QString& v);
+    void setNotificationShowCopyButton(bool v);
 
     bool moduleMediaPlayer() const;
     bool moduleNotifications() const;
     bool moduleSound() const;
     bool moduleWifi() const;
     bool moduleBluetooth() const;
+    bool moduleBrightness() const;
+    bool brightnessScreenOffAtMin() const;
     bool moduleDateTime() const;
     bool moduleWorkspaces() const;
     bool moduleSysTray() const;
@@ -302,6 +345,8 @@ public:
     void setModuleSound(bool v);
     void setModuleWifi(bool v);
     void setModuleBluetooth(bool v);
+    void setModuleBrightness(bool v);
+    void setBrightnessScreenOffAtMin(bool v);
     void setModuleDateTime(bool v);
     void setModuleWorkspaces(bool v);
     void setModuleSysTray(bool v);
@@ -323,6 +368,11 @@ public:
     static bool fuzzyEnabled();
     static bool powerActionsEnabled();
     static bool wallpaperActionsEnabled();
+    static bool fileSearchEnabled();
+    static bool folderSearchEnabled();
+    static bool fileFuzzyEnabled();
+    static bool folderFuzzyEnabled();
+    static bool fullFilesystemSearchEnabled();
     static bool clipboardFuzzyEnabled();
     static int clipboardMaxItemCount();
     static QString activeSearchName();
@@ -339,6 +389,9 @@ signals:
     void mutedFgColorChanged();
     void altFgColorChanged();
     void accentChanged();
+    void accentFromWallpaperChanged();
+    void accentCycleEnabledChanged();
+    void accentCycleIntervalChanged();
     void mutedAccentChanged();
     void batteryChanged();
     void dangerChanged();
@@ -365,6 +418,8 @@ signals:
     void bluetoothPanelWidthChanged();
     void bluetoothItemMaxCountChanged();
     void bluetoothItemSizeChanged();
+    void brightnessPanelWidthChanged();
+    void brightnessItemSizeChanged();
     void mediaPanelWidthChanged();
     void workspacePanelWidthChanged();
     void workspacePanelHeightChanged();
@@ -409,17 +464,27 @@ signals:
     void launcherFuzzyChanged();
     void launcherPowerActionsChanged();
     void launcherWallpaperActionsChanged();
+    void launcherFileSearchChanged();
+    void launcherFolderSearchChanged();
+    void launcherFileFuzzyChanged();
+    void launcherFolderFuzzyChanged();
+    void launcherFullFilesystemSearchChanged();
+    void launcherScopeKeyChanged();
+    void launcherFolderTermChanged();
     void clipboardFuzzyChanged();
     void searchEngineChanged();
     void customSearchUrlChanged();
     void searchUrlChanged();
     void searchEngineLabelChanged();
     void notificationPositionChanged();
+    void notificationShowCopyButtonChanged();
     void moduleMediaPlayerChanged();
     void moduleNotificationsChanged();
     void moduleSoundChanged();
     void moduleWifiChanged();
     void moduleBluetoothChanged();
+    void moduleBrightnessChanged();
+    void brightnessScreenOffAtMinChanged();
     void moduleDateTimeChanged();
     void moduleWorkspacesChanged();
     void moduleSysTrayChanged();

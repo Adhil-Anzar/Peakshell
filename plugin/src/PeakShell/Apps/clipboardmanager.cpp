@@ -19,8 +19,10 @@
 #include <qloggingcategory.h>
 #include <qmimedata.h>
 #include <qmimedatabase.h>
+#include <qmimetype.h>
 #include <qsavefile.h>
 #include <qstandardpaths.h>
+#include <qstringconverter.h>
 #include <qstringlist.h>
 #include <qurl.h>
 #include <quuid.h>
@@ -46,6 +48,87 @@ constexpr double kTextWeight = 0.3;
 constexpr int kSummaryLength = 120;
 constexpr int kSaveDebounceMs = 400;
 constexpr int kPasteDelayMs = 220;
+constexpr qint64 kMaxFilePreviewBytes = 128 * 1024;
+
+inline bool isTextMimeType(const QMimeType& mime) {
+    if (!mime.isValid())
+        return false;
+    const QString name = mime.name();
+    if (name.startsWith(u"text/"_s) || mime.inherits(u"text/plain"_s))
+        return true;
+
+    static const QStringList extra = {
+        u"application/json"_s,
+        u"application/ld+json"_s,
+        u"application/xml"_s,
+        u"application/xhtml+xml"_s,
+        u"application/javascript"_s,
+        u"application/x-javascript"_s,
+        u"application/ecmascript"_s,
+        u"application/x-qml"_s,
+        u"application/x-shellscript"_s,
+        u"application/x-sh"_s,
+        u"application/x-csh"_s,
+        u"application/x-perl"_s,
+        u"application/x-python"_s,
+        u"application/x-ruby"_s,
+        u"application/x-php"_s,
+        u"application/x-httpd-php"_s,
+        u"application/x-desktop"_s,
+        u"application/x-yaml"_s,
+        u"application/yaml"_s,
+        u"application/toml"_s,
+        u"application/x-toml"_s,
+        u"application/sql"_s,
+        u"application/graphql"_s,
+        u"application/x-tex"_s,
+        u"application/x-latex"_s,
+        u"application/x-makefile"_s,
+        u"application/x-cmake"_s,
+        u"application/x-ninja"_s,
+        u"application/x-diff"_s,
+        u"application/x-patch"_s,
+        u"application/x-lua"_s,
+        u"application/x-rust"_s,
+        u"application/x-go"_s,
+        u"application/x-java"_s,
+        u"application/x-csharp"_s,
+        u"application/x-csrc"_s,
+        u"application/x-chdr"_s,
+        u"application/x-c++src"_s,
+        u"application/x-c++hdr"_s,
+        u"application/x-objective-c"_s,
+        u"application/x-objective-c++"_s,
+        u"application/x-haskell"_s,
+        u"application/x-erlang"_s,
+        u"application/x-elixir"_s,
+        u"application/x-swift"_s,
+        u"application/x-kotlin"_s,
+        u"application/x-scala"_s,
+        u"application/x-groovy"_s,
+        u"application/x-lisp"_s,
+        u"application/x-scheme"_s,
+        u"application/x-clojure"_s,
+        u"application/x-fortran"_s,
+        u"application/x-pascal"_s,
+        u"application/x-vbscript"_s,
+        u"application/x-bat"_s,
+        u"application/x-powershell"_s,
+        u"application/x-awk"_s,
+        u"application/x-sed"_s,
+        u"application/rtf"_s,
+        u"application/x-subrip"_s,
+        u"application/x-ndjson"_s,
+        u"application/x-ini"_s,
+        u"application/x-properties"_s,
+        u"application/x-texinfo"_s,
+        u"application/x-bibtex"_s,
+        u"application/x-nginx-conf"_s,
+        u"application/x-apache-conf"_s,
+        u"application/x-systemd-unit"_s,
+    };
+    return extra.contains(name);
+}
 
 inline std::string lowerStd(const QString& s) {
     return s.toLower().toStdString();
@@ -874,6 +957,90 @@ void ClipboardManager::refresh() {
 
 void ClipboardManager::ingestText(const QString& text) {
     addText(text);
+}
+
+QVariantMap ClipboardManager::previewFile(const QString& path) const {
+    QVariantMap result;
+    result.insert(u"path"_s, path);
+
+    const QFileInfo info(path);
+    if (!info.exists() || !info.isFile()) {
+        result.insert(u"kind"_s, u"unsupported"_s);
+        return result;
+    }
+
+    result.insert(u"name"_s, info.fileName());
+    result.insert(u"size"_s, static_cast<qlonglong>(info.size()));
+
+    if (info.size() == 0) {
+        result.insert(u"kind"_s, u"text"_s);
+        result.insert(u"mime"_s, u"text/plain"_s);
+        result.insert(u"text"_s, QString());
+        result.insert(u"truncated"_s, false);
+        return result;
+    }
+
+    const QMimeDatabase database;
+    const QMimeType byExtension =
+        database.mimeTypeForFile(info, QMimeDatabase::MatchExtension);
+    const QMimeType byContent =
+        database.mimeTypeForFile(info, QMimeDatabase::MatchContent);
+
+    if (byContent.name().startsWith(u"image/"_s)
+        || (byExtension.name().startsWith(u"image/"_s)
+            && !isTextMimeType(byContent))) {
+        result.insert(u"kind"_s, u"image"_s);
+        result.insert(u"mime"_s,
+                      byContent.name().startsWith(u"image/"_s) ? byContent.name()
+                                                               : byExtension.name());
+        result.insert(u"imageSource"_s,
+                      QUrl::fromLocalFile(info.absoluteFilePath()).toString());
+        return result;
+    }
+
+    const QMimeType textMime = isTextMimeType(byExtension)
+        ? byExtension
+        : (isTextMimeType(byContent) ? byContent : QMimeType());
+
+    QFile file(info.absoluteFilePath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        result.insert(u"kind"_s, u"unsupported"_s);
+        return result;
+    }
+
+    const QByteArray data = file.read(kMaxFilePreviewBytes);
+    if (data.contains('\0')) {
+        result.insert(u"kind"_s, u"unsupported"_s);
+        return result;
+    }
+
+    QString text;
+    QString mimeName;
+    if (textMime.isValid()) {
+        text = QString::fromUtf8(data);
+        mimeName = textMime.name();
+    } else {
+        // Unknown extensions are common for scripts and plain-text notes. Use
+        // valid UTF-8 as a conservative fallback before giving up.
+        QStringDecoder decoder(QStringDecoder::Utf8);
+        text = decoder(data);
+        if (decoder.hasError()) {
+            result.insert(u"kind"_s, u"unsupported"_s);
+            result.insert(u"mime"_s, byContent.name().isEmpty() ? byExtension.name()
+                                                                : byContent.name());
+            return result;
+        }
+        mimeName = u"text/plain"_s;
+    }
+
+    if (text.startsWith(QChar(0xFEFF)))
+        text.remove(0, 1);
+
+    result.insert(u"kind"_s, u"text"_s);
+    result.insert(u"mime"_s, mimeName);
+    result.insert(u"text"_s, text);
+    result.insert(u"truncated"_s, info.size() > data.size());
+    return result;
 }
 
 } // namespace peakshell::apps

@@ -161,6 +161,19 @@ PS_STR(fgColor, FgColor, "theme/fgColor", "#FFFFFFFF")
 PS_STR(mutedFgColor, MutedFgColor, "theme/mutedFgColor", "#FFA0A0A0")
 PS_STR(altFgColor, AltFgColor, "theme/altFgColor", "#FF050505")
 PS_STR(accent, Accent, "theme/accent", "#FF8C00BA")
+bool Settings::accentFromWallpaper() const { return getBool(u"theme/accentFromWallpaper"_s, true); }
+void Settings::setAccentFromWallpaper(bool v) {
+    if (accentFromWallpaper() == v) return;
+    setBool(u"theme/accentFromWallpaper"_s, v, true);
+    emit accentFromWallpaperChanged();
+}
+bool Settings::accentCycleEnabled() const { return getBool(u"theme/accentCycleEnabled"_s, false); }
+void Settings::setAccentCycleEnabled(bool v) {
+    if (accentCycleEnabled() == v) return;
+    setBool(u"theme/accentCycleEnabled"_s, v, false);
+    emit accentCycleEnabledChanged();
+}
+PS_INT(accentCycleInterval, AccentCycleInterval, "theme/accentCycleInterval", 5)
 PS_STR(mutedAccent, MutedAccent, "theme/mutedAccent", "#AA797979")
 PS_STR(battery, Battery, "theme/battery", "#FF21AB5F")
 PS_STR(danger, Danger, "theme/danger", "#55FF3333")
@@ -168,6 +181,8 @@ PS_STR(dangerPulse, DangerPulse, "theme/dangerPulse", "#FFFF3333")
 PS_STR(urgentPulseColor, UrgentPulseColor, "theme/urgentPulseColor", "#CC8800FF")
 PS_STR(iconFontFamily, IconFontFamily, "theme/iconFontFamily", "Jetbrains Mono NL")
 PS_STR(labelFontFamily, LabelFontFamily, "theme/labelFontFamily", "JetBrains Mono NL")
+PS_STR(launcherScopeKey, LauncherScopeKey, "launcher/scopeKey", "/")
+PS_STR(launcherFolderTerm, LauncherFolderTerm, "launcher/folderTerm", "directory")
 
 PS_DBL(barHeight, BarHeight, "theme/barHeight", 40)
 PS_DBL(barHorizontalPad, BarHorizontalPad, "theme/barHorizontalPad", 20)
@@ -188,6 +203,8 @@ PS_DBL(wifiItemSize, WifiItemSize, "theme/wifiItemSize", 60)
 PS_DBL(bluetoothPanelWidth, BluetoothPanelWidth, "theme/bluetoothPanelWidth", 400)
 PS_DBL(bluetoothItemMaxCount, BluetoothItemMaxCount, "theme/bluetoothItemMaxCount", 14)
 PS_DBL(bluetoothItemSize, BluetoothItemSize, "theme/bluetoothItemSize", 60)
+PS_DBL(brightnessPanelWidth, BrightnessPanelWidth, "theme/brightnessPanelWidth", 400)
+PS_DBL(brightnessItemSize, BrightnessItemSize, "theme/brightnessItemSize", 76)
 PS_DBL(mediaPanelWidth, MediaPanelWidth, "theme/mediaPanelWidth", 360)
 PS_DBL(workspacePanelWidth, WorkspacePanelWidth, "theme/workspacePanelWidth", 400)
 PS_DBL(workspacePanelHeight, WorkspacePanelHeight, "theme/workspacePanelHeight", 100)
@@ -234,10 +251,16 @@ bool Settings::launcherCalc() const { return getBool(u"launcher/calc"_s, true); 
 bool Settings::launcherFuzzy() const { return getBool(u"launcher/fuzzy"_s, true); }
 bool Settings::launcherPowerActions() const { return getBool(u"launcher/powerActions"_s, true); }
 bool Settings::launcherWallpaperActions() const { return getBool(u"launcher/wallpaperActions"_s, true); }
+bool Settings::launcherFileSearch() const { return getBool(u"launcher/fileSearch"_s, true); }
+bool Settings::launcherFolderSearch() const { return getBool(u"launcher/folderSearch"_s, true); }
+bool Settings::launcherFileFuzzy() const { return getBool(u"launcher/fileFuzzy"_s, true); }
+bool Settings::launcherFolderFuzzy() const { return getBool(u"launcher/folderFuzzy"_s, true); }
+bool Settings::launcherFullFilesystemSearch() const { return getBool(u"launcher/fullFilesystemSearch"_s, false); }
 bool Settings::clipboardFuzzy() const { return getBool(u"clipboard/fuzzy"_s, true); }
 QString Settings::searchEngine() const { return getString(u"launcher/searchEngine"_s, u"DuckDuckGo"_s); }
 QString Settings::customSearchUrl() const { return getString(u"launcher/customSearchUrl"_s, QString()); }
 QString Settings::notificationPosition() const { return getString(u"notifications/position"_s, u"bottomRight"_s); }
+bool Settings::notificationShowCopyButton() const { return getBool(u"notifications/showCopyButton"_s, true); }
 
 void Settings::setLauncherWebSearch(bool v) {
     if (launcherWebSearch() == v) return;
@@ -263,6 +286,31 @@ void Settings::setLauncherWallpaperActions(bool v) {
     if (launcherWallpaperActions() == v) return;
     setBool(u"launcher/wallpaperActions"_s, v, true);
     emit launcherWallpaperActionsChanged();
+}
+void Settings::setLauncherFileSearch(bool v) {
+    if (launcherFileSearch() == v) return;
+    setBool(u"launcher/fileSearch"_s, v, true);
+    emit launcherFileSearchChanged();
+}
+void Settings::setLauncherFolderSearch(bool v) {
+    if (launcherFolderSearch() == v) return;
+    setBool(u"launcher/folderSearch"_s, v, true);
+    emit launcherFolderSearchChanged();
+}
+void Settings::setLauncherFileFuzzy(bool v) {
+    if (launcherFileFuzzy() == v) return;
+    setBool(u"launcher/fileFuzzy"_s, v, true);
+    emit launcherFileFuzzyChanged();
+}
+void Settings::setLauncherFolderFuzzy(bool v) {
+    if (launcherFolderFuzzy() == v) return;
+    setBool(u"launcher/folderFuzzy"_s, v, true);
+    emit launcherFolderFuzzyChanged();
+}
+void Settings::setLauncherFullFilesystemSearch(bool v) {
+    if (launcherFullFilesystemSearch() == v) return;
+    setBool(u"launcher/fullFilesystemSearch"_s, v, false);
+    emit launcherFullFilesystemSearchChanged();
 }
 void Settings::setClipboardFuzzy(bool v) {
     if (clipboardFuzzy() == v) return;
@@ -290,12 +338,19 @@ void Settings::setNotificationPosition(const QString& v) {
     setString(u"notifications/position"_s, nv, u"bottomRight"_s);
     emit notificationPositionChanged();
 }
+void Settings::setNotificationShowCopyButton(bool v) {
+    if (notificationShowCopyButton() == v) return;
+    setBool(u"notifications/showCopyButton"_s, v, true);
+    emit notificationShowCopyButtonChanged();
+}
 
 bool Settings::moduleMediaPlayer() const { return getBool(u"modules/mediaPlayer"_s, true); }
 bool Settings::moduleNotifications() const { return getBool(u"modules/notifications"_s, true); }
 bool Settings::moduleSound() const { return getBool(u"modules/sound"_s, true); }
 bool Settings::moduleWifi() const { return getBool(u"modules/wifi"_s, true); }
 bool Settings::moduleBluetooth() const { return getBool(u"modules/bluetooth"_s, true); }
+bool Settings::moduleBrightness() const { return getBool(u"modules/brightness"_s, true); }
+bool Settings::brightnessScreenOffAtMin() const { return getBool(u"modules/brightnessScreenOffAtMin"_s, false); }
 bool Settings::moduleDateTime() const { return getBool(u"modules/dateTime"_s, true); }
 bool Settings::moduleWorkspaces() const { return getBool(u"modules/workspaces"_s, true); }
 bool Settings::moduleSysTray() const { return getBool(u"modules/sysTray"_s, true); }
@@ -324,6 +379,16 @@ void Settings::setModuleBluetooth(bool v) {
     if (moduleBluetooth() == v) return;
     setBool(u"modules/bluetooth"_s, v, true);
     emit moduleBluetoothChanged();
+}
+void Settings::setModuleBrightness(bool v) {
+    if (moduleBrightness() == v) return;
+    setBool(u"modules/brightness"_s, v, true);
+    emit moduleBrightnessChanged();
+}
+void Settings::setBrightnessScreenOffAtMin(bool v) {
+    if (brightnessScreenOffAtMin() == v) return;
+    setBool(u"modules/brightnessScreenOffAtMin"_s, v, false);
+    emit brightnessScreenOffAtMinChanged();
 }
 void Settings::setModuleDateTime(bool v) {
     if (moduleDateTime() == v) return;
@@ -388,6 +453,9 @@ void Settings::resetTheme() {
         u"theme/mutedFgColor"_s,
         u"theme/altFgColor"_s,
         u"theme/accent"_s,
+        u"theme/accentFromWallpaper"_s,
+        u"theme/accentCycleEnabled"_s,
+        u"theme/accentCycleInterval"_s,
         u"theme/mutedAccent"_s,
         u"theme/battery"_s,
         u"theme/danger"_s,
@@ -403,6 +471,9 @@ void Settings::resetTheme() {
     emit mutedFgColorChanged();
     emit altFgColorChanged();
     emit accentChanged();
+    emit accentFromWallpaperChanged();
+    emit accentCycleEnabledChanged();
+    emit accentCycleIntervalChanged();
     emit mutedAccentChanged();
     emit batteryChanged();
     emit dangerChanged();
@@ -472,6 +543,8 @@ void Settings::resetLayout() {
         u"theme/bluetoothPanelWidth"_s,
         u"theme/bluetoothItemMaxCount"_s,
         u"theme/bluetoothItemSize"_s,
+        u"theme/brightnessPanelWidth"_s,
+        u"theme/brightnessItemSize"_s,
         u"theme/mediaPanelWidth"_s,
         u"theme/workspacePanelWidth"_s,
         u"theme/workspacePanelHeight"_s,
@@ -515,6 +588,8 @@ void Settings::resetLayout() {
     emit bluetoothPanelWidthChanged();
     emit bluetoothItemMaxCountChanged();
     emit bluetoothItemSizeChanged();
+    emit brightnessPanelWidthChanged();
+    emit brightnessItemSizeChanged();
     emit mediaPanelWidthChanged();
     emit workspacePanelWidthChanged();
     emit workspacePanelHeightChanged();
@@ -548,6 +623,13 @@ void Settings::resetLauncher() {
     emit launcherFuzzyChanged();
     emit launcherPowerActionsChanged();
     emit launcherWallpaperActionsChanged();
+    emit launcherFileSearchChanged();
+    emit launcherFolderSearchChanged();
+    emit launcherFileFuzzyChanged();
+    emit launcherFolderFuzzyChanged();
+    emit launcherFullFilesystemSearchChanged();
+    emit launcherScopeKeyChanged();
+    emit launcherFolderTermChanged();
     emit searchEngineChanged();
     emit customSearchUrlChanged();
     emit searchUrlChanged();
@@ -572,10 +654,12 @@ void Settings::resetClipboard() {
 void Settings::resetNotifications() {
     removeKeys({
         u"notifications/position"_s,
+        u"notifications/showCopyButton"_s,
         u"theme/notificationPopupTimeout"_s,
         u"theme/notificationMaxPopups"_s,
     });
     emit notificationPositionChanged();
+    emit notificationShowCopyButtonChanged();
     emit notificationPopupTimeoutChanged();
     emit notificationMaxPopupsChanged();
 }
@@ -588,6 +672,8 @@ void Settings::resetModules() {
     emit moduleSoundChanged();
     emit moduleWifiChanged();
     emit moduleBluetoothChanged();
+    emit moduleBrightnessChanged();
+    emit brightnessScreenOffAtMinChanged();
     emit moduleDateTimeChanged();
     emit moduleWorkspacesChanged();
     emit moduleSysTrayChanged();
@@ -616,6 +702,31 @@ bool Settings::powerActionsEnabled() {
 bool Settings::wallpaperActionsEnabled() {
     QSettings s(u"PeakShell"_s, u"PeakShell"_s);
     return s.value(u"launcher/wallpaperActions"_s, true).toBool();
+}
+
+bool Settings::fileSearchEnabled() {
+    QSettings s(u"PeakShell"_s, u"PeakShell"_s);
+    return s.value(u"launcher/fileSearch"_s, true).toBool();
+}
+
+bool Settings::folderSearchEnabled() {
+    QSettings s(u"PeakShell"_s, u"PeakShell"_s);
+    return s.value(u"launcher/folderSearch"_s, true).toBool();
+}
+
+bool Settings::fileFuzzyEnabled() {
+    QSettings s(u"PeakShell"_s, u"PeakShell"_s);
+    return s.value(u"launcher/fileFuzzy"_s, true).toBool();
+}
+
+bool Settings::folderFuzzyEnabled() {
+    QSettings s(u"PeakShell"_s, u"PeakShell"_s);
+    return s.value(u"launcher/folderFuzzy"_s, true).toBool();
+}
+
+bool Settings::fullFilesystemSearchEnabled() {
+    QSettings s(u"PeakShell"_s, u"PeakShell"_s);
+    return s.value(u"launcher/fullFilesystemSearch"_s, false).toBool();
 }
 
 bool Settings::clipboardFuzzyEnabled() {

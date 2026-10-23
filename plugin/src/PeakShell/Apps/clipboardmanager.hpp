@@ -43,6 +43,11 @@ public:
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void ingestText(const QString& text);
 
+    // Inspect a file for the clipboard preview. Image files are returned as a
+    // local URL, text files as a bounded UTF-8 prefix, and everything else as
+    // kind "unsupported".
+    Q_INVOKABLE QVariantMap previewFile(const QString& path) const;
+
 signals:
     void historyChanged();
 

@@ -1,6 +1,6 @@
 # peakshell
 
-A quickshell-based desktop shell with a native C++ plugin.
+A quickshell-based desktop shell with a native C++ plugin for hyprland.
 
 ## Build
 
@@ -49,21 +49,18 @@ peakshell
 # Daemonize
 peakshell -d
 
-# IPC – same interface as quickshell ipc
-peakshell ipc call ii1qe launcher
-peakshell ipc call ii1qe clipboard
-peakshell ipc call ii1qe powermenu
-peakshell ipc call ii1qe power shutdown
-peakshell ipc call mpris playPause
-peakshell ipc call timer start 25m
-peakshell ipc call timer state
+# IPC – To view all ipc and call them
 peakshell ipc show
+peakshell ipc call ii1qe launcher
 peakshell ipc prop <target> <property>
 
-# Other quickshell subcommands work as-is
+# Other quickshell subcommands work as is
 peakshell log
 peakshell list
 peakshell kill
+
+# To view help
+peakshell --help
 ```
 
 `peakshell` is a wrapper around `quickshell -p <config-dir>`.

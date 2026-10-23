@@ -56,6 +56,24 @@ ColumnLayout {
             }
         }
         Row {
+            label: "Brightness"
+            hint: "Monitor brightness chip (only shown when a monitor supports it)"
+            Toggle {
+                x: parent.width - width
+                checked: Settings.moduleBrightness
+                onToggled: v => Settings.moduleBrightness = v
+            }
+        }
+        Row {
+            label: "Brightness sleep shortcut"
+            hint: "Turn off the screen after three more down presses at 0%"
+            Toggle {
+                x: parent.width - width
+                checked: Settings.brightnessScreenOffAtMin
+                onToggled: v => Settings.brightnessScreenOffAtMin = v
+            }
+        }
+        Row {
             label: "Date & time"
             hint: "Clock / calendar module"
             Toggle {

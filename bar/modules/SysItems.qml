@@ -11,7 +11,9 @@ Rectangle {
     required property var panelHost
 
     // Hide the whole pill when every system chip has been disabled.
-    visible: Theme.moduleNotifications || Theme.moduleSound || Theme.moduleWifi || Theme.moduleBluetooth
+    readonly property var screen: panelHost ? panelHost.screen : null
+    readonly property bool brightnessVisible: Theme.moduleBrightness && Brightness.supportsScreen(screen)
+    visible: Theme.moduleNotifications || Theme.moduleSound || Theme.moduleWifi || Theme.moduleBluetooth || brightnessVisible
 
     function registerPanel(name, panel, visible) {
         if (visible)
@@ -43,6 +45,14 @@ Rectangle {
         panel.visible = !panel.visible;
         bluetoothChip.keepExpanded();
         registerPanel("bluetooth", panel, panel.visible);
+    }
+    function toggleBrightnessPanel() {
+        brightnessLoader.active = true;
+        const panel = brightnessLoader.item;
+        panelHost.hideAllPanelExcept("brightness");
+        panel.visible = !panel.visible;
+        brightnessChip.keepExpanded();
+        registerPanel("brightness", panel, panel.visible);
     }
     function toggleNotificationPanel() {
         notifLoader.active = true;
@@ -112,6 +122,15 @@ Rectangle {
             label: BluetoothResolve.status
             onLeftClicked: root.toggleBluetoothPanel()
         }
+        BarChip {
+            id: brightnessChip
+            visible: root.brightnessVisible
+            iconName: Brightness.iconForScreen(root.screen)
+            iconColor: Theme.fgColor
+            label: Brightness.statusForScreen(root.screen)
+            onLeftClicked: root.toggleBrightnessPanel()
+            onWheeled: direction => Brightness.adjustMonitor(Brightness.monitorForScreen(root.screen), direction * Brightness.step)
+        }
     }
 
     LazyLoader {
@@ -134,6 +153,14 @@ Rectangle {
         id: bluetoothLoader
         loading: true
         BluetoothPanel {
+            panelHost: root.panelHost
+            barOffset: container.getSpacingDistance()
+        }
+    }
+    LazyLoader {
+        id: brightnessLoader
+        loading: true
+        BrightnessPanel {
             panelHost: root.panelHost
             barOffset: container.getSpacingDistance()
         }

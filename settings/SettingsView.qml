@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Widgets
 import PeakShell
+import "root:/"
 import "pages"
 import "pages/theme"
 import "widgets"
@@ -51,7 +52,7 @@ Item {
                         implicitHeight: 44
                         radius: Settings.cornerRadius
                         color: root.currentPage === index ? Settings.hoveredBgColor : (navMa.containsMouse ? Settings.mutedBgColor : "transparent")
-                        border.color: root.currentPage === index ? Settings.accent : "transparent"
+                        border.color: root.currentPage === index ? Theme.accent : "transparent"
                         border.width: 1
                         RowLayout {
                             anchors.fill: parent

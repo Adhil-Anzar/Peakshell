@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <qlist.h>
 #include <qobject.h>
 #include <qqmlintegration.h>
@@ -43,6 +45,14 @@ public:
     [[nodiscard]] QString categories()  const;
     [[nodiscard]] bool    terminal()    const;
 
+    // Lowercase search fields are built once per desktop entry. Fuzzy
+    // scoring runs on every keystroke, so re-lowercasing all fields for every
+    // query is pure repeated work.
+    [[nodiscard]] const std::string& nameLower()        const;
+    [[nodiscard]] const std::string& genericNameLower() const;
+    [[nodiscard]] const std::string& commentLower()     const;
+    [[nodiscard]] const std::string& keywordsLower()    const;
+
 private:
     QString m_name;
     QString m_genericName;
@@ -52,6 +62,10 @@ private:
     QString m_keywords;
     QString m_categories;
     bool    m_terminal;
+    std::string m_nameLower;
+    std::string m_genericNameLower;
+    std::string m_commentLower;
+    std::string m_keywordsLower;
 };
 
 // Scans XDG application directories for .desktop files, exposes them to QML,
@@ -85,6 +99,13 @@ public:
     // reorder animations keep working across keystrokes.
     // Does NOT include "run in terminal" entries.
     Q_INVOKABLE QVariantList search(const QString& query);
+
+    // Scope-aware variant used by launcher prefixes. Only the requested
+    // result family is scored and built: "apps", "actions", "calc", or
+    // "web". Empty/"all" keeps the unified global search behavior. This
+    // avoids scanning every app and action only to filter the result list
+    // in QML afterwards.
+    Q_INVOKABLE QVariantList searchScoped(const QString& query, const QString& scope);
 
     // Executes one entry produced by search(). Calculator results are copied
     // to the clipboard; web results open the browser; ipc results invoke

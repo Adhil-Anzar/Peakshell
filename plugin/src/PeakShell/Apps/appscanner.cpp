@@ -105,6 +105,8 @@ constexpr IpcAction kIpcActions[] = {
     { "calendar", "Calendar", "Clock", "Toggle calendar panel", "calendar clock date time", "x-office-calendar" },
     { "timer", "View Timer", "Timer", "View the timer and countdown", "timer countdown alarm clock stopwatch pomodoro", "alarm-clock-panel" },
     { "bluetooth", "Bluetooth", "Devices", "Toggle bluetooth panel", "bluetooth bt devices", "bluetooth" },
+    { "brightness", "Brightness", "Display", "Toggle brightness panel", "brightness display screen backlight luminance", "display-brightness" },
+    { "toggleScreen", "Toggle Screen", "Display", "Turn the screen off", "screen display monitor off power toggle black", "video-display" },
     { "showWallpaper", "Show Wallpaper", "Wallpaper", "Show the wallpaper preview", "wallpaper background show preview", "preferences-desktop-wallpaper", ActionGroup::Wallpaper },
     { "wifi", "Wi-Fi", "Network", "Toggle wifi panel", "wifi wi-fi network wireless internet", "network-wireless" },
     { "arch", "Arch Dashboard", "Menu", "Toggle Arch dashboard", "arch dashboard menu logo", "start-here" },
@@ -128,37 +130,41 @@ inline std::string lowerStd(const QString& s) {
 // True when the query is nearly identical to one field (full ratio, not
 // partial): catches near-exact description hits like "webbrowser" for the
 // "Web Browser" generic name, which substring floors would miss.
-inline bool nearExactField(const std::string& q, const QString& name,
-                           const QString& genericName, const QString& comment,
-                           const QString& keywords) {
-    return FuzzySearch::getMatch(q, lowerStd(name)) >= kNearExactFieldRatio
-        || FuzzySearch::getMatch(q, lowerStd(genericName)) >= kNearExactFieldRatio
-        || FuzzySearch::getMatch(q, lowerStd(comment)) >= kNearExactFieldRatio
-        || FuzzySearch::getMatch(q, lowerStd(keywords)) >= kNearExactFieldRatio;
+inline bool nearExactField(const std::string& q, const std::string& nameLower,
+                           const std::string& genericNameLower,
+                           const std::string& commentLower,
+                           const std::string& keywordsLower) {
+    return FuzzySearch::getMatch(q, nameLower) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, genericNameLower) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, commentLower) >= kNearExactFieldRatio
+        || FuzzySearch::getMatch(q, keywordsLower) >= kNearExactFieldRatio;
 }
 
 // True when the query nearly equals a window of the description fields:
 // typing the start of a long comment/genericName (which full-ratio would
 // drown in length) still surfaces the entry.
-inline bool nearExactDescription(const std::string& q, const QString& genericName,
-                                 const QString& comment) {
-    return FuzzySearch::getPartialMatch(q, lowerStd(genericName)) >= kNearExactDescPartial
-        || FuzzySearch::getPartialMatch(q, lowerStd(comment)) >= kNearExactDescPartial;
+inline bool nearExactDescription(const std::string& q,
+                                 const std::string& genericNameLower,
+                                 const std::string& commentLower) {
+    return FuzzySearch::getPartialMatch(q, genericNameLower) >= kNearExactDescPartial
+        || FuzzySearch::getPartialMatch(q, commentLower) >= kNearExactDescPartial;
 }
 
 // Tuning fix: the name partial_ratio is capped by the name/query length
 // ratio. partial_ratio trivially returns 100 for stub candidates (e.g. the
 // single-letter app "R") whenever the query merely contains that letter,
 // which would otherwise outrank genuine typo matches like "firefcx"->Firefox.
-inline double fuzzyScore(const std::string& q, const QString& name,
-                         const QString& genericName, const QString& comment,
-                         const QString& keywords) {
+inline double fuzzyScore(const std::string& q, qsizetype nameLength,
+                         const std::string& nameLower,
+                         const std::string& genericNameLower,
+                         const std::string& commentLower,
+                         const std::string& keywordsLower) {
     const double lenCap = q.empty() ? 1.0
-        : std::min(1.0, static_cast<double>(name.length()) / static_cast<double>(q.length()));
-    double score = FuzzySearch::getPartialMatch(q, lowerStd(name)) * lenCap * kNameWeight;
-    score += FuzzySearch::getMatch(q, lowerStd(genericName)) * kGenericWeight;
-    score += FuzzySearch::getMatch(q, lowerStd(comment)) * kCommentWeight;
-    score += FuzzySearch::getMatch(q, lowerStd(keywords)) * kKeywordsWeight;
+        : std::min(1.0, static_cast<double>(nameLength) / static_cast<double>(q.length()));
+    double score = FuzzySearch::getPartialMatch(q, nameLower) * lenCap * kNameWeight;
+    score += FuzzySearch::getMatch(q, genericNameLower) * kGenericWeight;
+    score += FuzzySearch::getMatch(q, commentLower) * kCommentWeight;
+    score += FuzzySearch::getMatch(q, keywordsLower) * kKeywordsWeight;
     return score;
 }
 
@@ -432,7 +438,12 @@ AppEntry::AppEntry(QString name, QString genericName, QString comment,
     , m_exec(std::move(exec))
     , m_keywords(std::move(keywords))
     , m_categories(std::move(categories))
-    , m_terminal(terminal) {}
+    , m_terminal(terminal) {
+    m_nameLower = m_name.toLower().toStdString();
+    m_genericNameLower = m_genericName.toLower().toStdString();
+    m_commentLower = m_comment.toLower().toStdString();
+    m_keywordsLower = m_keywords.toLower().toStdString();
+}
 
 QString AppEntry::name()        const { return m_name; }
 QString AppEntry::genericName() const { return m_genericName; }
@@ -442,6 +453,11 @@ QString AppEntry::exec()        const { return m_exec; }
 QString AppEntry::keywords()    const { return m_keywords; }
 QString AppEntry::categories()  const { return m_categories; }
 bool    AppEntry::terminal()    const { return m_terminal; }
+
+const std::string& AppEntry::nameLower()        const { return m_nameLower; }
+const std::string& AppEntry::genericNameLower() const { return m_genericNameLower; }
+const std::string& AppEntry::commentLower()     const { return m_commentLower; }
+const std::string& AppEntry::keywordsLower()    const { return m_keywordsLower; }
 
 // AppScanner
 
@@ -597,100 +613,144 @@ void AppScanner::launch(AppEntry* entry) {
 }
 
 QVariantList AppScanner::search(const QString& query) {
+    return searchScoped(query, QString());
+}
+
+QVariantList AppScanner::searchScoped(const QString& query, const QString& scope) {
     const QString q = query.trimmed();
     if (q.isEmpty() || !m_loaded)
         return {};
 
-    const QString qLower = q.toLower();
-    const std::string qStd = qLower.toStdString();
+    const QString scopeLower = scope.trimmed().toLower();
+    const bool global = scopeLower.isEmpty() || scopeLower == u"all"_s;
+    const bool wantApps = global || scopeLower == u"apps"_s || scopeLower == u"app"_s;
+    const bool wantActions = global || scopeLower == u"actions"_s
+        || scopeLower == u"action"_s || scopeLower == u"ipc"_s;
+    const bool wantCalc = global || scopeLower == u"calc"_s
+        || scopeLower == u"calculator"_s || scopeLower == u"math"_s;
+    const bool wantWeb = global || scopeLower == u"web"_s || scopeLower == u"search"_s;
+    if (!wantApps && !wantActions && !wantCalc && !wantWeb)
+        return {};
+
+    // Only app/action scoring needs the normalized string; calc/web work on
+    // the original query and should not pay for the conversion.
+    std::string qStd;
+    if (wantApps || wantActions)
+        qStd = q.toLower().toStdString();
 
     struct Scored {
         QVariantMap map;
         double key = 0.0;
     };
     QVector<Scored> acc;
-    acc.reserve(m_apps.size() + 16);
-    const bool fuzzyOn = peakshell::Settings::fuzzyEnabled();
-    const bool webOn = peakshell::Settings::webSearchEnabled();
-    const bool calcOn = peakshell::Settings::calcEnabled();
-    const bool powerActionsOn = peakshell::Settings::powerActionsEnabled();
-    const bool wallpaperActionsOn = peakshell::Settings::wallpaperActionsEnabled();
+    const int actionCount =
+        static_cast<int>(sizeof(kIpcActions) / sizeof(kIpcActions[0]));
+    const int reserve = (wantApps ? static_cast<int>(m_apps.size()) : 0)
+        + (wantActions ? actionCount : 0) + 2;
+    acc.reserve(reserve);
+    const bool fuzzyOn = (wantApps || wantActions)
+        && peakshell::Settings::fuzzyEnabled();
+    const bool webOn = wantWeb && peakshell::Settings::webSearchEnabled();
+    const bool calcOn = wantCalc && peakshell::Settings::calcEnabled();
+    const bool powerActionsOn = wantActions
+        && peakshell::Settings::powerActionsEnabled();
+    const bool wallpaperActionsOn = wantActions
+        && peakshell::Settings::wallpaperActionsEnabled();
 
-    for (const AppEntry* app : std::as_const(m_apps)) {
-        double score = fuzzyScore(qStd, app->name(), app->genericName(),
-                                  app->comment(), app->keywords());
-        bool evidence = false;
-        if (app->name().contains(q, Qt::CaseInsensitive)
-            || app->genericName().contains(q, Qt::CaseInsensitive)
-            || app->comment().contains(q, Qt::CaseInsensitive)
-            || app->keywords().contains(q, Qt::CaseInsensitive)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (app->name().length() >= kMinReverseNameLen
-                 && q.contains(app->name(), Qt::CaseInsensitive)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (nearExactField(qStd, app->name(), app->genericName(),
-                                app->comment(), app->keywords())) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (nearExactDescription(qStd, app->genericName(), app->comment())) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
+    if (wantApps) {
+        for (const AppEntry* app : std::as_const(m_apps)) {
+            // Fetch each field once; the getters return implicit-shared
+            // QStrings, so repeated calls still churn refcounts.
+            const QString name = app->name();
+            const QString generic = app->genericName();
+            const QString comment = app->comment();
+            const QString keywords = app->keywords();
+            double score = fuzzyScore(qStd, name.length(),
+                                      app->nameLower(), app->genericNameLower(),
+                                      app->commentLower(), app->keywordsLower());
+            bool evidence = false;
+            if (name.contains(q, Qt::CaseInsensitive)
+                || generic.contains(q, Qt::CaseInsensitive)
+                || comment.contains(q, Qt::CaseInsensitive)
+                || keywords.contains(q, Qt::CaseInsensitive)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (name.length() >= kMinReverseNameLen
+                     && q.contains(name, Qt::CaseInsensitive)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (nearExactField(qStd, app->nameLower(), app->genericNameLower(),
+                                    app->commentLower(), app->keywordsLower())) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (nearExactDescription(qStd, app->genericNameLower(),
+                                            app->commentLower())) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            }
+            if (score <= kFuzzyThreshold)
+                continue;
+            if (!fuzzyOn && !evidence)
+                continue;
+            const QString exec = app->exec();
+            QVariantMap m = makeMap(name, generic, comment, app->icon(),
+                                    exec, keywords, app->terminal(), u"app"_s,
+                                    QString(), u"app:"_s + exec + u"\n"_s + name,
+                                    score);
+            m.insert(u"categories"_s, app->categories());
+            // Frequently launched apps sort higher (capped boost).
+            const double key = matchSortKey(name, generic, keywords, q, score)
+                + freqBoost(m_launchCounts.value(exec, 0));
+            acc.append({ m, key });
         }
-        if (score <= kFuzzyThreshold)
-            continue;
-        if (!fuzzyOn && !evidence)
-            continue;
-        QVariantMap m = makeMap(app->name(), app->genericName(), app->comment(), app->icon(),
-                                app->exec(), app->keywords(), app->terminal(), u"app"_s,
-                                QString(), u"app:"_s + app->exec() + u"\n"_s + app->name(),
-                                score);
-        m.insert(u"categories"_s, app->categories());
-        // Frequently launched apps sort higher (capped boost).
-        const double key = matchSortKey(app->name(), app->genericName(), app->keywords(), q, score)
-            + freqBoost(m_launchCounts.value(app->exec(), 0));
-        acc.append({ m, key });
     }
 
     // 2. Toggleable ii1qe IPC actions, fuzzy-matched the same way
     // (plus the same containment floors as apps).
-    for (const IpcAction& action : kIpcActions) {
-        // Launcher settings can hide whole action families.
-        if (action.group == ActionGroup::Power && !powerActionsOn)
-            continue;
-        if (action.group == ActionGroup::Wallpaper && !wallpaperActionsOn)
-            continue;
-        const QString name = QString::fromUtf8(action.name);
-        const QString generic = QString::fromUtf8(action.genericName);
-        const QString comment = QString::fromUtf8(action.comment);
-        const QString keywords = QString::fromUtf8(action.keywords);
-        const QString function = QString::fromUtf8(action.function);
-        double score = fuzzyScore(qStd, name, generic, comment, keywords);
-        bool evidence = false;
-        if (name.contains(q, Qt::CaseInsensitive) || generic.contains(q, Qt::CaseInsensitive)
-            || comment.contains(q, Qt::CaseInsensitive)
-            || keywords.contains(q, Qt::CaseInsensitive)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (name.length() >= kMinReverseNameLen && q.contains(name, Qt::CaseInsensitive)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (nearExactField(qStd, name, generic, comment, keywords)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
-        } else if (nearExactDescription(qStd, generic, comment)) {
-            score = qMax(score, kContainFloor);
-            evidence = true;
+    if (wantActions) {
+        for (const IpcAction& action : kIpcActions) {
+            // Launcher settings can hide whole action families.
+            if (action.group == ActionGroup::Power && !powerActionsOn)
+                continue;
+            if (action.group == ActionGroup::Wallpaper && !wallpaperActionsOn)
+                continue;
+            const QString name = QString::fromUtf8(action.name);
+            const QString generic = QString::fromUtf8(action.genericName);
+            const QString comment = QString::fromUtf8(action.comment);
+            const QString keywords = QString::fromUtf8(action.keywords);
+            const QString function = QString::fromUtf8(action.function);
+            const std::string nameLower = lowerStd(name);
+            const std::string genericLower = lowerStd(generic);
+            const std::string commentLower = lowerStd(comment);
+            const std::string keywordsLower = lowerStd(keywords);
+            double score = fuzzyScore(qStd, name.length(), nameLower, genericLower,
+                                      commentLower, keywordsLower);
+            bool evidence = false;
+            if (name.contains(q, Qt::CaseInsensitive) || generic.contains(q, Qt::CaseInsensitive)
+                || comment.contains(q, Qt::CaseInsensitive)
+                || keywords.contains(q, Qt::CaseInsensitive)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (name.length() >= kMinReverseNameLen && q.contains(name, Qt::CaseInsensitive)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (nearExactField(qStd, nameLower, genericLower, commentLower,
+                                      keywordsLower)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            } else if (nearExactDescription(qStd, genericLower, commentLower)) {
+                score = qMax(score, kContainFloor);
+                evidence = true;
+            }
+            if (score <= kFuzzyThreshold)
+                continue;
+            if (!fuzzyOn && !evidence)
+                continue;
+            QVariantMap m = makeMap(name, generic, comment, QString::fromUtf8(action.icon),
+                                    function, keywords, false, u"ipc"_s,
+                                    function, u"ipc:"_s + function, score);
+            acc.append({ m, matchSortKey(name, generic, keywords, q, score) });
         }
-        if (score <= kFuzzyThreshold)
-            continue;
-        if (!fuzzyOn && !evidence)
-            continue;
-        QVariantMap m = makeMap(name, generic, comment, QString::fromUtf8(action.icon),
-                                function, keywords, false, u"ipc"_s,
-                                function, u"ipc:"_s + function, score);
-        acc.append({ m, matchSortKey(name, generic, keywords, q, score) });
     }
 
     double calcValue = 0.0;
@@ -746,6 +806,14 @@ void AppScanner::activateResult(const QVariantMap& entry) {
     }
     if (kind == u"ipc"_s) {
         invokeIpc(entry.value(u"ipcFunction"_s, entry.value(u"exec"_s)).toString());
+        return;
+    }
+    if (kind == u"file"_s || kind == u"folder"_s) {
+        // Hand the path to the desktop's default handler: Dolphin for folders,
+        // the associated application for files. No file-manager hardcoding.
+        const QString path = entry.value(u"exec"_s).toString();
+        if (!path.isEmpty())
+            QDesktopServices::openUrl(QUrl::fromLocalFile(path));
         return;
     }
     const QString exec = entry.value(u"exec"_s).toString();

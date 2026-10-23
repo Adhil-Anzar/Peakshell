@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import "root:/"
@@ -8,9 +9,11 @@ Rectangle {
     property string iconName
     property string label
     property int extraButtons: 0
+    property var iconColor: undefined
     readonly property bool expanded: hoverDebounce.isDelaying || mouseArea.containsMouse
     signal leftClicked
     signal rightClicked
+    signal wheeled(int direction)
 
     function keepExpanded() {
         hoverDebounce.isDelaying = true;
@@ -43,6 +46,13 @@ Rectangle {
             if (mouse.button === Qt.LeftButton)
                 root.leftClicked();
         }
+        onWheel: wheel => {
+            const delta = wheel.angleDelta.y > 0 ? 1 : (wheel.angleDelta.y < 0 ? -1 : 0);
+            if (delta !== 0) {
+                root.wheeled(delta);
+                wheel.accepted = true;
+            }
+        }
     }
 
     Timer {
@@ -62,6 +72,12 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             implicitSize: Theme.iconFontSize
             source: Quickshell.iconPath(root.iconName)
+            layer.enabled: root.iconColor !== undefined
+            layer.effect: MultiEffect {
+                colorization: 1.0
+                brightness: 1.0
+                colorizationColor: root.iconColor !== undefined ? root.iconColor : "transparent"
+            }
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter

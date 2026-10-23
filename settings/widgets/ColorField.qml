@@ -2,16 +2,22 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import PeakShell
+import "root:/"
 
 RowLayout {
     property string value: ""
+    property color swatchColor: value
     signal edited(string v)
     spacing: 8
+    opacity: enabled ? 1 : 0.45
+    Behavior on opacity {
+        NumberAnimation { duration: 150 }
+    }
     Rectangle {
         implicitWidth: 34
         implicitHeight: 26
         radius: 8
-        color: swatchOk ? value : "transparent"
+        color: swatchOk ? swatchColor : "transparent"
         border.color: Settings.mutedAccent
         border.width: 1
         property bool swatchOk: parent.value !== "transparent" && parent.value.match(/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/)
@@ -26,7 +32,7 @@ RowLayout {
         placeholderTextColor: Settings.mutedFgColor
         background: Rectangle {
             color: "transparent"
-            border.color: parent.activeFocus ? Settings.accent : Settings.mutedAccent
+            border.color: parent.activeFocus ? Theme.accent : Settings.mutedAccent
             border.width: 1
             radius: 8
         }

@@ -12,11 +12,25 @@ QtObject {
     property string fgColor: Settings.fgColor
     property string mutedFgColor: Settings.mutedFgColor
     property string altFgColor: Settings.altFgColor
-    property string accent: Settings.accent
+    property color accent: Settings.accent
+    Behavior on accent {
+        ColorAnimation { duration: animationDuration }
+    }
     property string mutedAccent: Settings.mutedAccent
     property string battery: Settings.battery
     property string danger: Settings.danger
     property string dangerPulse: Settings.dangerPulse
+    property bool accentFromWallpaper: Settings.accentFromWallpaper
+    property bool accentCycleEnabled: Settings.accentCycleEnabled
+    property int accentCycleInterval: Settings.accentCycleInterval
+    readonly property var syntaxPalette: ({
+        foreground: fgColor,
+        muted: mutedFgColor,
+        accent: accent,
+        accentSoft: urgentPulseColor,
+        string: battery,
+        danger: dangerPulse
+    })
     property real barHeight: Settings.barHeight
     property real barHorizontalPad: Settings.barHorizontalPad
     property real barVerticalPad: Settings.barVerticalPad
@@ -56,6 +70,8 @@ QtObject {
     property real bluetoothPanelWidth: Settings.bluetoothPanelWidth
     property real bluetoothItemMaxCount: Settings.bluetoothItemMaxCount
     property real bluetoothItemSize: Settings.bluetoothItemSize
+    property real brightnessPanelWidth: Settings.brightnessPanelWidth
+    property real brightnessItemSize: Settings.brightnessItemSize
 
     property real mediaPanelWidth: Settings.mediaPanelWidth
 
@@ -91,6 +107,7 @@ QtObject {
     property real notificationPopupWidth: Settings.notificationPopupWidth
     property int notificationPopupTimeout: Settings.notificationPopupTimeout
     property int notificationMaxPopups: Settings.notificationMaxPopups
+    property bool notificationShowCopyButton: Settings.notificationShowCopyButton
     property real notificationIconSize: Settings.notificationIconSize
 
     property int lowPowerThreshold: Settings.lowPowerThreshold
@@ -101,6 +118,8 @@ QtObject {
     property bool moduleSound: Settings.moduleSound
     property bool moduleWifi: Settings.moduleWifi
     property bool moduleBluetooth: Settings.moduleBluetooth
+    property bool moduleBrightness: Settings.moduleBrightness
+    property bool brightnessScreenOffAtMin: Settings.brightnessScreenOffAtMin
     property bool moduleDateTime: Settings.moduleDateTime
     property bool moduleWorkspaces: Settings.moduleWorkspaces
     property bool moduleSysTray: Settings.moduleSysTray
