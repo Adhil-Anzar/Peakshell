@@ -4,6 +4,36 @@ A quickshell-based desktop shell with a native C++ plugin.
 
 ## Build
 
+### Dependencies (Arch Linux)
+
+Required build dependencies:
+
+```bash
+sudo pacman -S --needed base-devel cmake pkgconf qt6-base qt6-declarative
+```
+
+Optional build-time integrations (auto-detected by CMake; rebuild after
+installing them):
+
+```bash
+sudo pacman -S --needed syntax-highlighting baloo
+```
+
+- `syntax-highlighting` enables syntax-highlighted clipboard previews.
+- `baloo` enables KDE-indexed file search in the launcher. Without it the
+  launcher uses a bounded home-directory fallback.
+
+Runtime dependencies:
+
+```bash
+sudo pacman -S --needed hyprland qt6-svg qt6-multimedia qt6-multimedia-ffmpeg
+
+# quickshell-git is available from the AUR, for example:
+paru -S --needed quickshell-git
+```
+
+Then build and install:
+
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
