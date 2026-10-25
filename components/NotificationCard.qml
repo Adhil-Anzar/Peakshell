@@ -132,13 +132,37 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
 
-            IconImage {
+            Item {
+                id: iconSlot
                 Layout.alignment: Qt.AlignVCenter
-                implicitSize: Theme.notificationIconSize
-                source: {
-                    if (root.image && root.image.length > 0)
-                        return root.image;
-                    return Quickshell.iconPath(root.appIcon && root.appIcon.length > 0 ? root.appIcon : "indicator-messages-new", "indicator-messages-new");
+                implicitWidth: Theme.notificationIconSize
+                implicitHeight: Theme.notificationIconSize
+
+                readonly property bool hasImage: root.image && root.image.length > 0
+
+                // Notification images are clipped to a rounded rectangle,
+                // matching the card's own rounded styling.
+                ClippingRectangle {
+                    anchors.fill: parent
+                    visible: iconSlot.hasImage
+                    radius: Theme.cornerRadius / 2
+                    color: Theme.mutedBgColor
+
+                    Image {
+                        anchors.fill: parent
+                        source: iconSlot.hasImage ? Qt.resolvedUrl(root.image) : ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                        smooth: true
+                    }
+                }
+
+                IconImage {
+                    anchors.fill: parent
+                    visible: !iconSlot.hasImage
+                    implicitSize: Theme.notificationIconSize
+                    source: Quickshell.iconPath(root.appIcon && root.appIcon.length > 0 ? root.appIcon : "indicator-messages-new", "indicator-messages-new")
                 }
             }
 

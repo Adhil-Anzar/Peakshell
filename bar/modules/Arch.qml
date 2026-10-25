@@ -19,7 +19,8 @@ Rectangle {
     id: root
     required property var panelHost
     required property var sysItems
-    property string icon: "archlinux"
+    readonly property string icon: Distro.distroIcon
+    readonly property string username: Quickshell.env("USER") || "User"
     property string label: "I use Arch btw"
     property bool lowPowerNotified: false
     property real batteryPercent: UPower.displayDevice ? UPower.displayDevice.percentage : 1
@@ -105,7 +106,7 @@ Rectangle {
         IconImage {
             anchors.verticalCenter: parent.verticalCenter
             implicitSize: Theme.iconFontSize
-            source: Quickshell.iconPath(icon)
+            source: Quickshell.iconPath(root.icon, "distributor-logo")
         }
         Text {
             visible: hoverDebounce.isDelaying || mouseArea.containsMouse || UPower.onBattery
@@ -973,7 +974,7 @@ Rectangle {
                             Text {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
-                                text: "ii1qe"
+                                text: root.username
                                 color: Theme.fgColor
                                 font.pointSize: Theme.labelFontSize * 1.1
                                 font.family: Theme.labelFontFamily
