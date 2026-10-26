@@ -19,6 +19,10 @@ import "root:/"
 Singleton {
     id: root
 
+    // Emitted whenever a monitor's brightness is changed through the shell so
+    // the OSD can mirror the change.
+    signal osdRequested(var monitor)
+
     readonly property real step: 0.05
     readonly property var monitors: variants.instances
 
@@ -405,12 +409,15 @@ Singleton {
             if (monitor.brightness <= 0.0001) {
                 if (!Theme.brightnessScreenOffAtMin) {
                     monitor.minDecreaseCount = 0;
+                    root.osdRequested(monitor);
                     return;
                 }
                 monitor.minDecreaseCount += 1;
                 if (monitor.minDecreaseCount >= 3) {
                     monitor.minDecreaseCount = 0;
                     root.setScreenPower(monitor.connector, false);
+                } else {
+                    root.osdRequested(monitor);
                 }
                 return;
             }
@@ -423,11 +430,15 @@ Singleton {
             value = Math.max(0, Math.min(1, value));
             const rounded = Math.round(value * 100);
             monitor.minDecreaseCount = 0;
-            if (monitor.ready && Math.round(monitor.brightness * 100) === rounded)
+            if (monitor.ready && Math.round(monitor.brightness * 100) === rounded) {
+                // Show the OSD even when the display is already at its limit.
+                root.osdRequested(monitor);
                 return;
+            }
 
             monitor.brightness = value;
             monitor.ready = true;
+            root.osdRequested(monitor);
 
             // DDC/CI is slow and some monitors dislike rapid writes, so only
             // the last value in a drag is sent. sysfs is cheap enough to write

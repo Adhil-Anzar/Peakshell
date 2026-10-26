@@ -245,6 +245,9 @@ PS_INT(hoverDuration, HoverDuration, "theme/hoverDuration", 3000)
 PS_INT(notificationPopupTimeout, NotificationPopupTimeout, "theme/notificationPopupTimeout", 5000)
 PS_INT(notificationMaxPopups, NotificationMaxPopups, "theme/notificationMaxPopups", 4)
 PS_INT(lowPowerThreshold, LowPowerThreshold, "theme/lowPowerThreshold", 20)
+PS_INT(osdDuration, OsdDuration, "osd/duration", 1000)
+PS_DBL(osdBottomMargin, OsdBottomMargin, "osd/bottomMargin", 15)
+PS_STR(osdMonitor, OsdMonitor, "osd/monitor", "")
 
 bool Settings::launcherWebSearch() const { return getBool(u"launcher/webSearch"_s, true); }
 bool Settings::launcherCalc() const { return getBool(u"launcher/calc"_s, true); }
@@ -662,6 +665,17 @@ void Settings::resetNotifications() {
     emit notificationShowCopyButtonChanged();
     emit notificationPopupTimeoutChanged();
     emit notificationMaxPopupsChanged();
+}
+
+void Settings::resetOsd() {
+    removeKeys({
+        u"osd/duration"_s,
+        u"osd/bottomMargin"_s,
+        u"osd/monitor"_s,
+    });
+    emit osdDurationChanged();
+    emit osdBottomMarginChanged();
+    emit osdMonitorChanged();
 }
 
 void Settings::resetModules() {

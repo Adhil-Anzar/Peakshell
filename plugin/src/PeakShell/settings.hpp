@@ -97,6 +97,9 @@ class Settings : public QObject {
     Q_PROPERTY(int notificationPopupTimeout READ notificationPopupTimeout WRITE setNotificationPopupTimeout NOTIFY notificationPopupTimeoutChanged)
     Q_PROPERTY(int notificationMaxPopups READ notificationMaxPopups WRITE setNotificationMaxPopups NOTIFY notificationMaxPopupsChanged)
     Q_PROPERTY(int lowPowerThreshold READ lowPowerThreshold WRITE setLowPowerThreshold NOTIFY lowPowerThresholdChanged)
+    Q_PROPERTY(int osdDuration READ osdDuration WRITE setOsdDuration NOTIFY osdDurationChanged)
+    Q_PROPERTY(double osdBottomMargin READ osdBottomMargin WRITE setOsdBottomMargin NOTIFY osdBottomMarginChanged)
+    Q_PROPERTY(QString osdMonitor READ osdMonitor WRITE setOsdMonitor NOTIFY osdMonitorChanged)
 
     Q_PROPERTY(bool launcherWebSearch READ launcherWebSearch WRITE setLauncherWebSearch NOTIFY launcherWebSearchChanged)
     Q_PROPERTY(bool launcherCalc READ launcherCalc WRITE setLauncherCalc NOTIFY launcherCalcChanged)
@@ -274,6 +277,9 @@ public:
     int notificationPopupTimeout() const;
     int notificationMaxPopups() const;
     int lowPowerThreshold() const;
+    int osdDuration() const;
+    double osdBottomMargin() const;
+    QString osdMonitor() const;
     void setLabelFontSize(int v);
     void setIconFontSize(int v);
     void setLauncherSearchFontSize(int v);
@@ -292,6 +298,9 @@ public:
     void setNotificationPopupTimeout(int v);
     void setNotificationMaxPopups(int v);
     void setLowPowerThreshold(int v);
+    void setOsdDuration(int v);
+    void setOsdBottomMargin(double v);
+    void setOsdMonitor(const QString& v);
 
     bool launcherWebSearch() const;
     bool launcherCalc() const;
@@ -360,6 +369,7 @@ public:
     Q_INVOKABLE void resetLauncher();
     Q_INVOKABLE void resetClipboard();
     Q_INVOKABLE void resetNotifications();
+    Q_INVOKABLE void resetOsd();
     Q_INVOKABLE void resetModules();
     Q_INVOKABLE void resync();
 
@@ -459,6 +469,9 @@ signals:
     void notificationPopupTimeoutChanged();
     void notificationMaxPopupsChanged();
     void lowPowerThresholdChanged();
+    void osdDurationChanged();
+    void osdBottomMarginChanged();
+    void osdMonitorChanged();
     void launcherWebSearchChanged();
     void launcherCalcChanged();
     void launcherFuzzyChanged();

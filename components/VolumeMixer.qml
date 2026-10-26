@@ -335,6 +335,10 @@ Rectangle {
                 onMoved: {
                     if (node && node.audio) {
                         node.audio.volume = volumeSlider.value;
+                        if (node === Pipewire.defaultAudioSink)
+                            Osd.showVolumeLevel("sink", volumeSlider.value, node.audio.muted);
+                        else if (node === Pipewire.defaultAudioSource)
+                            Osd.showVolumeLevel("source", volumeSlider.value, node.audio.muted);
                     }
                 }
             }

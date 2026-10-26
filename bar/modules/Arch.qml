@@ -320,13 +320,18 @@ Rectangle {
                                 var node = Pipewire.defaultAudioSink;
                                 if (!node)
                                     return;
+                                var volume = node.audio.volume;
                                 if (event.angleDelta.y > 0) {
                                     // Scroll up → Volume up
-                                    node.audio.volume = Math.min(node.audio.volume + 0.05, 1);
+                                    volume = Math.min(volume + 0.05, 1);
                                 } else if (event.angleDelta.y < 0) {
                                     // Scroll down → Volume down
-                                    node.audio.volume = Math.max(node.audio.volume - 0.05, 0);
+                                    volume = Math.max(volume - 0.05, 0);
                                 }
+                                node.audio.volume = volume;
+                                // Show the OSD even when the value was already
+                                // clamped at 0 or 1 and therefore did not change.
+                                Osd.showVolumeLevel("sink", volume, node.audio.muted);
                                 event.accepted = true;
                             }
                         }
@@ -358,8 +363,8 @@ Rectangle {
                                     size: 36
                                     bgColor: "transparent"
                                     onPress: () => {
-                                        console.log("Executing Mute-Unmute");
-                                        Utils.execute("swayosd-client", ["--output-volume", "mute-toggle"]);
+                                        if (Pipewire.defaultAudioSink)
+                                            Pipewire.defaultAudioSink.audio.muted = !Pipewire.defaultAudioSink.audio.muted;
                                     }
                                 }
                                 Slider {
@@ -408,7 +413,11 @@ Rectangle {
                                         color: Theme.accent
                                     }
                                     onMoved: {
-                                        Pipewire.defaultAudioSink.audio.volume = volumeSlider.value;
+                                        const node = Pipewire.defaultAudioSink;
+                                        if (!node || !node.audio)
+                                            return;
+                                        node.audio.volume = volumeSlider.value;
+                                        Osd.showVolumeLevel("sink", volumeSlider.value, node.audio.muted);
                                     }
                                 }
                                 Text {
@@ -525,8 +534,7 @@ Rectangle {
                                         symbol: "media-seek-backward"
                                         size: 36
                                         onPress: () => {
-                                            console.log("Executing Previous Media");
-                                            Utils.execute("swayosd-client", ["--playerctl", "previous"]);
+                                            MprisController.previous();
                                         }
                                     }
                                     ToggleButton {
@@ -535,16 +543,14 @@ Rectangle {
                                         isChecked: mediaContainer.player ? mediaContainer.player.isPlaying : false
                                         label: ""
                                         onPress: () => {
-                                            console.log("Executing Play-Pause, Current Status: " + mediaContainer.player.isPlaying);
-                                            Utils.execute("swayosd-client", ["--playerctl", "play-pause"]);
+                                            MprisController.togglePlaying();
                                         }
                                     }
                                     ClickButton {
                                         symbol: "media-seek-forward"
                                         size: 36
                                         onPress: () => {
-                                            console.log("Executing Next Media");
-                                            Utils.execute("swayosd-client", ["--playerctl", "next"]);
+                                            MprisController.next();
                                         }
                                     }
                                 }
@@ -956,16 +962,10 @@ Rectangle {
                             anchors.rightMargin: Theme.cornerRadius * 1.5
                             spacing: 4
 
-                            ClickButton {
+                            UserIcon {
                                 Layout.alignment: Qt.AlignVCenter
-                                Layout.fillHeight: true
-                                symbol: "user-identity"
                                 size: 36
-                                cornerRadius: Theme.cornerRadius
-                                onPress: () => {
-                                    Utils.execute("kitty");
-                                    root.togglePanel();
-                                }
+                                username: root.username
                             }
                             Item {
                                 width: 4

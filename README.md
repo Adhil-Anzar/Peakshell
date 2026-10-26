@@ -63,6 +63,24 @@ peakshell kill
 peakshell --help
 ```
 
+### On-screen display
+
+The OSD mirrors volume, mute, brightness, lock-key and media changes. It can
+also be driven manually:
+
+```bash
+peakshell ipc call osd volumeRaise
+peakshell ipc call osd brightnessLower
+peakshell ipc call osd media next
+peakshell ipc call osd message "Captured Screenshot" "camera-photo-symbolic" 2000
+peakshell ipc call osd progress 0.5 "Custom progress" "audio-volume-medium" 2000
+peakshell ipc call osd segments 2 5 "Workspace" "view-grid"
+```
+
+`message` and `progress` accept an optional duration in milliseconds. The
+timeout, bottom margin and output monitor can be changed in
+**Settings → OSD**.
+
 `peakshell` is a wrapper around `quickshell -p <config-dir>`.
 Every argument after `peakshell` is forwarded to quickshell,
 so all quickshell subcommands and flags are available.

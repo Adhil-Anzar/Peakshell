@@ -14,4 +14,5 @@ singleton Clipboard 1.0 Clipboard.qml
 singleton TimerService 1.0 TimerService.qml
 singleton Platform 1.0 Platform.qml
 singleton Distro 1.0 Distro.qml
+singleton Osd 1.0 Osd.qml
 

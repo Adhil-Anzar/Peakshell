@@ -145,6 +145,21 @@ Singleton {
 
     property bool isPlaying: this.activePlayer && this.activePlayer.isPlaying
     property bool canTogglePlaying: this.activePlayer ? this.activePlayer.canTogglePlaying : false
+    readonly property string nowPlayingLabel: {
+        const player = this.activePlayer;
+        if (!player)
+            return "Media";
+        const artist = player.trackArtist ? String(player.trackArtist) : "";
+        const title = player.trackTitle ? String(player.trackTitle) : "";
+        if (artist !== "" && title !== "")
+            return artist + " - " + title;
+        if (title !== "")
+            return title;
+        if (artist !== "")
+            return artist;
+        return player.identity ? String(player.identity) : "Media";
+    }
+
     function togglePlaying() {
         if (this.canTogglePlaying)
             this.activePlayer.togglePlaying();
@@ -155,6 +170,7 @@ Singleton {
         if (this.canGoPrevious) {
             this.__reverse = true;
             this.activePlayer.previous();
+            Osd.showMedia("media-skip-backward-symbolic", this.nowPlayingLabel);
         }
     }
 
@@ -163,6 +179,7 @@ Singleton {
         if (this.canGoNext) {
             this.__reverse = false;
             this.activePlayer.next();
+            Osd.showMedia("media-skip-forward-symbolic", this.nowPlayingLabel);
         }
     }
 
@@ -181,6 +198,8 @@ Singleton {
     function setShuffle(shuffle) {
         if (this.shuffleSupported) {
             this.activePlayer.shuffle = shuffle;
+            Osd.showMedia(shuffle ? "media-playlist-shuffle-symbolic" : "media-playlist-repeat-symbolic",
+                          shuffle ? "Shuffle On" : "Shuffle Off");
         }
     }
 

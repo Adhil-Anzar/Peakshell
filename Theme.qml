@@ -112,6 +112,11 @@ QtObject {
 
     property int lowPowerThreshold: Settings.lowPowerThreshold
 
+    // On-screen display
+    property int osdDuration: Settings.osdDuration
+    property real osdBottomMargin: Settings.osdBottomMargin
+    property string osdMonitor: Settings.osdMonitor
+
     // Bar module visibility
     property bool moduleMediaPlayer: Settings.moduleMediaPlayer
     property bool moduleNotifications: Settings.moduleNotifications

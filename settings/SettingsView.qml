@@ -20,6 +20,7 @@ Item {
         { label: "Launcher", icon: "system-search", fallback: "edit-find" },
         { label: "Clipboard", icon: "edit-paste", fallback: "edit-copy" },
         { label: "Notifications", icon: "notification-active", fallback: "dialog-information" },
+        { label: "OSD", icon: "video-display", fallback: "preferences-desktop-display" },
         { label: "Modules", icon: "preferences-plugin", fallback: "applications-utilities" }
     ]
 
@@ -146,9 +147,13 @@ Item {
                         Layout.fillWidth: true
                         visible: root.currentPage === 6
                     }
-                    ModulesPage {
+                    OsdPage {
                         Layout.fillWidth: true
                         visible: root.currentPage === 7
+                    }
+                    ModulesPage {
+                        Layout.fillWidth: true
+                        visible: root.currentPage === 8
                     }
                 }
                 ScrollBar.vertical: ScrollBar {}

@@ -248,10 +248,10 @@ Scope {
                 anchors.fill: parent
                 // Password entry (including the authentication spinner) gets
                 // an extra blur + dim for readability.
-                blurMax: (pwdInput.activeFocus || lockScope.authenticating) ? 36 : (lockWindow.loginPage ? 0 : 32)
+                blurMax: (pwdInput.activeFocus || lockScope.authenticating) ? 36 : (powerButton.activeFocus ? 36 : 0)
                 brightness: lockWindow.loginPage ? -0.05 : 0
                 saturation: 0
-                overlayOpacity: (pwdInput.activeFocus || lockScope.authenticating) ? 0.55 : (lockWindow.loginPage ? 0.38 : 0.28)
+                overlayOpacity: (pwdInput.activeFocus || lockScope.authenticating) ? 0.55 : (powerButton.activeFocus ? 0.38 : 0.28)
             }
 
             Timer {
@@ -437,44 +437,10 @@ Scope {
                         }
                     }
 
-                    Item {
+                    UserIcon {
                         Layout.alignment: Qt.AlignHCenter
-                        implicitWidth: 120
-                        implicitHeight: 120
-
-                        ClippingRectangle {
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: Theme.mutedBgColor
-
-                            Image {
-                                id: avatarImage
-
-                                anchors.fill: parent
-                                source: "file:///var/lib/AccountsService/icons/" + lockScope.username
-                                fillMode: Image.PreserveAspectCrop
-                                asynchronous: true
-                                cache: true
-                                smooth: true
-                                mipmap: true
-                                visible: status === Image.Ready
-                            }
-
-                            IconImage {
-                                anchors.centerIn: parent
-                                implicitSize: 52
-                                source: Quickshell.iconPath("user-identity")
-                                visible: avatarImage.status !== Image.Ready
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: "transparent"
-                            border.color: Theme.mutedAccent
-                            border.width: Theme.generalThickness
-                        }
+                        size: 120
+                        username: lockScope.username
                     }
 
                     Text {
@@ -555,6 +521,8 @@ Scope {
                                     selectedTextColor: Theme.bgColor
                                     echoMode: TextInput.Password
                                     passwordCharacter: "●"
+                                    clip: true
+                                    autoScroll: true
                                     font.pointSize: Theme.labelFontSize
                                     font.family: Theme.labelFontFamily
                                     verticalAlignment: TextInput.AlignVCenter
@@ -807,7 +775,7 @@ Scope {
                     width: 190
                     height: menuColumn.implicitHeight + 12
                     radius: Theme.cornerRadius
-                    color: Theme.bgColorFilled
+                    color: Theme.bgColor
                     border.width: Theme.generalThickness
                     border.color: Theme.mutedAccent
 

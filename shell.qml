@@ -6,6 +6,7 @@
 import Quickshell
 import "bar"
 import "bar/panels"
+import "components"
 
 ShellRoot {
     // Global lock screen instance
@@ -27,6 +28,10 @@ ShellRoot {
             }
 
             Bar {
+                screen: screenScope.modelData
+            }
+
+            OsdOverlay {
                 screen: screenScope.modelData
             }
         }

@@ -115,20 +115,10 @@ PanelWindow {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 12
 
-                Rectangle {
+                UserIcon {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 80
-                    height: 80
-                    radius: 40
-                    color: Theme.mutedBgColor
-                    border.color: Theme.accent
-                    border.width: Theme.generalThickness
-
-                    IconImage {
-                        anchors.centerIn: parent
-                        implicitSize: 44
-                        source: Quickshell.iconPath("user-identity")
-                    }
+                    size: 80
+                    username: main.username
                 }
 
                 Text {
