@@ -57,9 +57,7 @@ PanelWindow {
             return filePreview.kind || "";
         return "unsupported";
     }
-    readonly property string previewImageSource: previewMode === "image"
-        ? (previewEntry.kind === "image" ? (previewEntry.imageSource || "") : (filePreview.imageSource || ""))
-        : ""
+    readonly property string previewImageSource: previewMode === "image" ? (previewEntry.kind === "image" ? (previewEntry.imageSource || "") : (filePreview.imageSource || "")) : ""
 
     onShowPreviewChanged: {
         if (showPreview)
@@ -88,18 +86,14 @@ PanelWindow {
             truncated = true;
         }
 
-        const highlighted = fileName
-            ? Clipboard.highlightFileLines(text, fileName, mimeType || "", Theme.syntaxPalette)
-            : Clipboard.highlightLines(text, mimeType || "", Theme.syntaxPalette);
+        const highlighted = fileName ? Clipboard.highlightFileLines(text, fileName, mimeType || "", Theme.syntaxPalette) : Clipboard.highlightLines(text, mimeType || "", Theme.syntaxPalette);
         const result = [];
         for (let i = 0; i < highlighted.length; ++i)
             result.push(highlighted[i]);
         if (result.length === 0)
             result.push("<span style=\"font-style:italic\">Empty file</span>");
         if (truncated)
-            result.push("<span style=\"font-style:italic\">"
-                + (note || "Preview limited for performance. The full item is still copied.")
-                + "</span>");
+            result.push("<span style=\"font-style:italic\">" + (note || "Preview limited for performance. The full item is still copied.") + "</span>");
         return result;
     }
 
@@ -113,7 +107,9 @@ PanelWindow {
         if (previewEntry.kind === "file") {
             const paths = previewEntry.paths || [];
             if (paths.length !== 1) {
-                filePreview = ({ kind: "unsupported" });
+                filePreview = ({
+                        kind: "unsupported"
+                    });
                 previewLines = [];
                 return;
             }
@@ -125,8 +121,7 @@ PanelWindow {
                 return;
             }
 
-            previewLines = highlightTextLines(info.text || "", info.mime || "",
-                info.truncated === true, "Preview limited for performance.", paths[0]);
+            previewLines = highlightTextLines(info.text || "", info.mime || "", info.truncated === true, "Preview limited for performance.", paths[0]);
             return;
         }
 
@@ -493,8 +488,7 @@ PanelWindow {
                                 } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
                                     root.previewActive = !root.previewActive;
                                     event.accepted = true;
-                                } else if (root.showPreview
-                                           && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                } else if (root.showPreview && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
                                     root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
                                     event.accepted = true;
                                 } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -706,7 +700,7 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onEntered: if (!root.showPreview) clipList.currentIndex = del.index
+                            //onEntered: if (!root.showPreview) clipList.currentIndex = del.index
                             onClicked: mouse => {
                                 if (mouse.button === Qt.RightButton)
                                     root.removeCurrent();

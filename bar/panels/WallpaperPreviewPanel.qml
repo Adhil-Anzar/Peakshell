@@ -641,7 +641,6 @@ PanelWindow {
                                         visible: (modelData ? modelData.type : "") === "color"
                                         color: (modelData && modelData.color) ? modelData.color : "#0A0A0D"
                                     }
-
                                 }
                             }
                         }

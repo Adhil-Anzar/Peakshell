@@ -101,8 +101,7 @@ PanelWindow {
     readonly property bool hasResults: visibleCount > 0 && queryActive
     // The empty-state row needs its own height: without it the results area is
     // clipped to zero and "No results" never becomes visible.
-    readonly property bool showEmptyMessage: queryActive && visibleCount === 0
-        && !showPreview && AppScanner.loaded
+    readonly property bool showEmptyMessage: queryActive && visibleCount === 0 && !showPreview && AppScanner.loaded
     readonly property string emptyText: {
         if (root._fileSearchPending || FileSearch.searching) {
             var parsed = root._effectiveParsed();
@@ -124,7 +123,7 @@ PanelWindow {
     readonly property var placeholderPool: {
         var pool = ["Type to explore apps, actions and answers", "Hold Alt to preview a result's details", "Alt+Enter copies the highlighted command", "Enter opens the highlighted result", "Right-click a result to copy its command", "Arrow keys to move · Enter to open", "What are we looking for?"];
         if (Settings.launcherCalc)
-            pool.splice(3, 0, "Try a calculation: 12*8 works");
+            pool.splice(3, 0, "Try a calculation: 20*3+7 works");
         if (Settings.launcherWebSearch)
             pool.splice(4, 0, "Type anything to search the web");
         if (Settings.launcherFuzzy)
@@ -139,23 +138,23 @@ PanelWindow {
     }
 
     readonly property var _scopeAliases: ({
-        "files": "files",
-        "file": "files",
-        "directories": "folders",
-        "directory": "folders",
-        "folders": "folders",
-        "folder": "folders",
-        "apps": "apps",
-        "app": "apps",
-        "actions": "actions",
-        "action": "actions",
-        "ipc": "actions",
-        "calc": "calc",
-        "calculator": "calc",
-        "math": "calc",
-        "web": "web",
-        "search": "web"
-    })
+            "files": "files",
+            "file": "files",
+            "directories": "folders",
+            "directory": "folders",
+            "folders": "folders",
+            "folder": "folders",
+            "apps": "apps",
+            "app": "apps",
+            "actions": "actions",
+            "action": "actions",
+            "ipc": "actions",
+            "calc": "calc",
+            "calculator": "calc",
+            "math": "calc",
+            "web": "web",
+            "search": "web"
+        })
 
     // Splits "<prefix><scope> <query>" into a scope and the effective query.
     // Unknown prefixes are left alone so a literal "/foo" search still works.
@@ -163,7 +162,11 @@ PanelWindow {
         var t = text.trim();
         var prefix = Settings.launcherScopeKey;
         if (prefix.length === 0 || !t.startsWith(prefix))
-            return { scope: "", query: t, token: "" };
+            return {
+                scope: "",
+                query: t,
+                token: ""
+            };
 
         var rest = t.slice(prefix.length);
         var split = -1;
@@ -177,7 +180,11 @@ PanelWindow {
         var token = (split < 0 ? rest : rest.slice(0, split)).toLowerCase();
         var scope = root._scopeAliases[token] || "";
         if (scope === "")
-            return { scope: "", query: t, token: "" };
+            return {
+                scope: "",
+                query: t,
+                token: ""
+            };
         return {
             scope: scope,
             query: split < 0 ? "" : rest.slice(split + 1).trim(),
@@ -189,7 +196,11 @@ PanelWindow {
     // typed prefix is parsed as before.
     function _effectiveParsed() {
         if (root.activeScope !== "")
-            return { scope: root.activeScope, query: searchInput.text.trim(), token: "" };
+            return {
+                scope: root.activeScope,
+                query: searchInput.text.trim(),
+                token: ""
+            };
         return root._parseScope(searchInput.text);
     }
 
@@ -207,7 +218,10 @@ PanelWindow {
             if (seen[scope])
                 continue;
             seen[scope] = true;
-            out.push({ scope: scope, alias: alias });
+            out.push({
+                scope: scope,
+                alias: alias
+            });
         }
         return out;
     }
@@ -339,9 +353,7 @@ PanelWindow {
         if (parsed.scope === "files")
             return parsed.query.length > 0 ? "No files for \"" + parsed.query + "\"" : "No recent files";
         if (parsed.scope === "folders")
-            return parsed.query.length > 0
-                ? "No " + root.folderTermPlural + " for \"" + parsed.query + "\""
-                : "No recent " + root.folderTermPlural;
+            return parsed.query.length > 0 ? "No " + root.folderTermPlural + " for \"" + parsed.query + "\"" : "No recent " + root.folderTermPlural;
         if (parsed.scope !== "" && parsed.query.length === 0) {
             if (root.activeScope !== "")
                 return "Type to search " + root._scopeChipLabel(parsed.scope);
@@ -386,19 +398,7 @@ PanelWindow {
     }
 
     function _searchKey(scope, q) {
-        return JSON.stringify([
-            scope, q,
-            Settings.launcherFuzzy,
-            Settings.launcherWebSearch,
-            Settings.launcherCalc,
-            Settings.launcherPowerActions,
-            Settings.launcherWallpaperActions,
-            Settings.launcherFileSearch,
-            Settings.launcherFolderSearch,
-            Settings.launcherFileFuzzy,
-            Settings.launcherFolderFuzzy,
-            Settings.launcherFullFilesystemSearch
-        ]);
+        return JSON.stringify([scope, q, Settings.launcherFuzzy, Settings.launcherWebSearch, Settings.launcherCalc, Settings.launcherPowerActions, Settings.launcherWallpaperActions, Settings.launcherFileSearch, Settings.launcherFolderSearch, Settings.launcherFileFuzzy, Settings.launcherFolderFuzzy, Settings.launcherFullFilesystemSearch]);
     }
 
     function _cancelSearches() {
@@ -413,8 +413,7 @@ PanelWindow {
         root._fileSearchPending = false;
         if (scope === "files" || scope === "folders") {
             FileSearch.searchScoped(q, scope);
-        } else if (scope === ""
-                   && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
+        } else if (scope === "" && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
             FileSearch.search(q);
         } else {
             FileSearch.cancel();
@@ -427,11 +426,10 @@ PanelWindow {
         if (scope === "files" || scope === "folders") {
             // The app debounce already waited for the user to stop typing.
             root._startFileSearch(scope, q);
-        } else if (scope === ""
-                   // One-letter global queries are too broad: keep the fast
-                   // app/action results and let /files handle file lookup.
-                   && q.length >= 2
-                   && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
+        } else if (scope === "" &&
+        // One-letter global queries are too broad: keep the fast
+        // app/action results and let /files handle file lookup.
+        q.length >= 2 && (Settings.launcherFileSearch || Settings.launcherFolderSearch)) {
             FileSearch.cancel();
             root._fileSearchPending = true;
             fileSearchDebounce.restart();
@@ -517,9 +515,7 @@ PanelWindow {
             if (root._scope === "folders")
                 return row.kind === "folder";
             if (root._scope === "")
-                return row.kind === "file"
-                    ? Settings.launcherFileSearch
-                    : Settings.launcherFolderSearch;
+                return row.kind === "file" ? Settings.launcherFileSearch : Settings.launcherFolderSearch;
             return false;
         }
         for (var i = 0; i < base.length; i++) {
@@ -1071,19 +1067,15 @@ PanelWindow {
                                 if (event.key === Qt.Key_Tab) {
                                     root.completeScopeTab();
                                     event.accepted = true;
-                                } else if (event.key === Qt.Key_Space
-                                           && !(event.modifiers & Qt.ControlModifier)
-                                           && root.commitScopeFromText()) {
+                                } else if (event.key === Qt.Key_Space && !(event.modifiers & Qt.ControlModifier) && root.commitScopeFromText()) {
                                     event.accepted = true;
-                                } else if (event.key === Qt.Key_Backspace && searchInput.text.length === 0
-                                           && root.activeScope !== "") {
+                                } else if (event.key === Qt.Key_Backspace && searchInput.text.length === 0 && root.activeScope !== "") {
                                     root.clearScope();
                                     event.accepted = true;
                                 } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
                                     root.togglePreview();
                                     event.accepted = true;
-                                } else if (root.showPreview
-                                           && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                } else if (root.showPreview && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
                                     root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
                                     event.accepted = true;
                                 }
@@ -1092,9 +1084,7 @@ PanelWindow {
 
                         Text {
                             anchors.fill: parent
-                            text: root.activeScope !== ""
-                                ? "Search " + root._scopeChipLabel(root.activeScope) + "…"
-                                : root.placeholderText
+                            text: root.activeScope !== "" ? "Search " + root._scopeChipLabel(root.activeScope) + "…" : root.placeholderText
                             color: Theme.mutedFgColor
                             font.pointSize: Theme.launcherSearchFontSize
                             font.family: Theme.labelFontFamily
@@ -1255,10 +1245,7 @@ PanelWindow {
                         var p = Settings.launcherScopeKey;
                         if (p.length === 0)
                             return "";
-                        return p + "files recent files · " + p + root.folderTerm + " recent " + root.folderTermPlural + " · "
-                            + p + "app apps · " + p + "action actions · "
-                            + p + "calc calculator · " + p + "web web"
-                            + "    Ctrl+Space previews files";
+                        return p + "files recent files · " + p + root.folderTerm + " recent " + root.folderTermPlural + " · " + p + "app apps · " + p + "action actions · " + p + "calc calculator · " + p + "web web" + "    Ctrl+Space previews files";
                     }
                     color: Theme.mutedFgColor
                     font.pointSize: Theme.labelFontSize * 0.85
@@ -1631,8 +1618,7 @@ PanelWindow {
                                                     event.accepted = true;
                                                     return;
                                                 }
-                                                if (root.showPreview
-                                                    && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
+                                                if (root.showPreview && (event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown)) {
                                                     root.scrollPreview(event.key === Qt.Key_PageUp ? -1 : 1);
                                                     event.accepted = true;
                                                     return;
@@ -1771,7 +1757,7 @@ PanelWindow {
                                 }
                             }
                             onEntered: {
-                                appList.currentIndex = del.index;
+                                //appList.currentIndex = del.index;
                             }
                             onWheel: wheel => {
                                 wheel.accepted = false; // Allow ListView to handle scrolling

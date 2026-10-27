@@ -24,7 +24,9 @@ Rectangle {
     }
 
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     color: mouseArea.containsMouse ? Theme.hoveredBgColor : Theme.bgColor
     Behavior on color {
@@ -43,14 +45,14 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: {
-            hoverDebounce.isDelaying = true
-            hoverDebounce.restart()
-            clock.now = new Date()
-            clock.restart()
+            hoverDebounce.isDelaying = true;
+            hoverDebounce.restart();
+            clock.now = new Date();
+            clock.restart();
         }
         onExited: {
-            hoverDebounce.isDelaying = true
-            hoverDebounce.restart()
+            hoverDebounce.isDelaying = true;
+            hoverDebounce.restart();
         }
         onClicked: mouse => {
             if (mouse.button === Qt.RightButton)
@@ -80,10 +82,10 @@ Rectangle {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            now = new Date()
+            now = new Date();
             if (hoverDebounce.isDelaying || mouseArea.containsMouse)
-                msToNextSecond = Math.max(1, 1000 - now.getMilliseconds())
-            msToNextMinute = Math.max(1, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()))
+                msToNextSecond = Math.max(1, 1000 - now.getMilliseconds());
+            msToNextMinute = Math.max(1, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
         }
     }
 
@@ -99,7 +101,9 @@ Rectangle {
             visible: opacity > 0
 
             Behavior on opacity {
-                Anim { type: Anim.DefaultEffects }
+                Anim {
+                    type: Anim.DefaultEffects
+                }
             }
 
             IconImage {
@@ -128,7 +132,9 @@ Rectangle {
             color: Theme.fgColor
             opacity: visible ? 1 : 0
             Behavior on opacity {
-                Anim { type: Anim.DefaultEffects }
+                Anim {
+                    type: Anim.DefaultEffects
+                }
             }
         }
     }

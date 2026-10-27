@@ -13,7 +13,7 @@ import "root:/services"
 Rectangle {
     id: root
 
-    signal toggleRequested()
+    signal toggleRequested
 
     property string filePath: ""
     property string fileName: ""
@@ -27,8 +27,7 @@ Rectangle {
     readonly property string previewMode: preview.kind || ""
     readonly property string imageSource: preview.imageSource || ""
     readonly property string headerTitle: fileName.length > 0 ? fileName : "File preview"
-    readonly property string modeLabel: previewMode === "image" ? "Image"
-        : (previewMode === "text" ? "Text" : "")
+    readonly property string modeLabel: previewMode === "image" ? "Image" : (previewMode === "text" ? "Text" : "")
 
     color: Theme.bgColorFilled
     border.color: Theme.accent
@@ -78,7 +77,9 @@ Rectangle {
         try {
             info = Clipboard.previewFile(filePath);
         } catch (e) {
-            preview = ({ kind: "unsupported" });
+            preview = ({
+                    kind: "unsupported"
+                });
             return;
         }
         preview = info;
@@ -94,8 +95,7 @@ Rectangle {
             truncated = true;
         }
 
-        const highlighted = Clipboard.highlightFileLines(text, filePath,
-            info.mime || "", Theme.syntaxPalette);
+        const highlighted = Clipboard.highlightFileLines(text, filePath, info.mime || "", Theme.syntaxPalette);
         const result = [];
         for (let i = 0; i < highlighted.length; ++i)
             result.push(highlighted[i]);

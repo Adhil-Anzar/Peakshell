@@ -6,77 +6,77 @@ import Quickshell.Bluetooth
 Singleton {
     property string status: {
         if (connectedDevices.length > 0)
-            return connectedDevices[0].name
-        return bluetoothEnabled ? "Enabled" : "Disabled"
+            return connectedDevices[0].name;
+        return bluetoothEnabled ? "Enabled" : "Disabled";
     }
 
     property var connectedDevices: {
-        const devs = []
+        const devs = [];
         if (!Bluetooth.defaultAdapter)
-            return devs
+            return devs;
         for (let i = 0; i < Bluetooth.defaultAdapter.devices.values.length; ++i) {
-            const dev = Bluetooth.defaultAdapter.devices.values[i]
+            const dev = Bluetooth.defaultAdapter.devices.values[i];
             if (dev.connected)
-                devs.push(dev)
+                devs.push(dev);
         }
-        return devs
+        return devs;
     }
 
     property var bondedDevices: {
-        const devs = []
+        const devs = [];
         if (!Bluetooth.defaultAdapter)
-            return devs
+            return devs;
         for (let i = 0; i < Bluetooth.defaultAdapter.devices.values.length; ++i) {
-            const dev = Bluetooth.defaultAdapter.devices.values[i]
+            const dev = Bluetooth.defaultAdapter.devices.values[i];
             if (dev.bonded && !dev.connected)
-                devs.push(dev)
+                devs.push(dev);
         }
-        return devs
+        return devs;
     }
 
     property var otherDevices: {
-        const devs = []
+        const devs = [];
         if (!Bluetooth.defaultAdapter)
-            return devs
+            return devs;
         for (let i = 0; i < Bluetooth.defaultAdapter.devices.values.length; ++i) {
-            const dev = Bluetooth.defaultAdapter.devices.values[i]
+            const dev = Bluetooth.defaultAdapter.devices.values[i];
             if (!dev.bonded && dev.state === BluetoothDeviceState.Disconnected)
-                devs.push(dev)
+                devs.push(dev);
         }
-        return devs
+        return devs;
     }
 
     property string icon: {
         if (!bluetoothEnabled)
-            return "bluetooth-disabled"
+            return "bluetooth-disabled";
         if (connectedDevices.length > 0)
-            return "bluetooth-paired"
-        return "bluetooth-active"
+            return "bluetooth-paired";
+        return "bluetooth-active";
     }
 
     property bool bluetoothEnabled: Bluetooth.defaultAdapter ? Bluetooth.defaultAdapter.enabled : false
 
     function setBluetooth(enabled) {
         if (!Bluetooth.defaultAdapter)
-            return
-        Bluetooth.defaultAdapter.enabled = enabled
+            return;
+        Bluetooth.defaultAdapter.enabled = enabled;
         if (enabled)
-            Bluetooth.defaultAdapter.discovering = true
+            Bluetooth.defaultAdapter.discovering = true;
     }
     function disconnect(dev) {
-        dev.disconnect()
+        dev.disconnect();
     }
     function forget(dev) {
-        dev.forget()
+        dev.forget();
     }
     function connect(dev) {
-        dev.connect()
+        dev.connect();
     }
     function setDiscovering(enabled) {
         if (Bluetooth.defaultAdapter)
-            Bluetooth.defaultAdapter.discovering = enabled
+            Bluetooth.defaultAdapter.discovering = enabled;
     }
     function pair(dev) {
-        dev.pair()
+        dev.pair();
     }
 }

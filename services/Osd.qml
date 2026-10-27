@@ -48,7 +48,8 @@ Singleton {
         id: hideTimer
         interval: root.duration
         repeat: false
-        onIntervalChanged: if (running) restart()
+        onIntervalChanged: if (running)
+            restart()
         onTriggered: {
             root.visible = false;
             root._durationOverride = 0;
@@ -318,13 +319,7 @@ Singleton {
     Process {
         id: ledScan
         running: true
-        command: [
-            "sh", "-c",
-            "for t in capslock numlock scrolllock; do " +
-            "for f in /sys/class/leds/*::$t/brightness; do " +
-            "[ -e \"$f\" ] && printf '%s %s\\n' \"$t\" \"$f\"; " +
-            "done; done"
-        ]
+        command: ["sh", "-c", "for t in capslock numlock scrolllock; do " + "for f in /sys/class/leds/*::$t/brightness; do " + "[ -e \"$f\" ] && printf '%s %s\\n' \"$t\" \"$f\"; " + "done; done"]
 
         stdout: StdioCollector {
             onStreamFinished: {
@@ -459,12 +454,24 @@ Singleton {
     function lockInfo(kind): var {
         switch (kind) {
         case "numlock":
-            return { label: "Num Lock", icon: "num-lock-symbolic", fallback: "input-keyboard-symbolic" };
+            return {
+                label: "Num Lock",
+                icon: "num-lock-symbolic",
+                fallback: "input-keyboard-symbolic"
+            };
         case "scrolllock":
-            return { label: "Scroll Lock", icon: "scroll-lock-symbolic", fallback: "input-keyboard-symbolic" };
+            return {
+                label: "Scroll Lock",
+                icon: "scroll-lock-symbolic",
+                fallback: "input-keyboard-symbolic"
+            };
         case "capslock":
         default:
-            return { label: "Caps Lock", icon: "caps-lock-symbolic", fallback: "keyboard-caps-locked-symbolic" };
+            return {
+                label: "Caps Lock",
+                icon: "caps-lock-symbolic",
+                fallback: "keyboard-caps-locked-symbolic"
+            };
         }
     }
 

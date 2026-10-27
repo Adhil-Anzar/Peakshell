@@ -9,7 +9,7 @@ Singleton {
 
     readonly property int count: ClipboardManager.count
 
-    signal historyChanged()
+    signal historyChanged
 
     function search(query) {
         return ClipboardManager.search(query);
@@ -58,8 +58,7 @@ Singleton {
 
     // Per-line rich text that lets the file name pick the syntax definition.
     function highlightFileLines(text, fileName, mimeType, colors) {
-        return SyntaxHighlighter.highlightFileLines(text || "", fileName || "",
-                                                    mimeType || "", colors || ({}));
+        return SyntaxHighlighter.highlightFileLines(text || "", fileName || "", mimeType || "", colors || ({}));
     }
 
     Connections {

@@ -7,11 +7,13 @@ Rectangle {
     property string icon
     property bool isIconOnly: true
     property string label
-    signal clicked()
+    signal clicked
     scale: mouseArea.containsMouse ? 1.1 : 1.0
 
     Behavior on scale {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     Behavior on color {
         CAnim {}
@@ -19,8 +21,8 @@ Rectangle {
     // Styling
     color: {
         if (mouseArea.containsMouse)
-            return Theme.hoveredBgColor
-        return Theme.bgColor
+            return Theme.hoveredBgColor;
+        return Theme.bgColor;
     }
     border.color: Theme.accent
     border.width: Theme.generalThickness

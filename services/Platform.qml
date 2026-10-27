@@ -72,9 +72,6 @@ Singleton {
     onHasBatteryChanged: root.reportFormFactor()
 
     function reportFormFactor() {
-        console.info("platform: " + root.formFactor
-            + " (battery: " + root.hasBattery
-            + ", chassis: " + (root.chassisType || "unknown")
-            + (root.override ? ", override: " + root.override : "") + ")");
+        console.info("platform: " + root.formFactor + " (battery: " + root.hasBattery + ", chassis: " + (root.chassisType || "unknown") + (root.override ? ", override: " + root.override : "") + ")");
     }
 }

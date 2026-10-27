@@ -12,7 +12,7 @@ Singleton {
     readonly property var apps: AppScanner.apps
     readonly property bool loaded: AppScanner.loaded
 
-    signal scanComplete()
+    signal scanComplete
 
     function scan() {
         AppScanner.scan();
@@ -38,10 +38,13 @@ Singleton {
     }
 
     // Overridden by LauncherPanel via Connections
-    function close() {}
+    function close() {
+    }
 
     Connections {
         target: AppScanner
-        function onScanComplete() { root.scanComplete(); }
+        function onScanComplete() {
+            root.scanComplete();
+        }
     }
 }

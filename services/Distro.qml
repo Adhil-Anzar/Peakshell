@@ -61,9 +61,7 @@ Singleton {
                 return icons[like];
         }
 
-        const logo = root.distroLogo
-            .replace(/-logo(-icon)?$/i, "")
-            .replace(/^distributor-logo-/i, "");
+        const logo = root.distroLogo.replace(/-logo(-icon)?$/i, "").replace(/^distributor-logo-/i, "");
         return logo || "distributor-logo";
     }
 
@@ -85,9 +83,7 @@ Singleton {
                 continue;
 
             let value = trimmed.slice(separator + 1).trim();
-            if (value.length >= 2
-                && (value.startsWith("\"") || value.startsWith("'"))
-                && value.endsWith(value[0])) {
+            if (value.length >= 2 && (value.startsWith("\"") || value.startsWith("'")) && value.endsWith(value[0])) {
                 value = value.slice(1, -1);
             }
             fields[trimmed.slice(0, separator)] = value;

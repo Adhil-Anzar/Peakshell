@@ -12,7 +12,9 @@ Rectangle {
     visible: Theme.moduleSysTray && SystemTray.items.values.length !== 0
     width: container.width + Theme.cornerRadius
     Behavior on width {
-        Anim { type: Anim.DefaultSpatial }
+        Anim {
+            type: Anim.DefaultSpatial
+        }
     }
     color: Theme.bgColor
     border.color: Theme.accent
@@ -21,9 +23,9 @@ Rectangle {
     implicitHeight: Theme.barHeight
 
     Row {
+        id: container
         anchors.horizontalCenter: parent.horizontalCenter
         height: root.height
-        id: container
         spacing: 4
         Repeater {
             height: root.height

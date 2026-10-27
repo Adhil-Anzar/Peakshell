@@ -27,10 +27,14 @@ ScrollBar {
         opacity: root.pressed ? 1.0 : (root.hovered ? 0.85 : 0.55)
 
         Behavior on opacity {
-            NumberAnimation { duration: 120 }
+            NumberAnimation {
+                duration: 120
+            }
         }
         Behavior on color {
-            ColorAnimation { duration: 120 }
+            ColorAnimation {
+                duration: 120
+            }
         }
     }
 }

@@ -9,8 +9,8 @@ ColumnLayout {
     property string label: ""
     property int value: 0
 
-    signal advanced()
-    signal dismissed()
+    signal advanced
+    signal dismissed
 
     readonly property int numberSize: Theme.labelFontSize * 3
 
@@ -64,7 +64,9 @@ ColumnLayout {
         font.family: Theme.labelFontFamily
 
         Behavior on opacity {
-            Anim { type: Anim.DefaultEffects }
+            Anim {
+                type: Anim.DefaultEffects
+            }
         }
     }
 }

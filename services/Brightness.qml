@@ -311,13 +311,10 @@ Singleton {
                 return monitor.connector;
             return model;
         }
-        readonly property string detail: (displayName === connector ? "" : connector + " • ")
-            + (isDdc ? "DDC" : "internal")
+        readonly property string detail: (displayName === connector ? "" : connector + " • ") + (isDdc ? "DDC" : "internal")
         readonly property var ddcInfo: root.ddcMonitorMap[monitor.connector] ?? null
         readonly property bool isDdc: ddcInfo !== null
-        readonly property bool isInternal: ddcInfo === null
-            && /^(edp|lvds|dsi)/i.test(monitor.connector)
-            && root.backlightDevice !== ""
+        readonly property bool isInternal: ddcInfo === null && /^(edp|lvds|dsi)/i.test(monitor.connector) && root.backlightDevice !== ""
         readonly property bool supported: isDdc || isInternal
         readonly property string busNum: ddcInfo ? String(ddcInfo.busNum) : ""
 

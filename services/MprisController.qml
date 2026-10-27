@@ -198,8 +198,7 @@ Singleton {
     function setShuffle(shuffle) {
         if (this.shuffleSupported) {
             this.activePlayer.shuffle = shuffle;
-            Osd.showMedia(shuffle ? "media-playlist-shuffle-symbolic" : "media-playlist-repeat-symbolic",
-                          shuffle ? "Shuffle On" : "Shuffle Off");
+            Osd.showMedia(shuffle ? "media-playlist-shuffle-symbolic" : "media-playlist-repeat-symbolic", shuffle ? "Shuffle On" : "Shuffle Off");
         }
     }
 

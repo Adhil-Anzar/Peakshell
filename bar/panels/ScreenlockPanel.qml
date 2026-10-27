@@ -351,7 +351,7 @@ Scope {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: Qt.formatDateTime(Time.date, "hh:mm")
+                        text: Qt.formatDateTime(Time.date, "hh:mm AP")
                         color: Theme.fgColor
                         font.family: Theme.labelFontFamily
                         font.pixelSize: Math.max(48, Math.min(96, lockWindow.height * 0.065))

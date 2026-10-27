@@ -81,16 +81,16 @@ PanelWindow {
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
-                entryKey: key
-                summary: entry !== null ? entry.notif.summary : ""
-                body: entry !== null ? entry.notif.body : ""
-                appName: entry !== null ? entry.notif.appName : ""
-                appIcon: entry !== null ? entry.notif.appIcon : ""
-                image: entry !== null ? entry.notif.image : ""
-                urgency: entry !== null ? entry.notif.urgency : 1
-                time: entry !== null ? entry.time : new Date()
-                actions: entry !== null ? entry.notif.actions : []
-                popupMode: true
+                    entryKey: key
+                    summary: entry !== null ? entry.notif.summary : ""
+                    body: entry !== null ? entry.notif.body : ""
+                    appName: entry !== null ? entry.notif.appName : ""
+                    appIcon: entry !== null ? entry.notif.appIcon : ""
+                    image: entry !== null ? entry.notif.image : ""
+                    urgency: entry !== null ? entry.notif.urgency : 1
+                    time: entry !== null ? entry.time : new Date()
+                    actions: entry !== null ? entry.notif.actions : []
+                    popupMode: true
                 }
             }
         }

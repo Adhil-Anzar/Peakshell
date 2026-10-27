@@ -11,15 +11,23 @@ PanelWindow {
     property point targetPos: Qt.point(0, 0)
 
     function refreshPos() {
-        targetPos = container.mapToItem(null, 0, 0)
+        targetPos = container.mapToItem(null, 0, 0);
     }
 
     Connections {
         target: container
-        function onXChanged() { panel.refreshPos() }
-        function onYChanged() { panel.refreshPos() }
-        function onWidthChanged() { panel.refreshPos() }
-        function onHeightChanged() { panel.refreshPos() }
+        function onXChanged() {
+            panel.refreshPos();
+        }
+        function onYChanged() {
+            panel.refreshPos();
+        }
+        function onWidthChanged() {
+            panel.refreshPos();
+        }
+        function onHeightChanged() {
+            panel.refreshPos();
+        }
     }
 
     visible: expanded
@@ -48,11 +56,31 @@ PanelWindow {
         height: expanded ? Theme.workspacePanelHeight : container.height
         width: expanded ? Theme.workspacePanelWidth : container.width
         opacity: expanded ? 1 : 0
-        Behavior on y { Anim { type: Anim.DefaultSpatial } }
-        Behavior on x { Anim { type: Anim.DefaultSpatial } }
-        Behavior on width { Anim { type: Anim.DefaultSpatial } }
-        Behavior on height { Anim { type: Anim.DefaultSpatial } }
-        Behavior on opacity { Anim { type: Anim.DefaultEffects } }
+        Behavior on y {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+        Behavior on x {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+        Behavior on width {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+        Behavior on height {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
         sourceComponent: panel.displayContent
     }
 }
