@@ -446,7 +446,7 @@ Scope {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: lockScope.username
-                        color: Theme.fgColor
+                        color: Theme.mutedFgColor
                         font.family: Theme.labelFontFamily
                         font.pointSize: Theme.labelFontSize * 1.35
                         font.bold: true
@@ -467,25 +467,25 @@ Scope {
                             id: passwordFrame
 
                             Layout.preferredWidth: 300
-                            Layout.preferredHeight: 44
+                            Layout.preferredHeight: 30
                             radius: Theme.cornerRadius
 
                             color: pwdInput.activeFocus ? Theme.hoveredBgColor : Theme.mutedBgColor
-                            border.width: Theme.generalThickness
-                            border.color: {
-                                if (lockScope.authError !== "")
-                                    return Theme.dangerPulse;
-                                if (pwdInput.activeFocus)
-                                    return Theme.accent;
-                                return Theme.mutedAccent;
-                            }
+                            border.width: 0
+                            // border.color: {
+                            //     if (lockScope.authError !== "")
+                            //         return Theme.dangerPulse;
+                            //     if (pwdInput.activeFocus)
+                            //         return Theme.accent;
+                            //     return Theme.mutedAccent;
+                            // }
 
                             Behavior on color {
                                 CAnim {}
                             }
-                            Behavior on border.color {
-                                CAnim {}
-                            }
+                            // Behavior on border.color {
+                            //     CAnim {}
+                            // }
 
                             Item {
                                 anchors.fill: parent
@@ -497,12 +497,12 @@ Scope {
                                     anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     implicitSize: 18
-                                    source: Quickshell.iconPath("dialog-password", "system-lock-screen")
+                                    source: Quickshell.iconPath("dialog-password-panel", "system-lock-screen")
                                     layer.enabled: true
                                     layer.effect: MultiEffect {
                                         colorization: 1.0
                                         brightness: 1.0
-                                        colorizationColor: Theme.mutedFgColor
+                                        colorizationColor: Theme.mutedBgColor
                                     }
                                 }
 
@@ -517,7 +517,7 @@ Scope {
                                     anchors.rightMargin: 12
 
                                     color: Theme.fgColor
-                                    selectionColor: Theme.accent
+                                    selectionColor: Theme.mutedFgColor
                                     selectedTextColor: Theme.bgColor
                                     echoMode: TextInput.Password
                                     passwordCharacter: "●"
@@ -572,10 +572,10 @@ Scope {
                         Rectangle {
                             id: loginButton
 
-                            Layout.preferredWidth: 44
-                            Layout.preferredHeight: 44
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
                             radius: Theme.cornerRadius
-                            color: Theme.accent
+                            color: Theme.hoveredBgColor
                             opacity: loginButtonMouse.pressed ? 0.8 : 1.0
                             scale: loginButtonMouse.pressed ? 0.94 : (loginButtonMouse.containsMouse ? 1.04 : 1.0)
 
@@ -592,13 +592,13 @@ Scope {
 
                             IconImage {
                                 anchors.centerIn: parent
-                                implicitSize: 20
+                                implicitSize: 16
                                 source: Quickshell.iconPath("go-next", "arrow-right")
                                 layer.enabled: true
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
                                     brightness: 1.0
-                                    colorizationColor: Theme.bgColor
+                                    colorizationColor: Theme.mutedBgColor
                                 }
                             }
 
@@ -639,7 +639,7 @@ Scope {
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
                                     brightness: 1.0
-                                    colorizationColor: Theme.accent
+                                    colorizationColor: Theme.mutedFgColor
                                 }
                             }
 
