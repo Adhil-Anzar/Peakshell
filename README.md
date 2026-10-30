@@ -81,6 +81,20 @@ peakshell ipc call osd segments 2 5 "Workspace" "view-grid"
 timeout, bottom margin and output monitor can be changed in
 **Settings → OSD**.
 
+### System monitor overlay
+
+The bar can show a compact CPU / GPU / RAM readout in the top-left corner:
+
+```bash
+peakshell ipc call ii1qe overlay
+```
+
+The toggle, panel background, border and the enabled metrics (per component)
+and their order are configured in **Settings → Overlay**. Values are always
+shown; the display mode only chooses how each component is identified: *icon and
+text*, *text only* (component name) or *icon only*. In icon-only mode the icon is
+tinted by the worst status of its enabled metrics.
+
 `peakshell` is a wrapper around `quickshell -p <config-dir>`.
 Every argument after `peakshell` is forwarded to quickshell,
 so all quickshell subcommands and flags are available.

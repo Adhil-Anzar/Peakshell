@@ -117,6 +117,11 @@ QtObject {
     property real osdBottomMargin: Settings.osdBottomMargin
     property string osdMonitor: Settings.osdMonitor
 
+    // System monitor overlay
+    property bool overlayBackground: Settings.overlayBackground
+    property bool overlayBorder: Settings.overlayBorder
+    property string overlayDisplayMode: Settings.overlayDisplayMode
+
     // Bar module visibility
     property bool moduleMediaPlayer: Settings.moduleMediaPlayer
     property bool moduleNotifications: Settings.moduleNotifications

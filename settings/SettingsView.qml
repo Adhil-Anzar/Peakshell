@@ -21,6 +21,7 @@ Item {
         { label: "Clipboard", icon: "edit-paste", fallback: "edit-copy" },
         { label: "Notifications", icon: "notification-active", fallback: "dialog-information" },
         { label: "OSD", icon: "video-display", fallback: "preferences-desktop-display" },
+        { label: "Overlay", icon: "utilities-system-monitor", fallback: "system-monitor" },
         { label: "Modules", icon: "preferences-plugin", fallback: "applications-utilities" }
     ]
 
@@ -151,9 +152,13 @@ Item {
                         Layout.fillWidth: true
                         visible: root.currentPage === 7
                     }
-                    ModulesPage {
+                    OverlayPage {
                         Layout.fillWidth: true
                         visible: root.currentPage === 8
+                    }
+                    ModulesPage {
+                        Layout.fillWidth: true
+                        visible: root.currentPage === 9
                     }
                 }
                 ScrollBar.vertical: ScrollBar {}

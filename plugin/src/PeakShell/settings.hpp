@@ -101,6 +101,20 @@ class Settings : public QObject {
     Q_PROPERTY(double osdBottomMargin READ osdBottomMargin WRITE setOsdBottomMargin NOTIFY osdBottomMarginChanged)
     Q_PROPERTY(QString osdMonitor READ osdMonitor WRITE setOsdMonitor NOTIFY osdMonitorChanged)
 
+    // System monitor overlay
+    Q_PROPERTY(bool overlayBackground READ overlayBackground WRITE setOverlayBackground NOTIFY overlayBackgroundChanged)
+    Q_PROPERTY(bool overlayBorder READ overlayBorder WRITE setOverlayBorder NOTIFY overlayBorderChanged)
+    Q_PROPERTY(QString overlayDisplayMode READ overlayDisplayMode WRITE setOverlayDisplayMode NOTIFY overlayDisplayModeChanged)
+    Q_PROPERTY(QString overlayOrder READ overlayOrder WRITE setOverlayOrder NOTIFY overlayOrderChanged)
+    Q_PROPERTY(bool overlayCpuEnabled READ overlayCpuEnabled WRITE setOverlayCpuEnabled NOTIFY overlayCpuEnabledChanged)
+    Q_PROPERTY(bool overlayCpuLoad READ overlayCpuLoad WRITE setOverlayCpuLoad NOTIFY overlayCpuLoadChanged)
+    Q_PROPERTY(bool overlayCpuTemp READ overlayCpuTemp WRITE setOverlayCpuTemp NOTIFY overlayCpuTempChanged)
+    Q_PROPERTY(bool overlayGpuEnabled READ overlayGpuEnabled WRITE setOverlayGpuEnabled NOTIFY overlayGpuEnabledChanged)
+    Q_PROPERTY(bool overlayGpuLoad READ overlayGpuLoad WRITE setOverlayGpuLoad NOTIFY overlayGpuLoadChanged)
+    Q_PROPERTY(bool overlayGpuTemp READ overlayGpuTemp WRITE setOverlayGpuTemp NOTIFY overlayGpuTempChanged)
+    Q_PROPERTY(bool overlayRamEnabled READ overlayRamEnabled WRITE setOverlayRamEnabled NOTIFY overlayRamEnabledChanged)
+    Q_PROPERTY(bool overlayRamUsage READ overlayRamUsage WRITE setOverlayRamUsage NOTIFY overlayRamUsageChanged)
+
     Q_PROPERTY(bool launcherWebSearch READ launcherWebSearch WRITE setLauncherWebSearch NOTIFY launcherWebSearchChanged)
     Q_PROPERTY(bool launcherCalc READ launcherCalc WRITE setLauncherCalc NOTIFY launcherCalcChanged)
     Q_PROPERTY(bool launcherFuzzy READ launcherFuzzy WRITE setLauncherFuzzy NOTIFY launcherFuzzyChanged)
@@ -302,6 +316,31 @@ public:
     void setOsdBottomMargin(double v);
     void setOsdMonitor(const QString& v);
 
+    bool overlayBackground() const;
+    bool overlayBorder() const;
+    QString overlayDisplayMode() const;
+    QString overlayOrder() const;
+    bool overlayCpuEnabled() const;
+    bool overlayCpuLoad() const;
+    bool overlayCpuTemp() const;
+    bool overlayGpuEnabled() const;
+    bool overlayGpuLoad() const;
+    bool overlayGpuTemp() const;
+    bool overlayRamEnabled() const;
+    bool overlayRamUsage() const;
+    void setOverlayBackground(bool v);
+    void setOverlayBorder(bool v);
+    void setOverlayDisplayMode(const QString& v);
+    void setOverlayOrder(const QString& v);
+    void setOverlayCpuEnabled(bool v);
+    void setOverlayCpuLoad(bool v);
+    void setOverlayCpuTemp(bool v);
+    void setOverlayGpuEnabled(bool v);
+    void setOverlayGpuLoad(bool v);
+    void setOverlayGpuTemp(bool v);
+    void setOverlayRamEnabled(bool v);
+    void setOverlayRamUsage(bool v);
+
     bool launcherWebSearch() const;
     bool launcherCalc() const;
     bool launcherFuzzy() const;
@@ -370,6 +409,7 @@ public:
     Q_INVOKABLE void resetClipboard();
     Q_INVOKABLE void resetNotifications();
     Q_INVOKABLE void resetOsd();
+    Q_INVOKABLE void resetOverlay();
     Q_INVOKABLE void resetModules();
     Q_INVOKABLE void resync();
 
@@ -472,6 +512,18 @@ signals:
     void osdDurationChanged();
     void osdBottomMarginChanged();
     void osdMonitorChanged();
+    void overlayBackgroundChanged();
+    void overlayBorderChanged();
+    void overlayDisplayModeChanged();
+    void overlayOrderChanged();
+    void overlayCpuEnabledChanged();
+    void overlayCpuLoadChanged();
+    void overlayCpuTempChanged();
+    void overlayGpuEnabledChanged();
+    void overlayGpuLoadChanged();
+    void overlayGpuTempChanged();
+    void overlayRamEnabledChanged();
+    void overlayRamUsageChanged();
     void launcherWebSearchChanged();
     void launcherCalcChanged();
     void launcherFuzzyChanged();

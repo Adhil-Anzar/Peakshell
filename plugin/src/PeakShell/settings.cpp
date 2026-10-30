@@ -152,6 +152,14 @@ void Settings::setBool(const QString& key, bool v, bool def) {
         emit NAME##Changed(); \
     }
 
+#define PS_BOOL(NAME, SETTER, KEY, DEF) \
+    bool Settings::NAME() const { return getBool(QStringLiteral(KEY), DEF); } \
+    void Settings::set##SETTER(bool v) { \
+        if (NAME() == v) return; \
+        setBool(QStringLiteral(KEY), v, DEF); \
+        emit NAME##Changed(); \
+    }
+
 PS_STR(panelBg, PanelBg, "theme/panelBg", "transparent")
 PS_STR(bgColor, BgColor, "theme/bgColor", "#77000000")
 PS_STR(bgColorFilled, BgColorFilled, "theme/bgColorFilled", "#FF000000")
@@ -248,6 +256,19 @@ PS_INT(lowPowerThreshold, LowPowerThreshold, "theme/lowPowerThreshold", 20)
 PS_INT(osdDuration, OsdDuration, "osd/duration", 1000)
 PS_DBL(osdBottomMargin, OsdBottomMargin, "osd/bottomMargin", 15)
 PS_STR(osdMonitor, OsdMonitor, "osd/monitor", "")
+
+PS_BOOL(overlayBackground, OverlayBackground, "overlay/background", true)
+PS_BOOL(overlayBorder, OverlayBorder, "overlay/border", true)
+PS_STR(overlayDisplayMode, OverlayDisplayMode, "overlay/displayMode", "iconText")
+PS_STR(overlayOrder, OverlayOrder, "overlay/order", "cpu,gpu,ram")
+PS_BOOL(overlayCpuEnabled, OverlayCpuEnabled, "overlay/cpuEnabled", true)
+PS_BOOL(overlayCpuLoad, OverlayCpuLoad, "overlay/cpuLoad", true)
+PS_BOOL(overlayCpuTemp, OverlayCpuTemp, "overlay/cpuTemp", true)
+PS_BOOL(overlayGpuEnabled, OverlayGpuEnabled, "overlay/gpuEnabled", true)
+PS_BOOL(overlayGpuLoad, OverlayGpuLoad, "overlay/gpuLoad", true)
+PS_BOOL(overlayGpuTemp, OverlayGpuTemp, "overlay/gpuTemp", true)
+PS_BOOL(overlayRamEnabled, OverlayRamEnabled, "overlay/ramEnabled", true)
+PS_BOOL(overlayRamUsage, OverlayRamUsage, "overlay/ramUsage", true)
 
 bool Settings::launcherWebSearch() const { return getBool(u"launcher/webSearch"_s, true); }
 bool Settings::launcherCalc() const { return getBool(u"launcher/calc"_s, true); }
@@ -676,6 +697,35 @@ void Settings::resetOsd() {
     emit osdDurationChanged();
     emit osdBottomMarginChanged();
     emit osdMonitorChanged();
+}
+
+void Settings::resetOverlay() {
+    removeKeys({
+        u"overlay/background"_s,
+        u"overlay/border"_s,
+        u"overlay/displayMode"_s,
+        u"overlay/order"_s,
+        u"overlay/cpuEnabled"_s,
+        u"overlay/cpuLoad"_s,
+        u"overlay/cpuTemp"_s,
+        u"overlay/gpuEnabled"_s,
+        u"overlay/gpuLoad"_s,
+        u"overlay/gpuTemp"_s,
+        u"overlay/ramEnabled"_s,
+        u"overlay/ramUsage"_s,
+    });
+    emit overlayBackgroundChanged();
+    emit overlayBorderChanged();
+    emit overlayDisplayModeChanged();
+    emit overlayOrderChanged();
+    emit overlayCpuEnabledChanged();
+    emit overlayCpuLoadChanged();
+    emit overlayCpuTempChanged();
+    emit overlayGpuEnabledChanged();
+    emit overlayGpuLoadChanged();
+    emit overlayGpuTempChanged();
+    emit overlayRamEnabledChanged();
+    emit overlayRamUsageChanged();
 }
 
 void Settings::resetModules() {

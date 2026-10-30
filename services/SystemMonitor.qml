@@ -16,6 +16,7 @@ Singleton {
     // CPU/GPU metrics come from the native C++ SystemMonitor singleton.
     readonly property int cpuLoad: SystemMonitor.cpuLoad
     readonly property int cpuTemp: SystemMonitor.cpuTemp
+    readonly property int gpuLoad: SystemMonitor.gpuLoad
     readonly property int gpuTemp: SystemMonitor.gpuTemp
     readonly property int memUsage: SystemMonitor.memUsage
 
