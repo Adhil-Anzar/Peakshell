@@ -11,11 +11,6 @@ Rectangle {
     required property var panelHost
     visible: Theme.moduleSysTray && SystemTray.items.values.length !== 0
     width: container.width + Theme.cornerRadius
-    Behavior on width {
-        Anim {
-            type: Anim.DefaultSpatial
-        }
-    }
     color: Theme.bgColor
     border.color: Theme.accent
     border.width: Theme.generalThickness
@@ -28,8 +23,6 @@ Rectangle {
         height: root.height
         spacing: 4
         Repeater {
-            height: root.height
-            width: this.height
             model: SystemTray.items
             delegate: TrayItem {
                 panelHost: root.panelHost

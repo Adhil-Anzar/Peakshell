@@ -8,28 +8,42 @@ import Quickshell.Services.SystemTray
 import "root:/"
 import "root:/components"
 
-PanelWindow {
+PopupWindow {
     id: root
 
     property var panelHost
-    //screen: panelHost ? panelHost.screen : null
+    property real anchorX: 0
+    property real anchorY: 0
     property real barOffset: 0
     property QsMenuHandle targetMenu: null
     property string menuTitle: ""
+    property bool wasHovered: false
 
-    function openMenu(menuHandle, title, offset) {
+    implicitWidth: menuContainer.width
+    implicitHeight: menuContainer.height
+    visible: false
+    color: "transparent"
+    grabFocus: true
+
+    anchor.window: panelHost
+    anchor.rect.x: anchorX
+    anchor.rect.y: anchorY
+    anchor.edges: Edges.Top | Edges.Left
+    anchor.gravity: Edges.Bottom | Edges.Right
+    anchor.adjustment: PopupAdjustment.All
+
+    function openMenu(menuHandle, title, x, y) {
         if (!menuHandle)
             return;
         panelHost.hideAllPanelExcept("traymenu");
         targetMenu = menuHandle;
         menuTitle = title || "";
-        barOffset = offset || 0;
-
-        // Reset stack view to root menu
-        while (stackView.depth > 1) {
+        anchorX = x;
+        anchorY = y;
+        while (stackView.depth > 1)
             stackView.pop();
-        }
-
+        wasHovered = false;
+        closeTimer.stop();
         visible = true;
         if (panelHost.toggledPanels)
             panelHost.toggledPanels["traymenu"] = root;
@@ -40,38 +54,15 @@ PanelWindow {
         if (panelHost.toggledPanels)
             panelHost.toggledPanels["traymenu"] = false;
     }
-
-    visible: false
-    focusable: true
-    color: "transparent"
-
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
-
-    // Dismiss on clicking outside
-    MouseArea {
-        anchors.fill: parent
-        onClicked: root.closeMenu()
-    }
-
     FocusScope {
         anchors.fill: parent
         focus: root.visible
-
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                if (stackView.depth > 1) {
+                if (stackView.depth > 1)
                     stackView.pop();
-                } else {
+                else
                     root.closeMenu();
-                }
                 event.accepted = true;
             }
         }
@@ -80,7 +71,7 @@ PanelWindow {
     Item {
         id: menuContainer
         readonly property real maxOffset: root.width > 0 ? (root.width - Theme.trayMenuWidth - Theme.barHorizontalPad) : root.barOffset
-        x: Math.max(Theme.barHorizontalPad, Math.min(root.barOffset, maxOffset))
+        //x: Math.max(Theme.barHorizontalPad, Math.min(root.barOffset, maxOffset))
         y: 0
         width: Theme.trayMenuWidth
         height: stackView.implicitHeight
@@ -99,7 +90,33 @@ PanelWindow {
                 type: Anim.DefaultSpatial
             }
         }
+        Behavior on height {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
 
+        Behavior on width {
+            Anim {
+                type: Anim.DefaultSpatial
+            }
+        }
+        Timer {
+            id: closeTimer
+            interval: 250
+            onTriggered: root.closeMenu()
+        }
+
+        HoverHandler {
+            onHoveredChanged: {
+                if (hovered) {
+                    closeTimer.stop();
+                    root.wasHovered = true;
+                } else if (root.wasHovered) {
+                    closeTimer.restart();
+                }
+            }
+        }
         Rectangle {
             anchors.fill: parent
             color: Theme.bgColor
@@ -324,8 +341,17 @@ PanelWindow {
                         IconImage {
                             Layout.alignment: Qt.AlignVCenter
                             implicitSize: 18
-                            source: entryItem.modelData.icon ? Quickshell.iconPath(entryItem.modelData.icon) : ""
-                            visible: entryItem.modelData.icon !== ""
+                            visible: !!entryItem.modelData.icon
+                            source: {
+                                const icon = entryItem.modelData.icon;
+                                if (!icon)
+                                    return "";
+                                // Already a URL (image://, file://, qrc:/ ...), use as-is
+                                if (icon.includes("://") || icon.startsWith("/"))
+                                    return icon;
+                                // Otherwise treat it as a theme icon name
+                                return Quickshell.iconPath(icon, true);
+                            }
                         }
 
                         Text {

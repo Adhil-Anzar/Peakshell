@@ -11,23 +11,52 @@ Rectangle {
     required property var panelHost
     property var menuLoader: null
 
-    function toggleMenu() {
+    // Returns the loaded menu popup, or null if unavailable
+    function getMenu() {
         if (!modelData.hasMenu || !menuLoader)
-            return;
+            return null;
         menuLoader.active = true;
-        const menu = menuLoader.item;
+        return menuLoader.item;
+    }
+
+    function isMenuOpen(menu) {
+        return menu.visible && menu.targetMenu === modelData.menu;
+    }
+
+    function showMenu(menu) {
+        // Position relative to the bar window, just below this icon
+        const p = mapToItem(panelHost.contentItem, 0, 0);
+        menu.openMenu(modelData.menu, modelData.title || modelData.id, p.x, p.y + height + 4);
+    }
+
+    function toggleMenu() {
+        const menu = getMenu();
         if (!menu)
             return;
 
-        if (menu.visible && menu.targetMenu === modelData.menu) {
+        if (isMenuOpen(menu))
             menu.closeMenu();
-        } else {
-            const p = panelHost ? mapToItem(panelHost.contentItem, 0, 0) : mapToGlobal(0, 0);
-            const offsetX = panelHost ? (p.x + Theme.barHorizontalPad) : p.x;
-            menu.openMenu(modelData.menu, modelData.title || modelData.id, offsetX);
-        }
+        else
+            showMenu(menu);
     }
 
+    function openMenu() {
+        const menu = getMenu();
+        if (!menu)
+            return;
+
+        if (!isMenuOpen(menu))
+            showMenu(menu);
+    }
+
+    function closeMenu() {
+        const menu = getMenu();
+        if (!menu)
+            return;
+
+        if (isMenuOpen(menu))
+            menu.closeMenu();
+    }
     height: parent.height
     width: this.height
     radius: Theme.cornerRadius
@@ -42,10 +71,7 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onEntered: {
-            hoverDebounce.isDelaying = true;
-            hoverDebounce.restart();
-        }
+        onEntered: openMenu()
         onClicked: function (mouse) {
             if (mouse.button === Qt.RightButton) {
                 if (modelData.hasMenu && menuLoader) {
@@ -70,21 +96,15 @@ Rectangle {
             }
         }
         onWheel: wheel => {
-            modelData.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
+            if (wheel.angleDelta.y !== 0)
+                modelData.scroll(wheel.angleDelta.y, false);
+            if (wheel.angleDelta.x !== 0)
+                modelData.scroll(wheel.angleDelta.x, true);
         }
-    }
-    Timer {
-        id: hoverDebounce
-        property bool isDelaying: false
-        interval: Theme.hoverDuration
-        repeat: false
-        running: !mouseArea.containsMouse && isDelaying
-
-        onTriggered: isDelaying = false
     }
     IconImage {
         anchors.centerIn: parent
         implicitSize: Theme.iconFontSize
-        source: modelData.icon
+        source: modelData.icon || Quickshell.iconPath("application-x-executable", true)
     }
 }
