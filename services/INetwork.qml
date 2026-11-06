@@ -120,9 +120,13 @@ Singleton {
         return "network-wireless-" + percent + securityStr;
     }
     function connectKnownWifi(network) {
-        const settings = network.nmSettings.values;
-        for (let i = 0; i < settings.length; ++i)
-            network.connectWithSettings(settings[i]);
+        if (!network)
+            return;
+        // `nmSettings` is a plain QML list, not an ObjectModel, so it has no
+        // `.values`. Connecting without explicit settings makes the backend
+        // activate the saved profile that was used last, instead of starting a
+        // separate activation for every profile the network has.
+        network.connect();
     }
     function setScan(enabled) {
         if (wifiDevice)

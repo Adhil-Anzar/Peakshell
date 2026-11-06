@@ -23,7 +23,7 @@ PopupWindow {
     implicitHeight: menuContainer.height
     visible: false
     color: "transparent"
-    grabFocus: true
+    grabFocus: false
 
     anchor.window: panelHost
     anchor.rect.x: anchorX

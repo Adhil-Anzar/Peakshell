@@ -13,14 +13,18 @@ import "root:/services"
 // given" behaviour.
 PanelWindow {
     id: root
-    required property ShellScreen screen
 
     readonly property color fg: Theme.fgColor
     readonly property color bg: Theme.bgColorFilled
     readonly property color accent: Theme.accent
     readonly property color trackColor: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.12)
+    // Use the `screen` property inherited from PanelWindow. Declaring another
+    // `screen` property on this root would shadow it, so the QML side would
+    // see the right monitor while the native layer surface stayed on the
+    // compositor's default output.
+    readonly property bool active: Osd.visible && (Osd.monitor === "" || Osd.monitor === screen.name)
 
-    visible: Osd.visible && (Osd.monitor === "" || Osd.monitor === screen.name)
+    visible: root.active
     focusable: false
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -45,7 +49,7 @@ PanelWindow {
         id: pill
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        width: Math.max(10, root.visible ? content.implicitWidth + 28 : 0)
+        width: Math.max(10, root.active ? content.implicitWidth + 28 : 0)
         height: content.implicitHeight + 20
         radius: 18
         color: Qt.rgba(root.bg.r, root.bg.g, root.bg.b, 0.80)

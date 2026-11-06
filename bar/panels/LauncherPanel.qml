@@ -1534,12 +1534,20 @@ PanelWindow {
                                 }
                                 spacing: 14
 
-                                IconImage {
+                                ClippingRectangle {
                                     Layout.alignment: Qt.AlignVCenter
-                                    implicitSize: Theme.launcherIconSize
-                                    source: Quickshell.iconPath(del.field("icon") || "application-x-executable", "application-x-executable")
-                                    smooth: true
-                                    mipmap: true
+                                    implicitWidth: Theme.launcherIconSize
+                                    implicitHeight: Theme.launcherIconSize
+                                    radius: Theme.cornerRadius / 2
+                                    color: "transparent"
+
+                                    IconImage {
+                                        anchors.fill: parent
+                                        implicitSize: Theme.launcherIconSize
+                                        source: Quickshell.iconPath(del.field("icon") || "application-x-executable", "application-x-executable")
+                                        smooth: true
+                                        mipmap: true
+                                    }
                                 }
 
                                 Column {
